@@ -1,0 +1,96 @@
+/********************************************************
+*
+* Name: DM_PAYMT_INFO_PROC
+* Created by: DT, 4/13/2016
+* Revision: 1.0
+* Description: This is the template for bulk read/write
+*              DM_PAYMT_INFO
+*
+********************************************************/
+
+set serveroutput on
+set verify on
+set echo on
+
+CREATE OR REPLACE PROCEDURE DM_PAYMT_INFO_PROC IS
+
+TYPE DM_PAYMT_INFO_TYP IS TABLE OF DM_PAYMT_INFO%ROWTYPE 
+     INDEX BY BINARY_INTEGER;
+DM_PAYMT_INFO_tab DM_PAYMT_INFO_TYP;
+
+
+P_ARRAY_SIZE NUMBER:=10000;
+
+
+CURSOR C1 IS SELECT 
+    NULL ACCOUNT_NUMBER
+    ,NULL TX_DT
+    ,NULL PAY_TYPE
+    ,NULL TRAN_TYPE
+    ,NULL AMOUNT
+    ,NULL REVERSED
+    ,NULL EXP_MONTH
+    ,NULL EXP_YEAR
+    ,NULL CREDIT_CARD_NUMBER
+    ,NULL BANK_ACCOUNT_NUMBER
+    ,NULL BANK_ROUTING_NUMBER
+    ,NULL CHECK_NUMBER
+    ,NULL NSF_FEE
+    ,NULL PAYMENT_REFERENCE_NUM
+    ,NULL EMPLOYEE_NUMBER
+    ,NULL TRANSACTION_ID
+    ,NULL ORG_TRANSACTION_ID
+    ,NULL XREF_TRANSACTION_ID
+    ,NULL CC_RESPONSE_CODE
+    ,NULL EXTERNAL_REFERENCE_NUM
+    ,NULL MISS_APPLIED
+    ,NULL DESCRIPTION
+    ,NULL REFUND_STATUS
+    ,NULL REFUND_CHECK_NUM
+    ,NULL TOD_ID
+    ,NULL CREATED
+    ,NULL CREATED_BY
+    ,NULL LAST_UPD
+    ,NULL LAST_UPD_BY
+    ,NULL SOURCE_SYSTEM
+    ,NULL CC_GATEWAY_REQ_ID
+    ,NULL CC_TXN_REF_NUM
+FROM FTE_TABLE; /*Change FTE_TABLE to the actual table name*/
+
+BEGIN
+ 
+  OPEN C1;  
+
+  LOOP
+
+    /*Bulk select */
+    FETCH C1 BULK COLLECT INTO DM_PAYMT_INFO_tab
+    LIMIT P_ARRAY_SIZE;
+    EXIT WHEN C1%NOTFOUND;
+
+    /*ETL SECTION BEGIN
+
+      ETL SECTION END*/
+
+    /*Bulk insert */ 
+    FORALL i in DM_PAYMT_INFO_tab.first .. DM_PAYMT_INFO_tab.last
+           INSERT INTO DM_PAYMT_INFO VALUES DM_PAYMT_INFO_tab(i);
+                       
+
+  END LOOP;
+
+  COMMIT;
+
+  CLOSE C1;
+
+  COMMIT;
+
+  EXCEPTION
+  WHEN OTHERS THEN
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
+END;
+/
+SHOW ERRORS
+
+

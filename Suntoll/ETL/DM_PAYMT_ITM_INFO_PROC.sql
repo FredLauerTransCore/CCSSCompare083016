@@ -1,0 +1,82 @@
+/********************************************************
+*
+* Name: DM_PAYMT_ITM_INFO_PROC
+* Created by: DT, 4/13/2016
+* Revision: 1.0
+* Description: This is the template for bulk read/write
+*              DM_PAYMT_ITM_INFO
+*
+********************************************************/
+
+set serveroutput on
+set verify on
+set echo on
+
+CREATE OR REPLACE PROCEDURE DM_PAYMT_ITM_INFO_PROC IS
+
+TYPE DM_PAYMT_ITM_INFO_TYP IS TABLE OF DM_PAYMT_ITM_INFO%ROWTYPE 
+     INDEX BY BINARY_INTEGER;
+DM_PAYMT_ITM_INFO_tab DM_PAYMT_ITM_INFO_TYP;
+
+
+P_ARRAY_SIZE NUMBER:=10000;
+
+
+CURSOR C1 IS SELECT 
+    NULL CATEGORY
+    ,NULL SUB_CATEGORY
+    ,NULL TRANS_TYPE
+    ,NULL AMOUNT
+    ,NULL ENDO_AGENCY
+    ,NULL REVENUE_AGENCY
+    ,NULL DESCRIPTION
+    ,NULL TRANSFER_REASON
+    ,NULL NOTICE_NUMBER
+    ,NULL SEQUENCE_NUMBER
+    ,NULL PARENT_PAYMENT_ID
+    ,NULL CREATED
+    ,NULL CREATED_BY
+    ,NULL LAST_UPD
+    ,NULL LAST_UPD_BY
+    ,NULL INVOICE_NUM
+    ,NULL INVOICE_REF_ID
+    ,NULL SOURCE_SYSTEM
+FROM FTE_TABLE; /*Change FTE_TABLE to the actual table name*/
+
+BEGIN
+ 
+  OPEN C1;  
+
+  LOOP
+
+    /*Bulk select */
+    FETCH C1 BULK COLLECT INTO DM_PAYMT_ITM_INFO_tab
+    LIMIT P_ARRAY_SIZE;
+    EXIT WHEN C1%NOTFOUND;
+
+    /*ETL SECTION BEGIN
+
+      ETL SECTION END*/
+
+    /*Bulk insert */ 
+    FORALL i in DM_PAYMT_ITM_INFO_tab.first .. DM_PAYMT_ITM_INFO_tab.last
+           INSERT INTO DM_PAYMT_ITM_INFO VALUES DM_PAYMT_ITM_INFO_tab(i);
+                       
+
+  END LOOP;
+
+  COMMIT;
+
+  CLOSE C1;
+
+  COMMIT;
+
+  EXCEPTION
+  WHEN OTHERS THEN
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
+END;
+/
+SHOW ERRORS
+
+

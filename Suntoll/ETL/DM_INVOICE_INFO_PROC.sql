@@ -1,0 +1,89 @@
+/********************************************************
+*
+* Name: DM_INVOICE_INFO_PROC
+* Created by: DT, 4/13/2016
+* Revision: 1.0
+* Description: This is the template for bulk read/write
+*              DM_INVOICE_INFO
+*
+********************************************************/
+
+set serveroutput on
+set verify on
+set echo on
+
+CREATE OR REPLACE PROCEDURE DM_INVOICE_INFO_PROC IS
+
+TYPE DM_INVOICE_INFO_TYP IS TABLE OF DM_INVOICE_INFO%ROWTYPE 
+     INDEX BY BINARY_INTEGER;
+DM_INVOICE_INFO_tab DM_INVOICE_INFO_TYP;
+
+
+P_ARRAY_SIZE NUMBER:=10000;
+
+
+CURSOR C1 IS SELECT 
+    NULL ACCOUNT_NUMBER
+    ,NULL INVOICE_NUMBER
+    ,NULL INVOICE_DATE
+    ,NULL STATUS
+    ,NULL ESCALATION_LEVEL
+    ,NULL START_DATE
+    ,NULL END_DATE
+    ,NULL OPENING_BALANCE
+    ,NULL CLOSING_BALANCE
+    ,NULL CREDITS
+    ,NULL PAYABALE
+    ,NULL INVOICE_AMT
+    ,NULL PAYMENTS
+    ,NULL ADJUSTMENTS
+    ,NULL IS_ESCALATION_EXMPT
+    ,NULL PAYMENT_DUE_DT
+    ,NULL DISCOUNT_ELIGIBLE_CHARGES
+    ,NULL DISCOUNTS
+    ,NULL MILEGE
+    ,NULL INVOICE_TYPE
+    ,NULL CREATED
+    ,NULL CREATED_BY
+    ,NULL LAST_UPD
+    ,NULL LAST_UPD_BY
+    ,NULL SOURCE_SYSTEM
+FROM FTE_TABLE; /*Change FTE_TABLE to the actual table name*/
+
+BEGIN
+ 
+  OPEN C1;  
+
+  LOOP
+
+    /*Bulk select */
+    FETCH C1 BULK COLLECT INTO DM_INVOICE_INFO_tab
+    LIMIT P_ARRAY_SIZE;
+    EXIT WHEN C1%NOTFOUND;
+
+    /*ETL SECTION BEGIN
+
+      ETL SECTION END*/
+
+    /*Bulk insert */ 
+    FORALL i in DM_INVOICE_INFO_tab.first .. DM_INVOICE_INFO_tab.last
+           INSERT INTO DM_INVOICE_INFO VALUES DM_INVOICE_INFO_tab(i);
+                       
+
+  END LOOP;
+
+  COMMIT;
+
+  CLOSE C1;
+
+  COMMIT;
+
+  EXCEPTION
+  WHEN OTHERS THEN
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
+END;
+/
+SHOW ERRORS
+
+
