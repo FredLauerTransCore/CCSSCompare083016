@@ -49,7 +49,7 @@ BEGIN
     /*Bulk select */
     FETCH C1 BULK COLLECT INTO DM_EXEMPT_PLAN_tab
     LIMIT P_ARRAY_SIZE;
-    EXIT WHEN C1%NOTFOUND;
+
 
     /*ETL SECTION BEGIN
 
@@ -59,7 +59,7 @@ BEGIN
     FORALL i in DM_EXEMPT_PLAN_tab.first .. DM_EXEMPT_PLAN_tab.last
            INSERT INTO DM_EXEMPT_PLAN VALUES DM_EXEMPT_PLAN_tab(i);
                        
-
+    EXIT WHEN C1%NOTFOUND;
   END LOOP;
 
   COMMIT;
