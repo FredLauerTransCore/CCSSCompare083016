@@ -56,7 +56,7 @@ BEGIN
     /*Bulk select */
     FETCH C1 BULK COLLECT INTO DM_STORE_INFO_tab
     LIMIT P_ARRAY_SIZE;
-    EXIT WHEN C1%NOTFOUND;
+
 
     /*ETL SECTION BEGIN
 
@@ -66,7 +66,7 @@ BEGIN
     FORALL i in DM_STORE_INFO_tab.first .. DM_STORE_INFO_tab.last
            INSERT INTO DM_STORE_INFO VALUES DM_STORE_INFO_tab(i);
                        
-
+    EXIT WHEN C1%NOTFOUND;
   END LOOP;
 
   COMMIT;
