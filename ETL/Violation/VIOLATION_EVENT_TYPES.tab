@@ -1,5 +1,0 @@
-VIOLATION_EVENT_TYPE_ID                    NUMBER
-STATE_MODEL_ID                                     NUMBER
-CODE                                               VARCHAR2
-DESCRIPTION                                        VARCHAR2
-LABEL                                              VARCHAR2
