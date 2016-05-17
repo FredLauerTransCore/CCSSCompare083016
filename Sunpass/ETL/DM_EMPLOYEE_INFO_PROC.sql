@@ -5,6 +5,7 @@
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_EMPLOYEE_INFO
+*              Need a list of JOB_TITLE from FTE, it is derived from ACCESS_LEVEL
 *
 ********************************************************/
 
