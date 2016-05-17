@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_EMPLOYEE_INFO_PROC
-* Created by: DT, 4/13/2016
+* Created by: DT, 4/16/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_EMPLOYEE_INFO
@@ -23,20 +23,20 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1 IS SELECT 
-    NULL FIRST_NAME
-    ,NULL LAST_NAME
-    ,NULL ACTIVE_FLAG
-    ,NULL EMP_NUM
-    ,NULL JOB_TITLE
-    ,NULL MID_NAME
-    ,NULL BIRTH_DT
-    ,NULL STORE_NAME
-    ,NULL SOURCE_SYSTEM
-    ,NULL CREATED
-    ,NULL CREATED_BY
-    ,NULL LAST_UPD
-    ,NULL LAST_UPD_BY
-FROM FTE_TABLE; /*Change FTE_TABLE to the actual table name*/
+    EMP_NAME FIRST_NAME 
+    ,EMP_NAME LAST_NAME 
+    , DECODE(TEAM,'ACTIVE','Y','N') ACTIVE_FLAG 
+    ,EMP_CODE EMP_NUM 
+    ,DECODE(ACCESS_LEVEL,'LIST FROM FTE') JOB_TITLE 
+    ,'00000' MID_NAME 
+    ,to_date('01/01/1900','MM/DD/YYYY') BIRTH_DT 
+    ,'00000' STORE_NAME 
+    ,'SUNPASS' SOURCE_SYSTEM 
+    ,NULL CREATED 
+    ,NULL CREATED_BY 
+    ,NULL LAST_UPD 
+    ,NULL LAST_UPD_BY 
+FROM PATRON.PA_EMP_CODE; 
 
 BEGIN
  
