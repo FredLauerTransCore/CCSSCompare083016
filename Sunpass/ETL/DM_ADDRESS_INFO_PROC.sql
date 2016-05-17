@@ -5,6 +5,11 @@
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_ADDRESS_INFO
+*  Need the following info:
+*  1. How to get OPEN_DATE for CREATED date
+*  2. How to get SUNPASS_CSC_ID for CREATED_BY and LAST_UPD_BY
+*  3. Get the COUNTY_CODE from FTE for COUNTY_CODE
+*
 *
 ********************************************************/
 
@@ -23,29 +28,34 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1 IS SELECT 
-    NULL ACCOUNT_NUMBER
+    ACCT_NUM ACCOUNT_NUMBER
     ,NULL ADDR_TYPE
-    ,NULL ADDR_TYPE_INT_ID
-    ,NULL STREET_1
-    ,NULL STREET_2
-    ,NULL CITY
-    ,NULL STATE
-    ,NULL ZIP_CODE
-    ,NULL ZIP_PLUS4
-    ,NULL COUNTRY
-    ,NULL NIXIE
-    ,NULL NIXIE_DATE
-    ,NULL NCOA_FLAG
-    ,NULL ADDRESS_CLEANSED_FLG
-    ,NULL ADDRESS_SOURCE
+    ,decode('MAILING',1,
+     'BILLING',2,
+      'SHIPPING',3,
+      'RESIDENT',4,
+      'VIOLADDR',5,
+     0) ADDR_TYPE_INT_ID
+    ,ADDR_1 STREET_1
+    ,ADDR_2 STREET_2
+    ,CITY CITY
+    ,STATE_STATE_CODE_ABBR STATE
+    ,ZIP_CODE ZIP_CODE
+    ,SUBSTR(ZIP_CODE,6,5) ZIP_PLUS4
+    ,COUNTRY_COUNTRY_CODE COUNTRY
+    ,RETURNED_MAIL_FLAG NIXIE
+    ,to_date('02/02/2017','MM/DD/YYYY') NIXIE_DATE
+    ,'N' NCOA_FLAG
+    ,'N' ADDRESS_CLEANSED_FLG
+    ,'CSC' ADDRESS_SOURCE
     ,NULL CREATED
     ,NULL CREATED_BY
-    ,NULL LAST_UPD
+    ,to_date('02/02/2017','MM/DD/YYYY') LAST_UPD
     ,NULL LAST_UPD_BY
-    ,NULL SOURCE_SYSTEM
+    ,'SUNPASS' SOURCE_SYSTEM
     ,NULL ADDRESS_NUMBER
-    ,NULL COUNTY_CODE
-FROM FTE_TABLE; /*Change FTE_TABLE to the actual table name*/
+    ,f(COUNTY_CODE, 'Provied by FTE') COUNTY_CODE
+FROM PATRON.PA_ACCT; 
 
 BEGIN
  
