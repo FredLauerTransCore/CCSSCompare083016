@@ -1,0 +1,82 @@
+/********************************************************
+*
+* Name: DM_INVOICE_ITM_INFO_PROC
+* Created by: DT, 4/13/2016
+* Revision: 1.0
+* Description: This is the template for bulk read/write
+*              DM_INVOICE_ITM_INFO
+*
+********************************************************/
+
+set serveroutput on
+set verify on
+set echo on
+
+CREATE OR REPLACE PROCEDURE DM_INVOICE_ITM_INFO_PROC IS
+
+TYPE DM_INVOICE_ITM_INFO_TYP IS TABLE OF DM_INVOICE_ITM_INFO%ROWTYPE 
+     INDEX BY BINARY_INTEGER;
+DM_INVOICE_ITM_INFO_tab DM_INVOICE_ITM_INFO_TYP;
+
+
+P_ARRAY_SIZE NUMBER:=10000;
+
+
+CURSOR C1 IS SELECT 
+    ACCT_NUM ACCOUNT_NUMBER -- ST_DOCUMENT_MAILING_EXCEPTION
+    ,DOCUMENT_ID INVOICE_NUMBER
+    ,'Postpaid' CATEGORY  -- DEFAULT to 'Postpaid'
+    ,NULL SUB_CATEGORY
+    ,NULL STATUS
+    ,NULL INVOICE_DATE
+    ,NULL PAYABLE
+    ,NULL INVOICE_ITEM_NUMBER
+    ,NULL LANE_TX_ID
+    ,NULL LEVEL_INFO
+    ,NULL REASON_CODE
+    ,NULL INVOICE_TYPE
+    ,NULL PAID_AMOUNT
+    ,NULL CREATED
+    ,NULL CREATED_BY
+    ,NULL LAST_UPD
+    ,NULL LAST_UPD_BY
+    ,'SUNTOLL' SOURCE_SYSTEM
+FROM ST_DOCUMENT_INFO; -- Source
+
+BEGIN
+ 
+  OPEN C1;  
+
+  LOOP
+
+    /*Bulk select */
+    FETCH C1 BULK COLLECT INTO DM_INVOICE_ITM_INFO_tab
+    LIMIT P_ARRAY_SIZE;
+
+
+    /*ETL SECTION BEGIN
+
+      ETL SECTION END*/
+
+    /*Bulk insert */ 
+    FORALL i in DM_INVOICE_ITM_INFO_tab.first .. DM_INVOICE_ITM_INFO_tab.last
+           INSERT INTO DM_INVOICE_ITM_INFO VALUES DM_INVOICE_ITM_INFO_tab(i);
+                       
+    EXIT WHEN C1%NOTFOUND;
+  END LOOP;
+
+  COMMIT;
+
+  CLOSE C1;
+
+  COMMIT;
+
+  EXCEPTION
+  WHEN OTHERS THEN
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
+END;
+/
+SHOW ERRORS
+
+

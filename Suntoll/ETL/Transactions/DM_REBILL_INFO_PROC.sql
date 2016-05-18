@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_REBILL_INFO_PROC
-* Created by: DT, 4/13/2016
+* Created by: RH, 4/18/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_REBILL_INFO
@@ -23,25 +23,28 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1 IS SELECT 
-    ACCT_ACCT_NUM ACCOUNT_NUMBER  -- PA_ACCT_WALLET
-    ,CODE PAY_TYPE
-    ,CC_TOKEN CREDIT_CARD_NUMBER_MASK
-    ,CC_TOKEN CREDIT_CARD_NUMBER
-    ,to_char(to_date(EXPIRATION_DATE,'MMYYYY'),'MM') CC_EXP_MONTH
-    ,to_char(to_date(EXPIRATION_DATE,'MMYYYY'),'YYYY') CC_EXP_YEAR
-    ,substr(CC_TOKEN,12,4) LAST_4_CC_NUMBER
+    aw.ACCT_NUM ACCOUNT_NUMBER 
+    ,cc.CODE PAY_TYPE
+    ,cc.CC_TOKEN CREDIT_CARD_NUMBER_MASK
+    ,cc.CC_TOKEN CREDIT_CARD_NUMBER
+    ,to_char(to_date(cc.EXPIRATION_DATE,'MM/YY'),'MM') CC_EXP_MONTH
+    ,to_char(to_date(cc.EXPIRATION_DATE,'MM/YY'),'YYYY') CC_EXP_YEAR
+    ,substr(cc.CC_TOKEN,12,4) LAST_4_CC_NUMBER
     ,NULL ACH_BANK_ACCOUNT_NUMBER
     ,NULL ACH_BANK_ACCOUNT_NUMBER_MASK
     ,NULL ACH_BANK_ROUTING_NUMBER
     ,NULL LAST_4_ACH_NUMBER
     ,'1' SEQUENCE_NUMBER -- DEFAULT to 1 ; FTE - We need the value possibilities, and what the sequence numbers are
-    ,CREATED_DATE CREATED
-    ,CREATED_BY CREATED_BY  -- PA_ACCT_WALLET
+    ,cc.CREATED_DATE CREATED
+    ,aw.CREATED_BY CREATED_BY 
     ,NULL LAST_UPD
     ,NULL LAST_UPD_BY
-    ,LAST_USED_DATE LAST_USED_DATE  -- PA_ACCT_WALLET
+    ,aw.LAST_USED_DATE LAST_USED_DATE  -- PA_ACCT_WALLET
     ,'SUNTOLL' SOURCE_SYSTEM
-FROM FTE_TABLE; /*Change FTE_TABLE to the actual table name*/
+FROM PATRON.PA_ACCT_WALLET aw
+    ,PATRON.PA_CREDIT_CARD cc
+WHERE aw.CARD_SEQ = cc.CARD_SEQ
+    ; -- Source
 
 BEGIN
  
