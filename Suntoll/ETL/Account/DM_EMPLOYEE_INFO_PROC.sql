@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_EMPLOYEE_INFO_PROC
-* Created by: DT, 4/13/2016
+* Created by: RH, 4/13/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_EMPLOYEE_INFO
@@ -21,22 +21,24 @@ DM_EMPLOYEE_INFO_tab DM_EMPLOYEE_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
+-- * Note (terminated employees are inactive)
 
 CURSOR C1 IS SELECT 
-    NULL FIRST_NAME
-    ,NULL LAST_NAME
-    ,NULL ACTIVE_FLAG
-    ,NULL EMP_NUM
-    ,NULL JOB_TITLE
-    ,NULL MID_NAME
+    F_NAME FIRST_NAME
+    ,L_NAME LAST_NAME
+    ,substr(STATUS,1,1) ACTIVE_FLAG   --Indicates whether Employee is Active (A) or Inactive (I)
+    ,LEGACY_EMP_CODE EMP_NUM
+    ,USER_TYPE_CODE JOB_TITLE
+    ,M_INITIAL MID_NAME
     ,NULL BIRTH_DT
-    ,NULL STORE_NAME
-    ,NULL SOURCE_SYSTEM
-    ,NULL CREATED
-    ,NULL CREATED_BY
+    ,LOCATION_ID STORE_NAME
+    ,'SUNTOLL' SOURCE_SYSTEM
+    ,CREATED_ON CREATED
+    ,CREATED_BY_USER_ID CREATED_BY
     ,NULL LAST_UPD
     ,NULL LAST_UPD_BY
-FROM KS_USER; /*Change FTE_TABLE to the actual table name*/
+FROM PATRON.KS_USER;   -- Source table SUNTOLL
+
 
 BEGIN
  

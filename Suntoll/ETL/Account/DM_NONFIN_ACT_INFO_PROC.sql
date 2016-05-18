@@ -1,10 +1,10 @@
 /********************************************************
 *
-* Name: DM_EMPLOYEE_INFO_PROC
-* Created by: DT, 4/13/2016
+* Name: DM_NONFIN_ACT_INFO_PROC
+* Created by: RH, 4/17/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
-*              DM_EMPLOYEE_INFO
+*              DM_NONFIN_ACT_INFO
 *
 ********************************************************/
 
@@ -12,31 +12,29 @@ set serveroutput on
 set verify on
 set echo on
 
-CREATE OR REPLACE PROCEDURE DM_EMPLOYEE_INFO_PROC IS
+CREATE OR REPLACE PROCEDURE DM_NONFIN_ACT_INFO_PROC IS
 
-TYPE DM_EMPLOYEE_INFO_TYP IS TABLE OF DM_EMPLOYEE_INFO%ROWTYPE 
+TYPE DM_NONFIN_ACT_INFO_TYP IS TABLE OF DM_NONFIN_ACT_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
-DM_EMPLOYEE_INFO_tab DM_EMPLOYEE_INFO_TYP;
+DM_NONFIN_ACT_INFO_tab DM_NONFIN_ACT_INFO_TYP;
 
 
 P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1 IS SELECT 
-    NULL FIRST_NAME
-    ,NULL LAST_NAME
-    ,NULL ACTIVE_FLAG
-    ,NULL EMP_NUM
-    ,NULL JOB_TITLE
-    ,NULL MID_NAME
-    ,NULL BIRTH_DT
-    ,NULL STORE_NAME
-    ,NULL SOURCE_SYSTEM
+    ACCT_NUM ACCOUNT_NUMBER
+    ,NULL ACTIVITY_NUMBER
+    ,NULL CATEGORY
+    ,NULL SUB_CATEGORY
+    ,NULL ACTIVITY_TYPE
+    ,NULL DESCRIPTION
     ,NULL CREATED
     ,NULL CREATED_BY
     ,NULL LAST_UPD
     ,NULL LAST_UPD_BY
-FROM KS_USER; /*Change FTE_TABLE to the actual table name*/
+    ,'SUNTOLL' SOURCE_SYSTEM
+FROM FTE_TABLE; /*Change FTE_TABLE to the actual table name*/
 
 BEGIN
  
@@ -45,7 +43,7 @@ BEGIN
   LOOP
 
     /*Bulk select */
-    FETCH C1 BULK COLLECT INTO DM_EMPLOYEE_INFO_tab
+    FETCH C1 BULK COLLECT INTO DM_NONFIN_ACT_INFO_tab
     LIMIT P_ARRAY_SIZE;
 
 
@@ -54,8 +52,8 @@ BEGIN
       ETL SECTION END*/
 
     /*Bulk insert */ 
-    FORALL i in DM_EMPLOYEE_INFO_tab.first .. DM_EMPLOYEE_INFO_tab.last
-           INSERT INTO DM_EMPLOYEE_INFO VALUES DM_EMPLOYEE_INFO_tab(i);
+    FORALL i in DM_NONFIN_ACT_INFO_tab.first .. DM_NONFIN_ACT_INFO_tab.last
+           INSERT INTO DM_NONFIN_ACT_INFO VALUES DM_NONFIN_ACT_INFO_tab(i);
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
