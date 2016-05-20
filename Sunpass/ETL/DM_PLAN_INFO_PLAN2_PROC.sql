@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_PLAN_INFO_PLAN2_PROC
-* Created by: DT, 4/13/2016
+* Created by: DT, 4/20/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_PLAN_INFO_PLAN2
@@ -23,19 +23,24 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1 IS SELECT 
-    NULL ACCOUNT_NUMBER
-    ,NULL PLAN_NAME
-    ,NULL DEVICE_NUMBER
-    ,NULL START_DATE
-    ,NULL END_DATE
-    ,NULL PLAN_STATUS
-    ,NULL AUTO_RENEW
-    ,NULL CREATED
+    ACCT_ACCT_NUM ACCOUNT_NUMBER
+    ,'BAYWAY COMMUTER' PLAN_NAME
+    ,INVTRANSP_TRANSP_TRANSP_ID DEVICE_NUMBER
+    ,BAYWAY_PASS2_DATE START_DATE
+    ,case
+     when to_char(BAYWAY_PASS2_DATE,'MMDD') >'1001' 
+        then add_months(to_date('09/30/'||to_char(BAYWAY_PASS2_DATE,'YYYY'),'MM/DD/YYYY'),12)
+     when to_char(BAYWAY_PASS2_DATE,'MMDD') <='1001'
+        then to_date('09/30/'||to_char(BAYWAY_PASS2_DATE,'YYYY'),'MM/DD/YYYY')
+     end  as END_DATE
+    ,BAYWAY_PASS2_PAID PLAN_STATUS
+    ,'N' AUTO_RENEW
+    ,BAYWAY_PASS2_PAID CREATED
     ,NULL CREATED_BY
-    ,NULL LAST_UPD
+    ,BAYWAY_PASS2_PAID LAST_UPD
     ,NULL LAST_UPD_BY
-    ,NULL SOURCE_SYSTEM
-FROM FTE_TABLE; /*Change FTE_TABLE to the actual table name*/
+    ,'SUNPASS' SOURCE_SYSTEM
+FROM PATRON.PA_ACCT_TRANSP;
 
 BEGIN
  
@@ -48,9 +53,9 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-    /*ETL SECTION BEGIN
+    /*ETL SECTION BEGIN */
 
-      ETL SECTION END*/
+    /*ETL SECTION END   */
 
     /*Bulk insert */ 
     FORALL i in DM_PLAN_INFO_PLAN2_tab.first .. DM_PLAN_INFO_PLAN2_tab.last
