@@ -1,10 +1,17 @@
 /********************************************************
 *
 * Name: DM_BOX_INFO_PROC
-* Created by: DT, 4/13/2016
+* Created by: DT, 4/18/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_BOX_INFO
+
+We need to get more info:
+1. how to get the STORE from PA_ACCT.ACCTTYPE_ACCT_TYPE_CODE
+2. how to get BOX_CHECKOUT_TO and BOX_CHECKOUT_BY
+3. How to get CREATED and CREATED_BY from PA_ACCT_TRANSP
+4. How to get LAST_UPD, LAST_UPD_BY
+
 *
 ********************************************************/
 
@@ -23,25 +30,25 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1 IS SELECT 
-    NULL BOX_NUMBER
-    ,NULL BOX_TYPE
-    ,NULL BOX_STATUS
-    ,NULL DEVICE_MODEL
-    ,NULL VEHICLE_CLASS
-    ,NULL STORE
-    ,NULL DEVICE_COUNT
-    ,NULL START_DEVICE_NUMBER
-    ,NULL END_DEVICE_NUMBER
-    ,NULL BOX_SHELF_RACK#
-    ,NULL BOX_CHECKOUT_TO
-    ,NULL BOX_CHECKOUT_BY
-    ,NULL DISPOSE_DATE
-    ,NULL CREATED
-    ,NULL CREATED_BY
-    ,NULL LAST_UPD
-    ,NULL LAST_UPD_BY
-    ,NULL SOURCE_SYSTEM
-FROM FTE_TABLE; /*Change FTE_TABLE to the actual table name*/
+    TRAY_TRAY_NUM BOX_NUMBER /* VARCHAR2 100,N */
+    ,TRAY_CASE_CASE_NUM BOX_TYPE /* VARCHAR2 30,N */
+    ,NULL BOX_STATUS /* VARCHAR2 30,N */
+    ,TRANSPTYPE_TRANSP_TYPE_CODE DEVICE_MODEL /* VARCHAR2 30,N */
+    ,VEHCLASS_VEH_CLASS_CODE VEHICLE_CLASS /* NUMBER 22,Y */
+    ,ACCTTYPE_ACCT_TYPE_CODE STORE /* VARCHAR2 30,N */
+    ,NULL DEVICE_COUNT /* NUMBER 22,Y */
+    ,NULL START_DEVICE_NUMBER /* VARCHAR2 12,Y */
+    ,NULL END_DEVICE_NUMBER /* VARCHAR2 30,Y */
+    ,NULL BOX_SHELF_RACK# /* VARCHAR2 30,Y */
+    ,NULL BOX_CHECKOUT_TO /* VARCHAR2 30,Y */
+    ,NULL BOX_CHECKOUT_BY /* VARCHAR2 30,Y */
+    ,NULL DISPOSE_DATE /* DATE 7,Y */
+    ,CREATED CREATED /* DATE 7,N */
+    ,NULL CREATED_BY /* VARCHAR2 15,Y */
+    ,NULL LAST_UPD /* DATE 7,N */
+    ,NULL LAST_UPD_BY /* VARCHAR2 15,Y */
+    ,'SUNPASS' SOURCE_SYSTEM /* VARCHAR2 30,Y */
+FROM PATRON.PA_INV_TRANSP;
 
 BEGIN
  
@@ -54,9 +61,16 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-    /*ETL SECTION BEGIN
+    /*ETL SECTION BEGIN */
 
-      ETL SECTION END*/
+  /* get PA_INV_TRANSP_ASSGN.EMP_EMP_CODE for BOX_CHECKOUT_TO */
+  begin
+    select EMP_EMP_CODE into DM_ACCOUNT_INFO_tab(i).BOX_CHECKOUT_TO from PA_INV_TRANSP_ASSGN where TRAY_TRAY_NUM=PA_INV_TRANSP_tab(i).TRAY_TRAY_NUM;
+    exception when others then null;
+    DM_ACCOUNT_INFO_tab(i).BOX_CHECKOUT_TO:=null;
+  end;
+
+    /*ETL SECTION END*/
 
     /*Bulk insert */ 
     FORALL i in DM_BOX_INFO_tab.first .. DM_BOX_INFO_tab.last

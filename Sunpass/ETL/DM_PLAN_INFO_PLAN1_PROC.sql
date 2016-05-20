@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_PLAN_INFO_PLAN1_PROC
-* Created by: DT, 4/13/2016
+* Created by: DT, 4/19/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_PLAN_INFO_PLAN1
@@ -23,19 +23,21 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1 IS SELECT 
-    NULL ACCOUNT_NUMBER
-    ,NULL PLAN_NAME
-    ,NULL DEVICE_NUMBER
-    ,NULL START_DATE
-    ,NULL END_DATE
-    ,NULL PLAN_STATUS
-    ,NULL AUTO_RENEW
-    ,NULL CREATED
+    ACCCT_ACCT_NUM ACCOUNT_NUMBER
+    ,'BAYWAY ISLES' PLAN_NAME
+    ,INVTRANSP_TRANSP_TRANSP_ID DEVICE_NUMBER
+    ,BAYWAY_PASS1_DATE START_DATE
+    ,case when BAYWAY_PASS1_DATE>to_date('07/01/2016','MM/DD/YYYY') then to_date('06/30/2017','DD/MM/YYYY') else 
+     to_date('06/30/2016','DD/MM/YYYY') END_DATE
+    ,BAYWAY_PASS1_PAID PLAN_STATUS
+    ,'N' AUTO_RENEW
+    ,BAYWAY_PASS1_DATE CREATED
     ,NULL CREATED_BY
-    ,NULL LAST_UPD
+    ,BAYWAY_PASS1_DATE LAST_UPD
     ,NULL LAST_UPD_BY
     ,NULL SOURCE_SYSTEM
-FROM FTE_TABLE; /*Change FTE_TABLE to the actual table name*/
+FROM PATRON.PA_ACCT_TRANSP where BAYWAY_PASS1_PAID='Y' 
+or BAYWAY_PASS2_PAID='Y';
 
 BEGIN
  
@@ -48,9 +50,9 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-    /*ETL SECTION BEGIN
-
-      ETL SECTION END*/
+    /*ETL SECTION BEGIN */
+    
+    /*ETL SECTION END   */
 
     /*Bulk insert */ 
     FORALL i in DM_PLAN_INFO_PLAN1_tab.first .. DM_PLAN_INFO_PLAN1_tab.last
