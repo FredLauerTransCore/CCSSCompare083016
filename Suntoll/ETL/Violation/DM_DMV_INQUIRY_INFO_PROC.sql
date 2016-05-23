@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_DMV_INQUIRY_INFO_PROC
-* Created by: DT, 4/13/2016
+* Created by: RH, 4/19/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_DMV_INQUIRY_INFO
@@ -51,11 +51,11 @@ CURSOR C1 IS SELECT
     ,e.CREATED_ON CREATED_BY
     ,SYSDATE LAST_UPD
     ,NULL LAST_UPD_BY
-FROM EVENT_OWNER_ADDR_VEHICLE_ACCT e
-    ,EVENT_ADDRESS ea
-    ,EVENT_VEHICLE ev
-    ,EVENT_OWNER eo
-    ,ST_REG_STOP srs  
+FROM PATRON.EVENT_OWNER_ADDR_VEHICLE_ACCT e
+    ,PATRON.EVENT_ADDRESS ea
+    ,PATRON.EVENT_VEHICLE ev
+    ,PATRON.EVENT_OWNER eo
+    ,PATRON.ST_REG_STOP srs  
 --    ,PA_LANE_TXN lt
 WHERE e.OWNER_ID = eo.ID (+)
 AND e.ADDRESS_ID = ea.ID (+)

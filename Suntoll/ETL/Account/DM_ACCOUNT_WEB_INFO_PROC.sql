@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_ACCOUNT_WEB_INFO_PROC
-* Created by: DT, 4/13/2016
+* Created by: RH, 5/19/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_ACCOUNT_WEB_INFO
@@ -42,8 +42,8 @@ CURSOR C1 IS SELECT
 --    ,ic.END_TIME IVR_CALL_END_TIME
     ,NULL LAST_IVR_CALL_DATE  -- SELECT MAX(LAST_LOGIN_DATE) from PA_WEB_LOGIN_INFO WHERE USER AGENT = 'IVR'
     ,'SUNTOLL' SOURCE_SYSTEM
-FROM KS_USER_PA_ACCT_ASSOC ua
-    ,KS_USER u
+FROM PATRON.KS_USER_PA_ACCT_ASSOC ua
+    ,PATRON.KS_USER u
 --    ,PA_WEB_LOGIN_INFO wl
 --    ,IVR_CALL ic
 WHERE ua.USER_ID = u.ID

@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_ACCOUNT_TOLL_INFO_PROC
-* Created by: DT, 4/13/2016
+* Created by: RH, 5/20/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_ACCOUNT_TOLL_INFO
@@ -126,9 +126,9 @@ CURSOR C1 IS SELECT
     ,0 TRAN_CODE
     ,'SUNTOLL' SOURCE_SYSTEM
     ,TXN_ID LANE_TX_ID
-FROM PA_LANE_TXN plt
-    ,PA_PLAZA pp
-    ,PA_TOUR pt
+FROM PATRON.PA_LANE_TXN plt
+    ,PATRON.PA_PLAZA pp
+    ,PATRON.PA_TOUR pt
 WHERE lt.EXT_PLAZA_ID = pp.PLAZA_ID (+)
 AND lt.TOUR_TOUR_SEQ = pt.TOUR_SEQ (+)
 --WHERE TRANSPONDER_ID ENDS WITH '2010' 

@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_INVOICE_ITM_INFO_PROC
-* Created by: DT, 4/13/2016
+* Created by: RH, 5/18/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_INVOICE_ITM_INFO
@@ -37,7 +37,7 @@ CURSOR C1 IS SELECT
     ,'INVOICE-ITEM' INVOICE_TYPE
     ,0 PAID_AMOUNT
     ,NULL CREATED
-    ,NULL CREATED_BY
+    ,CREATED_ON CREATED_BY
     ,NULL LAST_UPD
     ,NULL LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
