@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_ACCOUNT_INFO_PROC
-* Created by: DT, 4/13/2016
+* Created by: RH, 5/18/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_ACCOUNT_INFO
@@ -113,9 +113,6 @@ BEGIN
       where di.ACCT_NUM = DM_ACCOUNT_INFO_tab.ACCOUNT_NUMBER(j)
       ;
            
---    IF ACCOUNT_NUM EXISTS IN ST_REG_STOP_PAYMENT_PLAN AND NVL(PAYMENT_PLAN_END, TRUNC(SYSDATE))  >=  TRUNC(SYSDATE) 
---    THEN 'A'    -- (if plan end date is future or null) 
---    ELSE 'N' 
 --    IF ACCOUNT_NUM EXISTS IN ST_REG_STOP_PAYMENT_PLAN AND NVL(PAYMENT_PLAN_END, TRUNC(SYSDATE))  >=  TRUNC(SYSDATE) 
 --    THEN 'A'    -- (if plan end date is future or null) 
 --    ELSE 'N' 
