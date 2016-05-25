@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_PLAN_INFO_PLAN4_PROC
-* Created by: DT, 4/13/2016
+* Created by: DT, 4/25/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_PLAN_INFO_PLAN4
@@ -23,19 +23,19 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1 IS SELECT 
-    NULL ACCOUNT_NUMBER
-    ,NULL PLAN_NAME
+    ACCT_NUM ACCOUNT_NUMBER
+    ,'FHP EMPLOYEES' PLAN_NAME
     ,NULL DEVICE_NUMBER
     ,NULL START_DATE
     ,NULL END_DATE
     ,NULL PLAN_STATUS
     ,NULL AUTO_RENEW
     ,NULL CREATED
-    ,NULL CREATED_BY
+    ,20000 CREATED_BY
     ,NULL LAST_UPD
-    ,NULL LAST_UPD_BY
-    ,NULL SOURCE_SYSTEM
-FROM FTE_TABLE; /*Change FTE_TABLE to the actual table name*/
+    ,20000 LAST_UPD_BY
+    ,'SUNPASS' SOURCE_SYSTEM
+FROM SUNPASS2.FHP_ACCOUNTS;
 
 BEGIN
  
@@ -48,9 +48,30 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-    /*ETL SECTION BEGIN
+    /*ETL SECTION BEGIN */
 
-      ETL SECTION END*/
+    FOR i in DM_PLAN_INFO_PLAN4_tab.first .. DM_PLAN_INFO_PLAN4_tab.last loop
+
+    /* get PA_ACCT.ACCT_OPEN_DATE for START_DATE */
+    begin
+      select ACCT_OPEN_DATE,
+      ACCT_OPEN_DATE,
+      ACCT_OPEN_DATE
+      into DM_PLAN_INFO_PLAN4_tab(i).START_DATE, 
+      DM_PLAN_INFO_PLAN4_tab(i).LAST_UPD,
+      DM_PLAN_INFO_PLAN4_tab(i).CREATED
+      from PA_ACCT 
+      where ACCT_NUM=DM_PLAN_INFO_PLAN4_tab(i).ACCOUNT_NUMBER
+            and rownum<=1;
+      exception 
+        when others then null;
+        DM_PLAN_INFO_PLAN4_tab(i).START_DATE:=null;
+    end;
+
+    end loop;
+
+
+    /*ETL SECTION END   */
 
     /*Bulk insert */ 
     FORALL i in DM_PLAN_INFO_PLAN4_tab.first .. DM_PLAN_INFO_PLAN4_tab.last
