@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_ACCNT_NOTE_INFO_PROC
-* Created by: DT, 4/13/2016
+* Created by: DT, 4/21/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_ACCNT_NOTE_INFO
@@ -23,15 +23,15 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1 IS SELECT 
-    ACCT_NUM ACCOUNT_NUMBER
-    ,NOTES_PROB_CODE NOTE_TYPE
+    ACCT_ACCT_NUM ACCOUNT_NUMBER
+    ,NOTEPROB_NOTES_PROB_CODE NOTE_TYPE
     ,'SUNPASS' NOTE_SUB_TYPE
     ,NOTE NOTE
     ,NOTE_DATE_TIME NOTE_CREATED_DT
     ,NOTE_DATE_TIME CREATED
     ,EMP_EMP_CODE CREATED_BY
-    ,OTE_DATE_TIME LAST_UPD
-    ,MP_EMP_CODE LAST_UPD_BY
+    ,NOTE_DATE_TIME LAST_UPD
+    ,EMP_EMP_CODE LAST_UPD_BY
     ,'SUNPASS' SOURCE_SYSTEM
 FROM PATRON.PA_ACCT_NOTE;
 
@@ -46,9 +46,9 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-    /*ETL SECTION BEGIN
+    /*ETL SECTION BEGIN */
 
-      ETL SECTION END*/
+    /*ETL SECTION END   */
 
     /*Bulk insert */ 
     FORALL i in DM_ACCNT_NOTE_INFO_tab.first .. DM_ACCNT_NOTE_INFO_tab.last

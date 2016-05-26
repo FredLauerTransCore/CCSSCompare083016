@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_PLAN_INFO_PLAN2_PROC
-* Created by: DT, 4/20/2016
+* Created by: DT, 4/21/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_PLAN_INFO_PLAN2
@@ -24,23 +24,19 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 CURSOR C1 IS SELECT 
     ACCT_ACCT_NUM ACCOUNT_NUMBER
-    ,'BAYWAY COMMUTER' PLAN_NAME
+    ,'BAYWAY ISLES' PLAN_NAME
     ,INVTRANSP_TRANSP_TRANSP_ID DEVICE_NUMBER
-    ,BAYWAY_PASS2_DATE START_DATE
-    ,case
-     when to_char(BAYWAY_PASS2_DATE,'MMDD') >'1001' 
-        then add_months(to_date('09/30/'||to_char(BAYWAY_PASS2_DATE,'YYYY'),'MM/DD/YYYY'),12)
-     when to_char(BAYWAY_PASS2_DATE,'MMDD') <='1001'
-        then to_date('09/30/'||to_char(BAYWAY_PASS2_DATE,'YYYY'),'MM/DD/YYYY')
-     end  as END_DATE
-    ,BAYWAY_PASS2_PAID PLAN_STATUS
+    ,BAYWAY_PASS1_DATE START_DATE
+    ,CASE END_DATE
+    ,BAYWAY_PASS_PAID1 PLAN_STATUS
     ,'N' AUTO_RENEW
-    ,BAYWAY_PASS2_PAID CREATED
-    ,NULL CREATED_BY
-    ,BAYWAY_PASS2_PAID LAST_UPD
-    ,NULL LAST_UPD_BY
+    ,BAYWAY_PASS_PAID1 CREATED
+    , CREATED_BY
+    ,BAYWAY_PASS_PAID1 LAST_UPD
+    , LAST_UPD_BY
     ,'SUNPASS' SOURCE_SYSTEM
-FROM PATRON.PA_ACCT_TRANSP;
+FROM PATRON.PA_ACCT_TRANSP 
+WHERE BAYWAY_PASS1_PAID= 'Y';
 
 BEGIN
  

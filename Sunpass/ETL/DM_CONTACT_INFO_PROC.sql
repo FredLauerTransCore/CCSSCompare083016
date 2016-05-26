@@ -1,18 +1,10 @@
 /********************************************************
 *
 * Name: DM_CONTACT_INFO_PROC
-* Created by: DT, 4/13/2016
+* Created by: DT, 4/21/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_CONTACT_INFO
-
-Need the following info:
-
-1. State, county mapping from FTE for DRIVER_LIC_COUNTRY
-2. how to get CSC_ID for CREATED_BY and LAST_UPD_BY
-3. How to get the OPEN_DATE for CREATED date
-
-
 *
 ********************************************************/
 
@@ -37,8 +29,8 @@ CURSOR C1 IS SELECT
     ,F_NAME FIRST_NAME
     ,L_NAME LAST_NAME
     ,M_INITIAL MIDDLE_NAME
-    ,DAY_PHONE||' '||DAY_PHONE_EXT) PHONE_NUMBER_DAYTIME
-    ,EVE_PHONE||' '||EVE_PHONE_EXT PHONE_NUMBER_NIGHT
+    ,DAY_PHONE PHONE_NUMBER_DAYTIME
+    ,EVE_PHONE PHONE_NUMBER_NIGHT
     ,NULL PHONE_NUMBER_MOBILE
     ,NULL FAX_NUMBER
     ,NULL DOB
@@ -47,12 +39,12 @@ CURSOR C1 IS SELECT
     ,NULL DRIVER_LIC_EXP_DT
     ,DR_STATE_CODE DRIVER_LIC_STATE
     ,NULL DRIVER_LIC_COUNTRY
-    ,NULL CREATED
-    ,NULL CREATED_BY
+    ,ACCT_OPEN_DATE CREATED
+    ,'SUNPASS_CSC_ID' CREATED_BY
     ,to_date('02/27/2017','MM/DD/YYYY') LAST_UPD
-    ,NULL LAST_UPD_BY
+    ,'SUNPASS_CSC_ID' LAST_UPD_BY
     ,'SUNPASS' SOURCE_SYSTEM
-FROM PATRON.PA_ACCT
+FROM PATRON.PA_ACCT;
 
 BEGIN
  
@@ -65,9 +57,9 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-    /*ETL SECTION BEGIN
+    /*ETL SECTION BEGIN */
 
-      ETL SECTION END*/
+    /*ETL SECTION END   */
 
     /*Bulk insert */ 
     FORALL i in DM_CONTACT_INFO_tab.first .. DM_CONTACT_INFO_tab.last
