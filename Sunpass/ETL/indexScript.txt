@@ -1,0 +1,17 @@
+
+
+CREATE INDEX ACCT_ACCT_NUM_IDX ON PATRON.PA_ACCT_FLAGS
+(ACCT_ACCT_NUM) tablespace ccss_acct_ind_ts; 
+/
+
+
+CREATE INDEX ACCT_ACCT_TAX_IDX ON PATRON.PA_ACCT_TAX_EXEMPTIONS
+(ACCT_ACCT_NUM) tablespace ccss_acct_ind_ts; 
+/
+
+
+drop index ACCT_NUM_IDX;
+CREATE INDEX ACCT_NUM_IDX ON PATRON.PA_ACCT_STATUS_HISTORY
+(ACCT_NUM) tablespace ccss_acct_ind_ts; 
+/
+

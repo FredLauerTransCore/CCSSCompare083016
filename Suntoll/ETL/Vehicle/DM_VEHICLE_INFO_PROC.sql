@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_VEHICLE_INFO_PROC
-* Created by: DT, 4/13/2016
+* Created by: RH, 4/18/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_VEHICLE_INFO
