@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_PLAN_INFO_PLAN3_PROC
-* Created by: DT, 4/13/2016
+* Created by: DT, 4/24/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_PLAN_INFO_PLAN3
@@ -23,19 +23,20 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1 IS SELECT 
-    NULL ACCOUNT_NUMBER
-    ,NULL PLAN_NAME
-    ,NULL DEVICE_NUMBER
-    ,NULL START_DATE
+    ACCT_ACCT_NUM ACCOUNT_NUMBER
+    ,'NON REVENUE' PLAN_NAME
+    ,INVTRANSP_TRANSP_TRANSP_ID DEVICE_NUMBER
+    ,SALE_DATE START_DATE
     ,NULL END_DATE
-    ,NULL PLAN_STATUS
-    ,NULL AUTO_RENEW
-    ,NULL CREATED
-    ,NULL CREATED_BY
-    ,NULL LAST_UPD
-    ,NULL LAST_UPD_BY
-    ,NULL SOURCE_SYSTEM
-FROM FTE_TABLE; /*Change FTE_TABLE to the actual table name*/
+    ,REVCLASS_REV_CLASS_CODE PLAN_STATUS
+    ,'N' AUTO_RENEW
+    ,SALE_DATE CREATED
+    ,decode(EMP_EMP_CODE,NULL,'20000', EMP_EMP_CODE) CREATED_BY
+    ,SALE_DATE LAST_UPD
+    ,decode(EMP_EMP_CODE,NULL,'20000', EMP_EMP_CODE) LAST_UPD_BY
+    ,'SUNPASS' SOURCE_SYSTEM
+FROM PA_ACCT_TRANSP
+WHERE BAYWAY_PASS2_PAID = 'Y';
 
 BEGIN
  
@@ -48,9 +49,9 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-    /*ETL SECTION BEGIN
+    /*ETL SECTION BEGIN */
 
-      ETL SECTION END*/
+    /*ETL SECTION END   */
 
     /*Bulk insert */ 
     FORALL i in DM_PLAN_INFO_PLAN3_tab.first .. DM_PLAN_INFO_PLAN3_tab.last
