@@ -17,6 +17,8 @@ set timing on
 
 CREATE OR REPLACE PROCEDURE DM_ACCOUNT_INFO_PROC IS
 
+
+
 TYPE DM_ACCOUNT_INFO_TYP IS TABLE OF DM_ACCOUNT_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
 DM_ACCOUNT_INFO_tab DM_ACCOUNT_INFO_TYP;
@@ -27,11 +29,32 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 CURSOR C1 IS SELECT 
     ACCT_NUM ACCOUNT_NUMBER
-    ,ACCTSTAT_ACCT_STATUS_CODE ACCOUNT_STATUS
+    ,decode(ACCTSTAT_ACCT_STATUS_CODE,
+     '01','Active',
+     '02','Suspended',
+     '03','Terminated',
+     '04','Closed',
+     '99','Do Not Use',
+    ACCTSTAT_ACCT_STATUS_CODE||'NO-MAPPING'
+    ) ACCOUNT_STATUS
     ,NULL ACCOUNT_STATUS_DATETIME
     ,NULL STATEMENT_DELIVERY_MODE
     ,NULL STATEMENT_PERIOD
-    ,ACCTTYPE_ACCT_TYPE_CODE ACCOUNT_TYPE
+    ,decode(ACCTTYPE_ACCT_TYPE_CODE,
+     '01','PRIVATE',
+     '02','BUSINESS',
+     '03','PVIDEOREG',
+     '04','PVIDEOUNREG',
+     '05','SHORTTERMVIDEO',
+     '06','BVIDEOREG',
+     '07','BVIDEOUNREG',
+     '08','PVIOLATOR',
+     '09','CVIOLATOR',
+     '10','10-NOMAPPING',
+     '11','11-NOMAPPING',
+     '12','12-NOMAPPING',
+    ACCTTYPE_ACCT_TYPE_CODE||'NO-MAPPING'
+    )  ACCOUNT_TYPE
     ,ACCT_OPEN_DATE ACCOUNT_OPEN_DATE
     ,F_NAME ACCOUNT_NAME
     ,ORG COMPANY_NAME
@@ -39,7 +62,8 @@ CURSOR C1 IS SELECT
     ,E_MAIL_ADDR EMAIL_ADDRESS
     ,REPL_AMT REBILL_AMOUNT
     ,REPL_THRESH_AMT REBILL_THRESHOLD
-    ,ACCT_PIN_NUMBER PIN
+    ,decode(translate(lpad(ACCT_PIN_NUMBER,4,'9'),'0123456789','9999999999'),'9999',ACCT_PIN_NUMBER,null)
+     PIN
     ,NULL VIDEO_ACCT_STATUS
     ,NULL SUSPENDED_DATE
     ,NULL LAST_INVOICE_DATE
@@ -82,8 +106,7 @@ CURSOR C1 IS SELECT
     ,NULL BKTY_NOTIFY_BY
     ,NULL IS_REGISTERED
     ,NULL OWNER_TYPE
-FROM PATRON.PA_ACCT where acct_num>0 and rownum<=10000;
-
+FROM PATRON.PA_ACCT;
 BEGIN
  
   OPEN C1;  
@@ -95,18 +118,31 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-  /*ETL SECTION BEGIN */
+    /*ETL SECTION BEGIN */
 
 
 
-  FOR i in 1 .. DM_ACCOUNT_INFO_tab.count loop
+    FOR i in 1 .. DM_ACCOUNT_INFO_tab.count loop
+
+    /* get PA_ACCT_STATUS_HISTORY.STAT_POST_DATE for ACCOUNT_STATUS_DATETIME */
+    begin
+      select STAT_POST_DATE into DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME 
+      from PA_ACCT_STATUS_HISTORY 
+      where ACCT_NUM=DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
+            and rownum<=1;
+      exception 
+        when others then null;
+        DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
+    end;
 
 
     /* get PA_ACCT_FLAGS.FEIN for FEIN_NUMBER */
     begin
       select 
-     decode(translate(lpad(FEIN,12,'9'),'0123456789','9999999999'),'999999999999',FEIN,null)
-     into DM_ACCOUNT_INFO_tab(i).FEIN_NUMBER from PA_ACCT_FLAGS 
+      decode(translate(lpad(FEIN,12,'9'),'0123456789','9999999999'),'999999999999',FEIN,null),
+      CAST
+      into DM_ACCOUNT_INFO_tab(i).FEIN_NUMBER ,
+      DM_ACCOUNT_INFO_tab(i).CAST_ACCOUNT_FLAG from PA_ACCT_FLAGS 
       where ACCT_ACCT_NUM=DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
             and rownum<=1;
       exception 
@@ -114,19 +150,12 @@ BEGIN
         DM_ACCOUNT_INFO_tab(i).FEIN_NUMBER:=null;
     end;
 
-    /* get PA_ACCT_FLAGS.CAST for CAST_ACCOUNT_FLAG */
-    begin
-      select CAST into DM_ACCOUNT_INFO_tab(i).CAST_ACCOUNT_FLAG from PA_ACCT_FLAGS 
-      where ACCT_ACCT_NUM=DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
-            and rownum<=1;
-      exception 
-        when others then null;
-        DM_ACCOUNT_INFO_tab(i).CAST_ACCOUNT_FLAG:=null;
-    end;
 
     /* get PA_ACCT_TAX_EXEMPTIONS.TAX_EXEMPTION_ID for TAX_EXEMPTION_ID */
     begin
-      select TAX_EXEMPTION_ID into DM_ACCOUNT_INFO_tab(i).TAX_EXEMPTION_ID from           PA_ACCT_TAX_EXEMPTIONS 
+      select TAX_EXEMPTION_ID,EXPIRATION_DATE  into 
+      DM_ACCOUNT_INFO_tab(i).TAX_EXEMPTION_ID,
+      DM_ACCOUNT_INFO_tab(i).EXPIRATION_DATE  from PA_ACCT_TAX_EXEMPTIONS 
       where ACCT_ACCT_NUM=DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
             and rownum<=1;
       exception 
@@ -134,31 +163,9 @@ BEGIN
         DM_ACCOUNT_INFO_tab(i).TAX_EXEMPTION_ID:=null;
     end;
 
-    /* get PA_ACCT_TAX_EXEMPTIONS.EXPIRATION_DATE for EXPIRATION_DATE */
-    begin
-      select EXPIRATION_DATE into DM_ACCOUNT_INFO_tab(i).EXPIRATION_DATE from PA_ACCT_TAX_EXEMPTIONS 
-      where ACCT_ACCT_NUM=DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
-            and rownum<=1;
-      exception 
-        when others then null;
-        DM_ACCOUNT_INFO_tab(i).EXPIRATION_DATE:=null;
-    end;
+    null;
 
-    /* get PA_ACCT_STATUS_HISTORY.STAT_POST_DATE for ACCOUNT_STATUS_DATETIME */
-    begin
-      select STAT_POST_DATE into DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME from PA_ACCT_STATUS_HISTORY 
-      where ACCt_NUM=DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
-            and rownum<=1;
-      exception 
-        when others then null;
-        DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
-    end;
-
-   end loop;
-
-
-
-
+    end loop;
 
 
     /*ETL SECTION END   */
@@ -180,6 +187,7 @@ BEGIN
   WHEN OTHERS THEN
      DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
      DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
+
 END;
 /
 SHOW ERRORS
