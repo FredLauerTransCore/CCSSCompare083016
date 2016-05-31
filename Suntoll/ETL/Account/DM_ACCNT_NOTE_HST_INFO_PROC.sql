@@ -1,10 +1,10 @@
 /********************************************************
 *
-* Name: DM_ACCNT_NOTE_INFO_PROC
-* Created by: RH, 5/17/2016
+* Name: DM_ACCNT_NOTE_HST_INFO_PROC
+* Created by: RH, 5/27/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
-*              DM_ACCNT_NOTE_INFO
+*              DM_ACCNT_NOTE_HST_INFO
 *
 ********************************************************/
 
@@ -12,12 +12,11 @@ set serveroutput on
 set verify on
 set echo on
 
---CREATE OR REPLACE PROCEDURE DM_ACCNT_NOTE_INFO_PROC IS
-DECLARE
+CREATE OR REPLACE PROCEDURE DM_ACCNT_NOTE_HST_INFO_PROC IS
 
-TYPE DM_ACCNT_NOTE_INFO_TYP IS TABLE OF DM_ACCNT_NOTE_INFO%ROWTYPE 
+TYPE DM_ACCNT_NOTE_HST_INFO_TYP IS TABLE OF DM_ACCNT_NOTE_HST_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
-DM_ACCNT_NOTE_INFO_tab DM_ACCNT_NOTE_INFO_TYP;
+DM_ACCNT_NOTE_HST_INFO_tab DM_ACCNT_NOTE_HST_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
@@ -41,7 +40,7 @@ BEGIN
   LOOP
 
     /*Bulk select */
-    FETCH C1 BULK COLLECT INTO DM_ACCNT_NOTE_INFO_tab
+    FETCH C1 BULK COLLECT INTO DM_ACCNT_NOTE_HST_INFO_tab
     LIMIT P_ARRAY_SIZE;
 
     /*ETL SECTION BEGIN
@@ -49,8 +48,8 @@ BEGIN
       ETL SECTION END*/
 
     /*Bulk insert */ 
-    FORALL i in DM_ACCNT_NOTE_INFO_tab.first .. DM_ACCNT_NOTE_INFO_tab.last
-           INSERT INTO DM_ACCNT_NOTE_INFO VALUES DM_ACCNT_NOTE_INFO_tab(i);
+    FORALL i in DM_ACCNT_NOTE_HST_INFO_tab.first .. DM_ACCNT_NOTE_HST_INFO_tab.last
+           INSERT INTO DM_ACCNT_NOTE_HST_INFO VALUES DM_ACCNT_NOTE_HST_INFO_tab(i);
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;

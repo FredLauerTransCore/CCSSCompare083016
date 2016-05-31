@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_PAYMT_INFO_PROC
-* Created by: RH, 4/17/2016
+* Created by: RH, 5/17/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_PAYMT_INFO
@@ -12,7 +12,8 @@ set serveroutput on
 set verify on
 set echo on
 
-CREATE OR REPLACE PROCEDURE DM_PAYMT_INFO_PROC IS
+--CREATE OR REPLACE PROCEDURE DM_PAYMT_INFO_PROC IS
+DECLARE
 
 TYPE DM_PAYMT_INFO_TYP IS TABLE OF DM_PAYMT_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
@@ -23,7 +24,7 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1 IS SELECT 
-    p.ACCT_ACCT_NUM ACCOUNT_NUMBER
+    pp.ACCT_ACCT_NUM ACCOUNT_NUMBER
     ,p.PUR_TRANS_DATE TX_DT  -- PA_PURCHASE
     ,pp.PAYTYPE_PAYMENT_TYPE_CODE PAY_TYPE
     ,pd.PRODUCT_PUR_PRODUCT_CODE TRAN_TYPE
@@ -70,10 +71,13 @@ FROM PA_PURCHASE p
 WHERE p.PUR_ID = pd.PUR_PUR_ID (+)
 AND   p.PUR_ID = pp.PUR_PUR_ID (+)
 AND   p.PUR_ID = rr.PUR_PUR_ID (+)
+and rownum<111
 ; -- source
 
 BEGIN
- 
+
+  DBMS_OUTPUT.PUT_LINE('Start DM_PAYMT_INFO load at: '||to_char(SYSDATE,'MMM-DD-YYYY HH:MM:SS'));
+  
   OPEN C1;  
 
   LOOP
