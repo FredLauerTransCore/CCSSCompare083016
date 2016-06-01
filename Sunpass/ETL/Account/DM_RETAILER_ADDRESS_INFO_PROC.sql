@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_RETAILER_ADDRESS_INFO_PROC
-* Created by: DT, 4/13/2016
+* Created by: DT, 4/31/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_RETAILER_ADDRESS_INFO
@@ -23,27 +23,28 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1 IS SELECT 
-    NULL ACCOUNT_NUMBER
-    ,NULL ADDR_TYPE
-    ,NULL ADDR_TYPE_INT_ID
-    ,NULL STREET_1
-    ,NULL STREET_2
-    ,NULL CITY
-    ,NULL STATE
-    ,NULL ZIP_CODE
-    ,NULL ZIP_PLUS4
-    ,NULL COUNTRY
+    ACCT_NUM ACCOUNT_NUMBER
+    ,'MAILING' ADDR_TYPE
+    ,'1' ADDR_TYPE_INT_ID
+    ,ADDR_1 STREET_1
+    ,ADDR_2 STREET_2
+    ,CITY CITY
+    ,STATE_STATE_CODE_ABBR STATE
+    ,ZIP_CODE ZIP_CODE
+    ,SUBSTR(ZIP_CODE,6,5) ZIP_PLUS4
+    ,COUNTRY_COUNTRY_CODE COUNTRY
     ,NULL NIXIE
-    ,NULL NIXIE_DATE
-    ,NULL NCOA_FLAG
-    ,NULL ADDRESS_CLEANSED_FLG
-    ,NULL ADDRESS_SOURCE
-    ,NULL CREATED
-    ,NULL CREATED_BY
-    ,NULL LAST_UPD
-    ,NULL LAST_UPD_BY
-    ,NULL SOURCE_SYSTEM
-FROM FTE_TABLE; /*Change FTE_TABLE to the actual table name*/
+    ,to_date('02/27/2017','MM/DD/YYYY') NIXIE_DATE
+    ,'N' NCOA_FLAG
+    ,'N' ADDRESS_CLEANSED_FLG
+    ,'CSC' ADDRESS_SOURCE
+    ,ACCT_OPEN_DATE CREATED
+    ,'SUNPASS_CSC_ID' CREATED_BY
+    ,to_date('02/27/2017','MM/DD/YYYY') LAST_UPD
+    ,'SUNPASS_CSC_ID' LAST_UPD_BY
+    ,'SUNPASS' SOURCE_SYSTEM
+    ,'fromST' COUNTY_CODE
+FROM SUNPASS.PA_ACCT;
 
 BEGIN
  
@@ -56,9 +57,25 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-    /*ETL SECTION BEGIN
+    /*ETL SECTION BEGIN */
 
-      ETL SECTION END*/
+    FOR i in 1 .. DM_RETAILER_ADDRESS_INFO_tab.count loop
+
+    /* get PA_ACCT_FLAGS.MAIL_RETURNED for NIXIE */
+    begin
+      select MAIL_RETURNED into DM_RETAILER_ADDRESS_INFO_tab(i).NIXIE from PA_ACCT_FLAGS 
+      where ACCT_ACCT_NUM=DM_RETAILER_ADDRESS_INFO_tab(i).ACCOUNT_NUMBER
+            and rownum<=1;
+      exception 
+        when others then null;
+        DM_RETAILER_ADDRESS_INFO_tab(i).NIXIE:=null;
+    end;
+
+    end loop;
+
+
+
+    /*ETL SECTION END   */
 
     /*Bulk insert */ 
     FORALL i in DM_RETAILER_ADDRESS_INFO_tab.first .. DM_RETAILER_ADDRESS_INFO_tab.last
