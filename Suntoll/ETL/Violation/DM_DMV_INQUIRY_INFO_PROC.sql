@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_DMV_INQUIRY_INFO_PROC
-* Created by: RH, 4/19/2016
+* Created by: RH, 5/19/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_DMV_INQUIRY_INFO
@@ -32,10 +32,12 @@ CURSOR C1 IS SELECT
     ,ea.CITY X_CITY
     ,ea.ID X_CONTACT_ID
     ,ea.COUNTRY_CODE X_COUNTRY
+
+-- IF REG_STOP_SENT_ON IS NOT NULL AND REG_REMOVAL_SENT_ON IS NULL THEN  REG_STOP ELSE 'N' 
     ,CASE WHEN srs.REG_STOP_SENT_ON IS NOT NULL AND srs.REG_STOP_REMOVAL_SENT_ON IS NULL
           THEN 'Y'  --srs.REG_STOP 
           ELSE 'N'
-      END X_DMV_STATUS  -- IF REG_STOP_SENT_ON IS NOT NULL AND REG_REMOVAL_SENT_ON IS NULL THEN  REG_STOP ELSE 'N' 
+      END X_DMV_STATUS
     ,eo.FIRST_NAME X_FST_NAME
     ,eo.LAST_ORG_NAME X_LAST_NAME
     ,ev.PLATE X_PLATE_NUM

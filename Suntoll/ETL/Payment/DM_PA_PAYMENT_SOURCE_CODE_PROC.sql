@@ -1,0 +1,64 @@
+/********************************************************
+*
+* Name: PA_PAYMENT_SOURCE_CODE_INFO_PROC
+* Created by: RH, 6/1/2016
+* Revision: 1.0
+* Description: This is the template for bulk read/write
+*              PA_PAYMENT_SOURCE_CODE_INFO
+*
+********************************************************/
+
+set serveroutput on
+set verify on
+set echo on
+
+CREATE OR REPLACE PROCEDURE PA_PAYMENT_SOURCE_CODE_INFO_PROC IS
+
+TYPE PA_PAYMENT_SOURCE_CODE_INFO_TYP IS TABLE OF PA_PAYMENT_SOURCE_CODE_INFO%ROWTYPE 
+     INDEX BY BINARY_INTEGER;
+PA_PAYMENT_SOURCE_CODE_INFO_tab PA_PAYMENT_SOURCE_CODE_INFO_TYP;
+
+P_ARRAY_SIZE NUMBER:=10000;
+
+CURSOR C1 IS SELECT 
+    PAYMENT_SOURCE_CODE PAYMENT_SOURCE_CODE
+    ,PAYMENT_SOURCE_DESC PAYMENT_SOURCE_DESC
+--    ,'SUNTOLL' SOURCE_SYSTEM
+FROM PA_PAYMENT_SOURCE_CODE; /*Change FTE_TABLE to the actual table name*/
+
+BEGIN
+ 
+  OPEN C1;  
+
+  LOOP
+
+    /*Bulk select */
+    FETCH C1 BULK COLLECT INTO PA_PAYMENT_SOURCE_CODE_INFO_tab
+    LIMIT P_ARRAY_SIZE;
+
+    /*ETL SECTION BEGIN
+
+      ETL SECTION END*/
+
+    /*Bulk insert */ 
+    FORALL i in PA_PAYMENT_SOURCE_CODE_INFO_tab.first .. PA_PAYMENT_SOURCE_CODE_INFO_tab.last
+           INSERT INTO PA_PAYMENT_SOURCE_CODE_INFO VALUES PA_PAYMENT_SOURCE_CODE_INFO_tab(i);              
+
+    EXIT WHEN C1%NOTFOUND;
+  END LOOP;
+
+  COMMIT;
+
+  CLOSE C1;
+
+  COMMIT;
+
+  EXCEPTION
+  WHEN OTHERS THEN
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
+END;
+/
+SHOW ERRORS
+
+

@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_ACCOUNT_HST_INFO_PROC
-* Created by: DT, 5/27/2016
+* Created by: RH, 5/27/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_ACCOUNT_HST_INFO
@@ -23,12 +23,12 @@ P_ARRAY_SIZE NUMBER:=10000;
 CURSOR C1 IS SELECT 
     pa.ACCT_NUM ACCOUNT_NUMBER
     ,pa.ACCTSTAT_ACCT_STATUS_CODE ACCOUNT_STATUS
-    ,NULL ACCOUNT_STATUS_DATETIME -- MAX(STATUS_CHG_DATE) PA_ACCT_STATUS_CHANGES
+    ,NULL ACCOUNT_STATUS_DATETIME -- MAX(STATUS_CHG_DATE) PA_ACCT_STATUS_CHANGES - ETL sec
     ,'MAIL' STATEMENT_DELIVERY_MODE
     ,'NONE' STATEMENT_PERIOD  -- What is the source for this?PA_ACCT.Statement_option MONTHLY
     ,pa.ACCTTYPE_ACCT_TYPE_CODE ACCOUNT_TYPE
     ,pa.CREATED_ON ACCOUNT_OPEN_DATE    -- ACCT_OPEN_DATE 
-    ,trunc(pa.L_NAME)||', '||trunc(pa.F_NAME) ACCOUNT_NAME
+    ,trim(pa.L_NAME)||', '||trim(pa.F_NAME) ACCOUNT_NAME
     ,pa.ORG COMPANY_NAME
     ,NULL DBA -- N/A
     ,pa.E_MAIL_ADDR EMAIL_ADDRESS
@@ -71,7 +71,28 @@ CURSOR C1 IS SELECT
     ,pa.ANON_ACCT ANONYMOUS_ACCOUNT
     ,NULL SECONDARY_EMAIL_ADDRESS
     ,'SUNTOLL' SOURCE_SYSTEM
-
+    ,pad.BKTY_FILE_DATE BKTY_FILE_DATE
+    ,pad.BKTY_DICHG_DATE BKTY_DICHG_DATE
+    ,pad.BKTY_DISMISS_DATE BKTY_DISMISS_DATE
+    ,pad.BKTY_CASEID BKTY_CASEID
+    ,pad.BKTY_NOTIFY_BY BKTY_NOTIFY_BY
+    ,pad.DECEASE_NOTIFY_BY DECEASE_NOTIFY_BY
+    ,pad.DEATH_CERT_DATE DEATH_CERT_DATE
+    ,pad.COLL_ASSIGN_DATE COLL_ASSIGN_DATE
+    ,pad.ACCT_HOLD_DATE INIT_COLL_ASSIGN_DATE
+    ,pad.ACCT_HOLD_DATE ACCT_HOLD_DATE
+    ,pad.IS_REGISTERED IS_REGISTERED
+    ,pa.OWNER_TYPE OWNER_TYPE
+-- IF ACCOUNT_NUM EXISTS IN ST_REG_STOP_PAYMENT_PLAN AND 
+--  NVL(PAYMENT_PLAN_END, TRUNC(SYSDATE)) ST_REG_STOP_PAYMENT_PLAN) >=  TRUNC(SYSDATE) THEN 'A' 
+--  (if plan end date is future or null) ELSE 'N'
+    ,case when pa.ACCT_NUM = (select ACCT_NUM 
+                            from PATRON.ST_REG_STOP_PAYMENT_PLAN rsp
+                            where rsp.ACCT_NUM = pa.ACCT_NUM
+                            and nvl(PAYMENT_PLAN_END, trunc(SYSDATE)) >= trunc(SYSDATE)) THEN 'A' 
+          else 'N'
+        end PAYMENT_PLAN
+    
     ,NULL ACTIVITY_ID
     ,NULL X_VERSION
     ,NULL EMP_NUM
@@ -116,7 +137,7 @@ CURSOR C1 IS SELECT
 FROM PATRON.PA_ACCT pa
     ,PATRON.PA_ACCT_DETAIL pad
 --    ,PATRON.KS_CHALLENGE_QUESTION
-WHERE PA_ACCT.ACCT_NUM = PA_ACCT_DETAIL.ACCT_NUM --(+)
+WHERE pa.ACCT_NUM = pad.ACCT_NUM --(+)
 ;
 /*Change FTE_TABLE to the actual table name*/
 
@@ -131,9 +152,45 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-    /*ETL SECTION BEGIN
+    /*ETL SECTION BEGIN */
 
-      ETL SECTION END*/
+    FOR i IN 1 .. DM_ACCOUNT_INFO_tab.COUNT LOOP
+
+      begin
+        select max(sc.STATUS_CHG_DATE) into  DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME
+        from PATRON.PA_ACCT_STATUS_CHANGES sc
+        where sc.ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
+        ;
+      exception 
+        when others then null;
+        DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
+      end;
+      begin
+        select max(di.CREATED_ON) into  DM_ACCOUNT_INFO_tab(i).LAST_INVOICE_DATE
+        from PATRON.ST_DOCUMENT_INFO di
+        where di.ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
+        ;
+      exception 
+        when others then null;
+        DM_ACCOUNT_INFO_tab(i).LAST_INVOICE_DATE:=null;
+      end;
+--    DBMS_OUTPUT.PUT_LINE('ACCT- '||i||' - '||DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
+--        ||' - '||DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME
+--        ||' - '||DM_ACCOUNT_INFO_tab(i).LAST_INVOICE_DATE);
+           
+--    IF ACCOUNT_NUM EXISTS IN ST_REG_STOP_PAYMENT_PLAN AND NVL(PAYMENT_PLAN_END, TRUNC(SYSDATE))  >=  TRUNC(SYSDATE) 
+--    THEN 'A'    -- (if plan end date is future or null) 
+--    ELSE 'N' 
+--    ,case when pa.ACCT_NUM = (select ACCT_NUM 
+--                            from PATRON.ST_REG_STOP_PAYMENT_PLAN rsp
+--                            where rsp.ACCT_NUM = pa.ACCT_NUM
+--                            and nvl(PAYMENT_PLAN_END, trunc(SYSDATE)) >= trunc(SYSDATE)) THEN 'A' 
+--                        
+--          else 'N'
+
+    END LOOP;
+ 
+    /*  ETL SECTION END*/
 
     /*Bulk insert */ 
     FORALL i in DM_ACCOUNT_HST_INFO_tab.first .. DM_ACCOUNT_HST_INFO_tab.last

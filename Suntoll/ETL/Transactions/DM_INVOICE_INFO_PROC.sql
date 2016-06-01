@@ -27,9 +27,9 @@ CURSOR C1 IS SELECT
     ,trunc(di.CREATED_ON) INVOICE_DATE  -- date only
 
 --JOIN LEDGER_ID OF ST_ACTIVITY_PAID to ID OF KS_LEDGER 
---returns ORIGINAL_AMT from KS_LEDGER AND DISPUTED_AMT FROM ST_ACTIVITY_PAID; 
+--  returns ORIGINAL_AMT from KS_LEDGER AND DISPUTED_AMT FROM ST_ACTIVITY_PAID; 
 --Use dfference to determine if dismissed or not (IF 0 THEN 'DISPUTED' ELSE 'CLOSED') 
--- DISPUTED_AMT 
+-- DISPUTED_AMT ??
     ,CASE WHEN (nvl(va.AMT_CHARGED,0) - nvl(va.TOTAL_AMT_PAID,0)) > 0 THEN 'OPEN'
           WHEN (nvl(ap.AMT_CHARGED,0) - nvl(ap.TOTAL_AMT_PAID,0)) > 0 THEN 'OPEN'
           WHEN (select nvl(AMOUNT,0) from KS_LEDGER where id = ap.LEDGER_ID)
@@ -105,6 +105,10 @@ CURSOR C1 IS SELECT
       ,PATRON.ST_ACTIVITY_PAID ap
   WHERE di.DOCUMENT_ID = va.DOCUMENT_ID (+)  
     AND di.DOCUMENT_ID = ap.DOCUMENT_ID (+)   ; -- Source
+
+SQL_STRING  varchar2(500) := 'truncate table ';
+LOAD_TAB    varchar2(50)  := 'DM_INVOICE_INFO';
+ROW_CNT NUMBER := 0;
 
 BEGIN
  

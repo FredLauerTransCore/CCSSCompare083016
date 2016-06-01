@@ -1,10 +1,10 @@
 /********************************************************
 *
-* Name: DM_PAYMT_ITM_INFO_PROC
-* Created by: RH, 5/18/2016
+* Name: DM_PAYMT_ITM_HST_INFO_PROC
+* Created by: RH, 5/31/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
-*              DM_PAYMT_ITM_INFO
+*              DM_PAYMT_ITM_HST_INFO
 *
 ********************************************************/
 
@@ -12,11 +12,11 @@ set serveroutput on
 set verify on
 set echo on
 
-CREATE OR REPLACE PROCEDURE DM_PAYMT_ITM_INFO_PROC IS
+CREATE OR REPLACE PROCEDURE DM_PAYMT_ITM_HST_INFO_PROC IS
 
-TYPE DM_PAYMT_ITM_INFO_TYP IS TABLE OF DM_PAYMT_ITM_INFO%ROWTYPE 
+TYPE DM_PAYMT_ITM_HST_INFO_TYP IS TABLE OF DM_PAYMT_ITM_HST_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
-DM_PAYMT_ITM_INFO_tab DM_PAYMT_ITM_INFO_TYP;
+DM_PAYMT_ITM_HST_INFO_tab DM_PAYMT_ITM_HST_INFO_TYP;
 
 
 P_ARRAY_SIZE NUMBER:=10000;
@@ -56,7 +56,7 @@ BEGIN
   LOOP
 
     /*Bulk select */
-    FETCH C1 BULK COLLECT INTO DM_PAYMT_ITM_INFO_tab
+    FETCH C1 BULK COLLECT INTO DM_PAYMT_ITM_HST_INFO_tab
     LIMIT P_ARRAY_SIZE;
 
 
@@ -65,8 +65,8 @@ BEGIN
       ETL SECTION END*/
 
     /*Bulk insert */ 
-    FORALL i in DM_PAYMT_ITM_INFO_tab.first .. DM_PAYMT_ITM_INFO_tab.last
-           INSERT INTO DM_PAYMT_ITM_INFO VALUES DM_PAYMT_ITM_INFO_tab(i);
+    FORALL i in DM_PAYMT_ITM_HST_INFO_tab.first .. DM_PAYMT_ITM_HST_INFO_tab.last
+           INSERT INTO DM_PAYMT_ITM_HST_INFO VALUES DM_PAYMT_ITM_HST_INFO_tab(i);
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;

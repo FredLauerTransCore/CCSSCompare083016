@@ -1,10 +1,10 @@
 /********************************************************
 *
-* Name: DM_INVOICE_ITM_INFO_PROC
+* Name: DM_INVOICE_ITM_HST_INFO_PROC
 * Created by: RH, 5/18/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
-*              DM_INVOICE_ITM_INFO
+*              DM_INVOICE_ITM_HST_INFO
 *
 ********************************************************/
 
@@ -12,11 +12,11 @@ set serveroutput on
 set verify on
 set echo on
 
-CREATE OR REPLACE PROCEDURE DM_INVOICE_ITM_INFO_PROC IS
+CREATE OR REPLACE PROCEDURE DM_INVOICE_ITM_HST_INFO_PROC IS
 
-TYPE DM_INVOICE_ITM_INFO_TYP IS TABLE OF DM_INVOICE_ITM_INFO%ROWTYPE 
+TYPE DM_INVOICE_ITM_HST_INFO_TYP IS TABLE OF DM_INVOICE_ITM_HST_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
-DM_INVOICE_ITM_INFO_tab DM_INVOICE_ITM_INFO_TYP;
+DM_INVOICE_ITM_HST_INFO_tab DM_INVOICE_ITM_HST_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
@@ -24,7 +24,7 @@ P_ARRAY_SIZE NUMBER:=10000;
 CURSOR C1 IS SELECT 
     di.ACCT_NUM ACCOUNT_NUMBER -- ST_DOCUMENT_MAILING_EXCEPTION
     ,di.DOCUMENT_ID INVOICE_NUMBER
-    ,'POSTPAID' CATEGORY  -- DEFAULT to 'Postpaid'
+    ,'Postpaid' CATEGORY  -- DEFAULT to 'Postpaid'
 
     ,CASE WHEN va.BANKRUPTCY_FLAG is NOT null 
           THEN 'BKTY'  -- Bankruptcy flag in VB_Activity to BKTY to get this status, 
@@ -178,20 +178,25 @@ CURSOR C1 IS SELECT
           ELSE NULL
       END SUB_CATEGORY  -- Derived
       
-    ,NULL STATUS
-    ,trunc(di.CREATED_ON) INVOICE_DATE
+    ,'0' STATUS
+    ,di.CREATED_ON INVOICE_DATE
+    
+-- SUM(PREV_DUE TOLL_CHARGED FEE_CHARGED PAYMT_ADJS)
     ,(di.PREV_DUE + di.TOLL_CHARGED + di.FEE_CHARGED + di.PAYMT_ADJS) PAYABLE
+    
+-- Expr: 'RowIdToRowIdNum ([Id])'  - Charge ledger ID (unique)
     ,0 INVOICE_ITEM_NUMBER
     ,NULL LANE_TX_ID  ----   PA_LANE_TXN_ID ?
     ,'Open' LEVEL_INFO
     ,di.PROMOTION_STATUS REASON_CODE  --PROMOTION_CODE
     ,'INVOICE-ITEM' INVOICE_TYPE
-    ,0 PAID_AMOUNT
+    ,0 PAID_AMOUNT    -- No mapping
     ,NULL CREATED
-    ,di.CREATED_ON CREATED_BY
+    ,NULL CREATED_BY  -- ,di.CREATED_ON CREATED_BY
     ,NULL LAST_UPD
     ,NULL LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
+    ,0 DISMISSED_AMT    -- No mapping
 FROM PATRON.ST_DOCUMENT_INFO di
       ,PATRON.VB_ACTIVITY va
       ,PATRON.VB_ACTIVITY vac
@@ -200,7 +205,7 @@ FROM PATRON.ST_DOCUMENT_INFO di
     ; -- Source
 
 SQL_STRING  varchar2(500) := 'truncate table ';
-LOAD_TAB    varchar2(50)  := 'DM_INVOICE_ITM_INFO';
+LOAD_TAB    varchar2(50)  := 'DM_INVOICE_ITM_HST_INFO';
 ROW_CNT NUMBER := 0;
 
 BEGIN
@@ -210,7 +215,7 @@ BEGIN
   LOOP
 
     /*Bulk select */
-    FETCH C1 BULK COLLECT INTO DM_INVOICE_ITM_INFO_tab
+    FETCH C1 BULK COLLECT INTO DM_INVOICE_ITM_HST_INFO_tab
     LIMIT P_ARRAY_SIZE;
 
     /*ETL SECTION BEGIN
@@ -218,8 +223,8 @@ BEGIN
       ETL SECTION END*/
 
     /*Bulk insert */ 
-    FORALL i in DM_INVOICE_ITM_INFO_tab.first .. DM_INVOICE_ITM_INFO_tab.last
-           INSERT INTO DM_INVOICE_ITM_INFO VALUES DM_INVOICE_ITM_INFO_tab(i);
+    FORALL i in DM_INVOICE_ITM_HST_INFO_tab.first .. DM_INVOICE_ITM_HST_INFO_tab.last
+           INSERT INTO DM_INVOICE_ITM_HST_INFO VALUES DM_INVOICE_ITM_HST_INFO_tab(i);
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;

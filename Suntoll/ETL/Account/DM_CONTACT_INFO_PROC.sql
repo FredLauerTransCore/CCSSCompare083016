@@ -1,7 +1,7 @@
 /********************************************************
 *
 * Name: DM_CONTACT_INFO_PROC
-* Created by: RH, 4/16/2016
+* Created by: RH, 5/19/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
 *              DM_CONTACT_INFO
@@ -24,9 +24,9 @@ CURSOR C1 IS SELECT
     ACCT_NUM ACCOUNT_NUMBER
     ,'Y' IS_PRIMARY
     ,TITLE_TITLE_CODE TITLE
-    ,F_NAME FIRST_NAME
-    ,L_NAME LAST_NAME
-    ,M_INITIAL MIDDLE_NAME
+    ,trim(F_NAME) FIRST_NAME
+    ,trim(L_NAME) LAST_NAME
+    ,trim(M_INITIAL) MIDDLE_NAME
     ,DAY_PHONE||DAY_PHONE_EXT PHONE_NUMBER_DAYTIME
     ,EVE_PHONE||EVE_PHONE_EXT PHONE_NUMBER_NIGHT
     ,NULL PHONE_NUMBER_MOBILE
