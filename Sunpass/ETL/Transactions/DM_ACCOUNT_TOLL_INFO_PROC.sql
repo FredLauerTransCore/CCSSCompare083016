@@ -209,6 +209,7 @@ BEGIN
     end;
 
     end loop;
+
    /* this is for the TX_SUBTYPE_IND
    IF TX_TYPE_IND = 'E' THEN 'Z' 
    ELSE IF TX_TYPE_IND = 'V' THEN 
