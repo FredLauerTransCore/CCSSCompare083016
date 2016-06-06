@@ -1,10 +1,10 @@
 /********************************************************
 *
-* Name: DM_EMPLOYEE_INFO_PROC
-* Created by: RH, 5/25/2016
+* Name: DM_IVR_CALL_HST_INFO_PROC
+* Created by: RH, 5/31/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
-*              DM_EMPLOYEE_INFO
+*              DM_IVR_CALL_HST_INFO
 *
 ********************************************************/
 
@@ -13,36 +13,31 @@ set verify on
 set echo on
 
 declare
---CREATE OR REPLACE PROCEDURE DM_EMPLOYEE_INFO_PROC IS
+--CREATE OR REPLACE PROCEDURE DM_IVR_CALL_HST_INFO_PROC IS
 
-TYPE DM_EMPLOYEE_INFO_TYP IS TABLE OF DM_EMPLOYEE_INFO%ROWTYPE 
+
+TYPE DM_IVR_CALL_HST_INFO_TYP IS TABLE OF DM_IVR_CALL_HST_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
-DM_EMPLOYEE_INFO_tab DM_EMPLOYEE_INFO_TYP;
+DM_IVR_CALL_HST_INFO_tab DM_IVR_CALL_HST_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=1000;
 
 -- * Note (terminated employees are inactive)
+
 CURSOR C1 IS SELECT 
-    trim(F_NAME) FIRST_NAME
-    ,trim(L_NAME) LAST_NAME
-    ,trim(STATUS) ACTIVE_FLAG   --Indicates whether Employee is Active (A) or Inactive (I)
-    ,nvl(LEGACY_EMP_CODE,'None') EMP_NUM
-    ,nvl(USER_TYPE_CODE,0) JOB_TITLE
-    ,trim(nvl(M_INITIAL,'None')) MID_NAME
-----    ,NULL BIRTH_DT
-    ,trunc(SYSDATE) BIRTH_DT   -- Target is required
-    ,nvl(LOCATION_ID,0) STORE_NAME
-    ,'SUNTOLL' SOURCE_SYSTEM    
-    ,CREATED_ON CREATED
-    ,CREATED_BY_USER_ID CREATED_BY
-    ,NULL LAST_UPD    -- N/A
-    ,NULL LAST_UPD_BY   -- N/A
-FROM KS_USER
-where rownum<101
+    ANI
+    ,CALL_ID
+    ,DISPOSITION
+    ,END_TIME
+    ,FAX_NUM
+    ,START_TIME
+--    ,'SUNTOLL' SOURCE_SYSTEM
+FROM PATRON.IVR_CALL
+--where rownum<201
 ;   -- Source table SUNTOLL
 
 SQL_STRING  varchar2(500) := 'truncate table ';
-LOAD_TAB    varchar2(50) := 'DM_EMPLOYEE_INFO';
+LOAD_TAB    varchar2(50) := 'DM_IVR_CALL_HST_INFO';
 ROW_CNT NUMBER := 0;
 
 BEGIN
@@ -58,16 +53,17 @@ BEGIN
   LOOP
 
     /*Bulk select */
-    FETCH C1 BULK COLLECT INTO DM_EMPLOYEE_INFO_tab
+    FETCH C1 BULK COLLECT INTO DM_IVR_CALL_HST_INFO_tab
     LIMIT P_ARRAY_SIZE;
+
 
     /*ETL SECTION BEGIN
 
       ETL SECTION END*/
 
     /*Bulk insert */ 
-    FORALL i in DM_EMPLOYEE_INFO_tab.first .. DM_EMPLOYEE_INFO_tab.last
-           INSERT INTO DM_EMPLOYEE_INFO VALUES DM_EMPLOYEE_INFO_tab(i);
+    FORALL i in DM_IVR_CALL_HST_INFO_tab.first .. DM_IVR_CALL_HST_INFO_tab.last
+           INSERT INTO DM_IVR_CALL_HST_INFO VALUES DM_IVR_CALL_HST_INFO_tab(i);
 
 --    DBMS_OUTPUT.PUT_LINE('Inserted '||sql%rowcount||' into '||LOAD_TAB||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
     ROW_CNT := ROW_CNT +  sql%rowcount;                 
