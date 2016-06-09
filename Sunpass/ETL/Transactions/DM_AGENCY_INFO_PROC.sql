@@ -24,6 +24,21 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 CURSOR C1 IS SELECT 
     rownum AGENCY_ID
+    ,CASE AGENCY__ID 
+      WHEN  101 THEN 'FL CCSS'
+      WHEN  61  THEN 'FTE'
+      WHEN  106 THEN 'Ft. Lauderdale Airport'
+      WHEN  65  THEN 'LCF'
+      WHEN  63  THEN 'MDX'
+      WHEN  104 THEN 'Miami Airport'
+      WHEN  30  THEN 'NCTA'
+      WHEN  62  THEN 'OOCEA'
+      WHEN  105 THEN 'Orlando Airport'
+      WHEN  102 THEN 'Palm Beach Airport'
+      WHEN  34  THEN 'SRTA'
+      WHEN  64  THEN 'THEAS' 
+      WHEN  103 THEN 'Tampa Airport'  
+    END col_name --to be dertermined
     ,TITLE AGENCY_NAME
     ,AGENCY_NAME AGENCY_SHORT_NAME
     ,decode(IAG_HOME,'Y','IAG','FL') CONSORTIUM
