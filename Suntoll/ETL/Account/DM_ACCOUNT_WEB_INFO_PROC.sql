@@ -12,7 +12,8 @@ set serveroutput on
 set verify on
 set echo on
 
-CREATE OR REPLACE PROCEDURE DM_ACCOUNT_WEB_INFO_PROC IS
+declare
+--CREATE OR REPLACE PROCEDURE DM_ACCOUNT_WEB_INFO_PROC IS
 
 TYPE DM_ACCOUNT_WEB_INFO_TYP IS TABLE OF DM_ACCOUNT_WEB_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
@@ -52,12 +53,23 @@ AND ua.PA_ACCT_NUM = icd.ACCT_NUM -- (+) ?
 AND icd.CALL_ID = ic.CALL_ID
 --AND ACTIVE_FLAG = 'Y'
 --AND   ua.PA_ACCT_NUM = wi.ACCT_NUM (+)
+and rownum<1001
 ; -- Source SunToll
 
 --PA_WEB_LOGIN_INFO
 --IVR_CALL -- Using IVR_CALL_DETAIL ? ACCT_NUM ?
 
+SQL_STRING  varchar2(500) := 'truncate table ';
+LOAD_TAB    varchar2(50) := 'DM_ACCOUNT_WEB_INFO';
+ROW_CNT NUMBER := 0;
+
 BEGIN
+  DBMS_OUTPUT.PUT_LINE('Start '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+
+  SQL_STRING := SQL_STRING||LOAD_TAB;
+  DBMS_OUTPUT.PUT_LINE('SQL_STRING : '||SQL_STRING);
+  execute immediate SQL_STRING;
+  commit;
  
   OPEN C1;  
 
@@ -90,6 +102,10 @@ BEGIN
     FORALL i in DM_ACCOUNT_WEB_INFO_tab.first .. DM_ACCOUNT_WEB_INFO_tab.last
            INSERT INTO DM_ACCOUNT_WEB_INFO VALUES DM_ACCOUNT_WEB_INFO_tab(i);
                        
+--    DBMS_OUTPUT.PUT_LINE('Inserted '||sql%rowcount||' into '||LOAD_TAB||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+    ROW_CNT := ROW_CNT +  sql%rowcount;                 
+    DBMS_OUTPUT.PUT_LINE('Inserted ROW count : '||ROW_CNT);
+                       
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
 
@@ -98,6 +114,8 @@ BEGIN
   CLOSE C1;
 
   COMMIT;
+  DBMS_OUTPUT.PUT_LINE('End '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  DBMS_OUTPUT.PUT_LINE('Total Rows : '||ROW_CNT);
 
   EXCEPTION
   WHEN OTHERS THEN
