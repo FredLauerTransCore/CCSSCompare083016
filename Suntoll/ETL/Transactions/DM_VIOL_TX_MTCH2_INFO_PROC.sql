@@ -12,7 +12,8 @@ set serveroutput on
 set verify on
 set echo on
 
-CREATE OR REPLACE PROCEDURE DM_VIOL_TX_MTCH2_INFO_PROC IS
+declare
+--CREATE OR REPLACE PROCEDURE DM_VIOL_TX_MTCH2_INFO_PROC IS
 
 TYPE DM_VIOL_TX_MTCH2_INFO_TYP IS TABLE OF DM_VIOL_TX_MTCH2_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
@@ -202,14 +203,9 @@ CURSOR C1 IS SELECT
           ELSE NULL
       END EVENT_TYPE  -- Derived
 
-  -- VIOL_TX_STATUS - 1 IF < 0 THEN 0 - *** Xerox please provide translate list
-    ,0 PREV_EVENT_TYPE 
-    
-    ,0 VIOL_TX_STATUS
-    
-  -- VIOL_TX_STATUS - 1 IF < 0 THEN 0
-    ,0 PREV_VIOL_TX_STATUS
-    
+    ,0 PREV_EVENT_TYPE  -- VIOL_TX_STATUS - 1 IF < 0 THEN 0 - *** Xerox please provide translate list
+    ,0 VIOL_TX_STATUS    
+    ,0 PREV_VIOL_TX_STATUS  -- VIOL_TX_STATUS - 1 IF < 0 THEN 0   
     ,0 DMV_PLATE_TYPE
     ,0 RECON_PLAN_ID
     ,to_date('01-01-1900','MM-DD-YYYY') RECON_TIMESTAMP

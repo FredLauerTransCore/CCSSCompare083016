@@ -153,13 +153,18 @@ BEGIN
 
     END LOOP;
 --      ETL SECTION END
-    
+
+    /*Bulk insert int Acount drive table list */    
+    FORALL i in DM_ACCOUNT_INFO_tab.first .. DM_ACCOUNT_INFO_tab.last
+           INSERT INTO DM_ACCOUNT_LIST VALUES DM_ACCOUNT_INFO_tab(i).ACCT_NUM;    
+
     /*Bulk insert */ 
     FORALL i in DM_ACCOUNT_INFO_tab.first .. DM_ACCOUNT_INFO_tab.last
            INSERT INTO DM_ACCOUNT_INFO VALUES DM_ACCOUNT_INFO_tab(i);
 --    DBMS_OUTPUT.PUT_LINE('Inserted '||sql%rowcount||' into '||LOAD_TAB||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
     ROW_CNT := ROW_CNT +  sql%rowcount;                 
-    DBMS_OUTPUT.PUT_LINE('Total ROW count : '||ROW_CNT);
+    DBMS_OUTPUT.PUT_LINE('Rows Inserted : '||ROW_CNT);
+    
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
@@ -170,7 +175,7 @@ BEGIN
 
   COMMIT;
   DBMS_OUTPUT.PUT_LINE('END '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-  DBMS_OUTPUT.PUT_LINE('ROW_CNT : '||ROW_CNT);
+  DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
   
   EXCEPTION
   WHEN OTHERS THEN

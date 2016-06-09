@@ -19,6 +19,8 @@ TYPE DM_PAYMT_HST_INFO_TYP IS TABLE OF DM_PAYMT_HST_INFO%ROWTYPE
      INDEX BY BINARY_INTEGER;
 DM_PAYMT_HST_INFO_tab DM_PAYMT_HST_INFO_TYP;
 
+P_BEGIN_DATE  DATE;
+P_END_DATE    DATE;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
@@ -50,10 +52,15 @@ CURSOR C1 IS SELECT
     ,pp.CC_GATEWAY_REF_ID EXTERNAL_REFERENCE_NUM
     ,NULL MISS_APPLIED
     ,NULL DESCRIPTION  -- No mapping
--- If REF_APPROVED_DATE is populated, then the refund status will be populated. REF_DECLINE_REASON_ID will get the status of the refund.
+-- If REF_APPROVED_DATE is populated, then the refund status will be populated. 
+--  REF_DECLINE_REASON_ID will get the status of the refund.
 -- 1=UNAPPROVED, 2=APPROVED, 3=PARTIAL, 4=REJECTED.
     ,CASE WHEN rr.REF_APPROVED_DATE IS NOT NULL THEN 
-        decode(rr.REFUND_STATUS_ID, 1,'UNAPPROVED', 2,'APPROVED', 3,'PARTIAL', 4,'REJECTED',NULL) 
+        decode(rr.REFUND_STATUS_ID, 
+              1,'UNAPPROVED', 
+              2,'APPROVED', 
+              3,'PARTIAL', 
+              4,'REJECTED',NULL) 
       END REFUND_STATUS 
     ,NULL REFUND_CHECK_NUM
     ,NULL TOD_ID  -- Required
@@ -71,6 +78,7 @@ FROM PA_PURCHASE p
 WHERE p.PUR_ID = pd.PUR_PUR_ID (+)
 AND   p.PUR_ID = pp.PUR_PUR_ID (+)
 AND   p.PUR_ID = rr.PUR_PUR_ID (+)
+AND   p.PUR_TRANS_DATE between P_BEGIN_DATE and P_END_DATE
 and rownum<111
 ; -- source
 
