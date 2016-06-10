@@ -23,8 +23,8 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1 IS SELECT 
-    rownum AGENCY_ID
-    ,CASE AGENCY__ID 
+    -- Assign values to AGENCY_ID according provided lookup using rownum
+    CASE rownum 
       WHEN  101 THEN 'FL CCSS'
       WHEN  61  THEN 'FTE'
       WHEN  106 THEN 'Ft. Lauderdale Airport'
@@ -38,7 +38,7 @@ CURSOR C1 IS SELECT
       WHEN  34  THEN 'SRTA'
       WHEN  64  THEN 'THEAS' 
       WHEN  103 THEN 'Tampa Airport'  
-    END col_name --to be dertermined
+    END AGENCY_ID
     ,TITLE AGENCY_NAME
     ,AGENCY_NAME AGENCY_SHORT_NAME
     ,decode(IAG_HOME,'Y','IAG','FL') CONSORTIUM
@@ -56,7 +56,56 @@ CURSOR C1 IS SELECT
 FROM PATRON.ST_INTEROP_AGENCIES;
 
 BEGIN
- 
+  
+ --Make sure source and target are correct (4,5,6)
+      DECLARE 
+         agency_name_target_col_length  NUMBER;
+         agency_name_source_col_length  NUMBER;
+         
+         device_prefix_target_col_length  NUMBER;
+         file_prefix_target_col_length  NUMBER;
+         agency_id_source_col_length  NUMBER;
+         
+      BEGIN
+         --agency_name_source_col_length
+         SELECT data_length INTO agency_name_source_col_length FROM user_tab_columns
+            where table_name = 'DMSTAGING_DEV.ST_INTEROP_AGENCIES'
+            and column_name = 'AGENCY_NAME'; 
+         --agency_name_target_col_length
+         SELECT data_length INTO agency_name_col_length FROM user_tab_columns
+            where table_name = 'DMSTAGING_DEV.DM_AGENCY_INFO'
+            and column_name = 'AGENCY_SHORT_NAME'; 
+        
+          --device_prefix_target_col_length
+         SELECT data_length INTO device_prefix_target_col_length FROM user_tab_columns
+            where table_name = 'DMSTAGING_DEV.DM_AGENCY_INFO'
+            and column_name = 'DEVICE_PREFIX';    
+        
+         --file_prefix_target_col_length
+         SELECT data_length INTO file_prefix_target_col_length FROM user_tab_columns
+            where table_name = 'DMSTAGING_DEV.DM_AGENCY_INFO'
+            and column_name = 'FILE_PREFIX';   
+            
+         --agency_id_source_col_length
+         SELECT data_length INTO agency_id_source_col_length FROM user_tab_columns
+            where table_name = 'DMSTAGING_DEV.ST_INTEROP_AGENCIES'
+            and column_name = 'AGENCY_ID'; 
+          ---Check for differences  
+          IF (agency_name_target_col_length != agency_name_source_col_length or
+              device_prefix_target_col_length !=  agency_id_source_col_length or
+              file_prefix_target_col_length != agency_id_source_col_length
+            ) THEN
+                --Change length
+                 EXECUTE IMMEDIATE 'ALTER TABLE DMSTAGING_DEV.DM_AGENCY_INFO MODIFY 
+                    (
+                    AGENCY_SHORT_NAME   VARCHAR2 (50), 
+                    DEVICE_PREFIX       VARCHAR2 (10),
+                    FILE_PREFIX         VARCHAR2 (10)
+                    )';
+          END IF;
+      END;
+  ---- 
+  
   OPEN C1;  
 
   LOOP
