@@ -12,8 +12,9 @@ set serveroutput on
 set verify on
 set echo on
 
-declare
---CREATE OR REPLACE PROCEDURE DM_EMPLOYEE_INFO_PROC IS
+--declare
+CREATE OR REPLACE PROCEDURE DM_EMPLOYEE_INFO_PROC IS
+
 
 TYPE DM_EMPLOYEE_INFO_TYP IS TABLE OF DM_EMPLOYEE_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
@@ -22,23 +23,24 @@ DM_EMPLOYEE_INFO_tab DM_EMPLOYEE_INFO_TYP;
 P_ARRAY_SIZE NUMBER:=1000;
 
 -- * Note (terminated employees are inactive)
+
 CURSOR C1 IS SELECT 
     trim(F_NAME) FIRST_NAME
     ,trim(L_NAME) LAST_NAME
     ,trim(STATUS) ACTIVE_FLAG   --Indicates whether Employee is Active (A) or Inactive (I)
     ,nvl(LEGACY_EMP_CODE,'None') EMP_NUM
-    ,nvl(USER_TYPE_CODE,0) JOB_TITLE
-    ,trim(nvl(M_INITIAL,'None')) MID_NAME
+    ,nvl(USER_TYPE_CODE,'None') JOB_TITLE
+    ,nvl(M_INITIAL,'None') MID_NAME
 ----    ,NULL BIRTH_DT
-    ,trunc(SYSDATE) BIRTH_DT   -- Target is required
+    ,SYSDATE BIRTH_DT   -- Target is required
     ,nvl(LOCATION_ID,0) STORE_NAME
-    ,'SUNTOLL' SOURCE_SYSTEM    
-    ,CREATED_ON CREATED
-    ,CREATED_BY_USER_ID CREATED_BY
-    ,NULL LAST_UPD    -- N/A
-    ,NULL LAST_UPD_BY   -- N/A
-FROM KS_USER
-where rownum<101
+    ,'SUNTOLL' SOURCE_SYSTEM
+--    ,CREATED_ON CREATED
+--    ,CREATED_BY_USER_ID CREATED_BY
+--    ,NULL LAST_UPD
+--    ,NULL LAST_UPD_BY
+FROM PATRON.KS_USER
+--where rownum<201
 ;   -- Source table SUNTOLL
 
 SQL_STRING  varchar2(500) := 'truncate table ';
@@ -61,6 +63,7 @@ BEGIN
     FETCH C1 BULK COLLECT INTO DM_EMPLOYEE_INFO_tab
     LIMIT P_ARRAY_SIZE;
 
+
     /*ETL SECTION BEGIN
 
       ETL SECTION END*/
@@ -68,7 +71,6 @@ BEGIN
     /*Bulk insert */ 
     FORALL i in DM_EMPLOYEE_INFO_tab.first .. DM_EMPLOYEE_INFO_tab.last
            INSERT INTO DM_EMPLOYEE_INFO VALUES DM_EMPLOYEE_INFO_tab(i);
-
 --    DBMS_OUTPUT.PUT_LINE('Inserted '||sql%rowcount||' into '||LOAD_TAB||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
     ROW_CNT := ROW_CNT +  sql%rowcount;                 
     DBMS_OUTPUT.PUT_LINE('ROW count : '||ROW_CNT);
