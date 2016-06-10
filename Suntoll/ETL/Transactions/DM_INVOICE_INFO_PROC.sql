@@ -12,8 +12,7 @@ set serveroutput on
 set verify on
 set echo on
 
-DECLARE
---CREATE OR REPLACE PROCEDURE DM_INVOICE_INFO_PROC IS
+CREATE OR REPLACE PROCEDURE DM_INVOICE_INFO_PROC IS
 
 TYPE DM_INVOICE_INFO_TYP IS TABLE OF DM_INVOICE_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
@@ -74,15 +73,11 @@ CURSOR C1 IS SELECT
     ,di.DOCUMENT_START START_DATE
     ,di.DOCUMENT_END END_DATE
     ,di.PREV_DUE OPENING_BALANCE
-    ,(nvl(di.PREV_DUE,0)
-        + nvl(di.TOLL_CHARGED,0)
-        + nvl(di.FEE_CHARGED,0) 
-        + nvl(di.PAYMT_ADJS,0)) CLOSING_BALANCE
+    ,(nvl(di.PREV_DUE,0) + nvl(di.TOLL_CHARGED,0) + nvl(di.FEE_CHARGED,0) + nvl(di.PAYMT_ADJS,0)) CLOSING_BALANCE
     
 -- PAID_AMT + DISMISSED_AMT  -- What is  DISMISSED_AMT ??
-    ,(nvl(va.TOTAL_AMT_PAID,0) + nvl(ap.TOTAL_AMT_PAID,0))
-        + (nvl(ap.AMT_CHARGED,0) - nvl(ap.TOTAL_AMT_PAID,0)) 
-        + (nvl(va.AMT_CHARGED,0) - nvl(va.TOTAL_AMT_PAID,0)) CREDITS  -- Derived
+    ,(va.TOTAL_AMT_PAID + ap.TOTAL_AMT_PAID) + 
+          (ap.AMT_CHARGED - ap.TOTAL_AMT_PAID) + (va.AMT_CHARGED - va.TOTAL_AMT_PAID) CREDITS  -- Derived
     ,(nvl(di.TOLL_CHARGED,0) + nvl(di.FEE_CHARGED,0)) PAYABALE
     ,(nvl(di.PREV_DUE,0) + nvl(di.TOLL_CHARGED,0) + nvl(di.FEE_CHARGED,0) + nvl(di.PAYMT_ADJS,0)) INVOICE_AMT
     ,(nvl(va.TOTAL_AMT_PAID,0) + nvl(ap.TOTAL_AMT_PAID,0)) PAYMENTS 

@@ -132,7 +132,6 @@ BEGIN
         when others then null;
         DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
       end;
-      
       begin
         select max(di.CREATED_ON) into  DM_ACCOUNT_INFO_tab(i).LAST_INVOICE_DATE
         from PATRON.ST_DOCUMENT_INFO di
