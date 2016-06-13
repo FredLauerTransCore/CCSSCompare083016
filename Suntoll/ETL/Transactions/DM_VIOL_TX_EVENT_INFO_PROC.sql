@@ -34,7 +34,16 @@ CURSOR C1 IS SELECT
 -- Sunny will provide extract rule to determine status once the status is finalized between Xerox and FTE. 
     NULL EVENT_TYPE     
     ,NULL PREV_EVENT_TYPE 
-    ,NULL VIOL_TX_STATUS
+    ,CASE WHEN va.BANKRUPTCY_FLAG is NOT NULL then 'BANKRUPTCY'
+          WHEN va.COLL_COURT_FLAG = 'COLL' and va.DOCUMENT_ID IS NOT NULL and va.CHILD_DOC_ID IS NOT NULL then 'COLLECTION'
+          WHEN va.COLL_COURT_FLAG = 'CRT' and va.DOCUMENT_ID IS NOT NULL and va.CHILD_DOC_ID IS NOT NULL then 'COURT'
+          WHEN va.COLL_COURT_FLAG is NOT NULL then NULL
+          WHEN va.DOCUMENT_ID IS NULL THEN 'UNBILLED'
+          WHEN va.CHILD_DOC_ID IS NULL THEN 'INVOICED'
+          WHEN va.CHILD_DOC_ID LIKE '%-%' THEN 'UTC'  VIOL_TX_STATUS
+          WHEN va.CHILD_DOC_ID IS NOT NULL THEN 'ESCALATED'
+          ELSE NULL
+     END VIOL_TX_STATUS
     ,NULL PREV_VIOL_TX_STATUS
     ,NULL EVENT_TIMESTAMP -- ** Discussion 
 
@@ -148,9 +157,8 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-    /*ETL SECTION BEGIN
-
-      ETL SECTION END*/
+    /*ETL SECTION BEGIN */
+    /*ETL SECTION END*/
 
     /*Bulk insert */ 
     FORALL i in DM_VIOL_TX_EVENT_INFO_tab.first .. DM_VIOL_TX_EVENT_INFO_tab.last
