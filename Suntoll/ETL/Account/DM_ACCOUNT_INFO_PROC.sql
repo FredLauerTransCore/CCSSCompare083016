@@ -8,7 +8,7 @@
 *
 ********************************************************/
 --Source field different from target as mention in worksheet 
---by previous developers. Details needed
+--by previous developer. Detail needed. No action taken
 set serveroutput on
 set verify on
 set echo on
