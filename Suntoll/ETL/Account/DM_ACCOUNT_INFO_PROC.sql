@@ -7,7 +7,8 @@
 *              DM_ACCOUNT_INFO
 *
 ********************************************************/
-
+--Source field different from target as mention in worksheet 
+--by previous developers. Details needed
 set serveroutput on
 set verify on
 set echo on
