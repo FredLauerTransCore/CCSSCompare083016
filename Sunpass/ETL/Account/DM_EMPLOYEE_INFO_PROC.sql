@@ -27,7 +27,12 @@ CURSOR C1 IS SELECT
     ,EMP_NAME LAST_NAME
     ,TEAM ACTIVE_FLAG
     ,EMP_CODE EMP_NUM
-    ,ACCESS_LEVEL JOB_TITLE
+    ,DECODE(ACCESS_LEVEL, '99','SYSTEM_ADMIN',
+                          '95','DEPT_MANAGER',
+                          '90','MANAGER','35','CSR_SUPERVISOR',
+                          '10','CSR_SUPERVISOR',
+                          '01','VIEW_ONLY',
+                          '00','NO ACCESS') JOB_TITLE
     ,'00000' MID_NAME
     ,to_date('01/01/1900','MM/DD/YYYY') BIRTH_DT
     ,'00000' STORE_NAME
