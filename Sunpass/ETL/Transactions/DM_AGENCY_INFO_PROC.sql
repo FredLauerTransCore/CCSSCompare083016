@@ -53,10 +53,11 @@ CURSOR C1 IS SELECT
     ,0 STMT_FREQUENCY
     ,AGENCY_ID AGENCY_CODE
     ,'SUNPASS' SOURCE_SYSTEM
-FROM PATRON.ST_INTEROP_AGENCIES;
+FROM ST_INTEROP_AGENCIES;
 
 BEGIN
   
+/*
  --Make sure source and target are correct (4,5,6)
       DECLARE 
          agency_name_target_col_length  NUMBER;
@@ -105,7 +106,8 @@ BEGIN
           END IF;
       END;
   ---- 
-  
+  */
+
   OPEN C1;  
 
   LOOP
