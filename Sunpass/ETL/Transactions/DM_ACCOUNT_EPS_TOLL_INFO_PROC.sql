@@ -36,7 +36,11 @@ CURSOR C1 IS SELECT
     ,'1' LANE_TYPE
     ,'0' LANE_STATE
     ,'0' LANE_HEALTH
-    ,NULL PLAZA_AGENCY_ID
+    ,(select io.AGENCY_ID
+        from PA_LANE_TXN ln, PA_PLAZA pl, ST_INTEROP_AGENCIES io
+        where ln.ext_plaza_id  = pl.plaza_id
+        and pl.AUTHCODE_AUTHORITY_CODE = io.AUTHORITY_CODE)
+        PLAZA_AGENCY_ID
     ,EXT_PLAZA_ID PLAZA_ID
     ,'0' COLLECTOR_ID
     ,'0' TOUR_SEGMENT_ID
