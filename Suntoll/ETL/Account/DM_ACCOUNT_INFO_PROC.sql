@@ -7,7 +7,8 @@
 *              DM_ACCOUNT_INFO
 *
 ********************************************************/
-
+--Source field different from target as mention in worksheet 
+--by previous developer. Detail needed. No action taken
 set serveroutput on
 set verify on
 set echo on
@@ -85,10 +86,10 @@ CURSOR C1 IS SELECT
 --IF ACCOUNT_NUM EXISTS IN ST_REG_STOP_PAYMENT_PLAN AND 
 --NVL(PAYMENT_PLAN_END, TRUNC(SYSDATE))  >=  TRUNC(SYSDATE) THEN 'A' 
 --(if plan end date is future or null) ELSE 'N'
-FROM PATRON.PA_ACCT pa
-    ,PATRON.PA_ACCT_DETAIL pad
+FROM PA_ACCT pa
+    ,PA_ACCT_DETAIL pad
 --    ,PATRON.KS_CHALLENGE_QUESTION
-WHERE pa.ACCT_NUM = pad.ACCT_NUM --(+)
+WHERE ACCT_NUM = pad.ACCT_NUM --(+)
 --AND PA_ACCT.USER_ID = KS_USER_CHALLENGE_RESPONSE.USER_ID (+)
 and rownum<3501
 ; 
@@ -115,11 +116,11 @@ BEGIN
 
     /*Bulk select */
     FETCH C1 BULK COLLECT INTO DM_ACCOUNT_INFO_tab
---    LIMIT P_ARRAY_SIZE;
-    LIMIT 1000;
+    LIMIT P_ARRAY_SIZE --LIMIT 1000
+    ;
 
 --ETL SECTION BEGIN mapping
- DBMS_OUTPUT.PUT_LINE('FETCH '||LOAD_TAB||' ETL at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+-- DBMS_OUTPUT.PUT_LINE('FETCH '||LOAD_TAB||' ETL at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
 
     FOR i IN 1 .. DM_ACCOUNT_INFO_tab.COUNT LOOP
 
@@ -132,6 +133,7 @@ BEGIN
         when others then null;
         DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
       end;
+      
       begin
         select max(di.CREATED_ON) into  DM_ACCOUNT_INFO_tab(i).LAST_INVOICE_DATE
         from PATRON.ST_DOCUMENT_INFO di
@@ -151,13 +153,18 @@ BEGIN
 
     END LOOP;
 --      ETL SECTION END
-    
+
+    /*Bulk insert int Acount drive table list */    
+    FORALL i in DM_ACCOUNT_INFO_tab.first .. DM_ACCOUNT_INFO_tab.last
+           INSERT INTO DM_ACCOUNT_LIST VALUES DM_ACCOUNT_INFO_tab(i).ACCT_NUM;    
+
     /*Bulk insert */ 
     FORALL i in DM_ACCOUNT_INFO_tab.first .. DM_ACCOUNT_INFO_tab.last
            INSERT INTO DM_ACCOUNT_INFO VALUES DM_ACCOUNT_INFO_tab(i);
 --    DBMS_OUTPUT.PUT_LINE('Inserted '||sql%rowcount||' into '||LOAD_TAB||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
     ROW_CNT := ROW_CNT +  sql%rowcount;                 
-    DBMS_OUTPUT.PUT_LINE('Total ROW count : '||ROW_CNT);
+    DBMS_OUTPUT.PUT_LINE('Rows Inserted : '||ROW_CNT);
+    
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
@@ -168,7 +175,7 @@ BEGIN
 
   COMMIT;
   DBMS_OUTPUT.PUT_LINE('END '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-  DBMS_OUTPUT.PUT_LINE('ROW_CNT : '||ROW_CNT);
+  DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
   
   EXCEPTION
   WHEN OTHERS THEN
