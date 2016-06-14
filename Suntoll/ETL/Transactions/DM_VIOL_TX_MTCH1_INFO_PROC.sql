@@ -43,7 +43,7 @@ P_ARRAY_SIZE NUMBER:=10000;
 CURSOR C1  --(p_begin_date DATE, p_end_date DATE) 
 IS SELECT 
     lt.TXN_ID TX_EXTERN_REF_NO
-    ,nvl(lt.EXT_MSG_SEQ_NUM,0) TX_SEQ_NUMBER
+    ,lt.EXT_MSG_SEQ_NUM TX_SEQ_NUMBER
     ,lt.TOUR_TOUR_SEQ EXTERN_FILE_ID
     ,lt.EXT_LANE_ID LANE_ID
     ,lt.EXT_DATE_TIME TX_TIMESTAMP
@@ -53,7 +53,7 @@ IS SELECT
 -- Derived IF PLAZA_ID STARTS WITH '004' THEN 'C' ELSE 'B'
     ,DECODE(substr(lt.EXT_PLAZA_ID,1,3),'004', 'C', 'B') TOLL_SYSTEM_TYPE 
 --    ,lt.EXT_LANE_TYPE_CODE LANE_MODE  -- Not a number
-    ,0 LANE_MODE  -- Not a number
+    ,EXT_LANE_TYPE_CODE LANE_MODE  -- Not a number
     ,1 LANE_TYPE
     ,0 LANE_STATE
     ,0 LANE_HEALTH
@@ -61,17 +61,17 @@ IS SELECT
 ----Join ST_INTEROP_AGENCIES and PA_PLAZA on ENT_PLAZA_ID to PLAZA_ID
     ,(select ia.AGENCY_ID 
         from PATRON.ST_INTEROP_AGENCIES ia, PATRON.PA_PLAZA p
-        where ia.ID = p.IAG_PLAZA_ID
+        where ia.AUTHORITY_CODE = p.AUTHCODE_AUTHORITY_CODE
         and   p.PLAZA_ID =lt.EXT_PLAZA_ID)  PLAZA_AGENCY_ID 
         
     ,lt.EXT_PLAZA_ID PLAZA_ID
     ,0 COLLECTOR_ID
     ,0 TOUR_SEGMENT_ID
     ,0 ENTRY_DATA_SOURCE
-    ,nvl(lt.ENT_LANE_ID,0) ENTRY_LANE_ID
-    ,nvl(lt.ENT_PLAZA_ID,0) ENTRY_PLAZA_ID
-    ,nvl(lt.ENT_DATE_TIME,sysdate) ENTRY_TIMESTAMP
-    ,nvl(lt.TXN_ENTRY_NUMBER,0) ENTRY_TX_SEQ_NUMBER
+    ,lt.ENT_LANE_ID ENTRY_LANE_ID
+    ,lt.ENT_PLAZA_ID ENTRY_PLAZA_ID
+    ,lt.ENT_DATE_TIME ENTRY_TIMESTAMP
+    ,lt.TXN_ENTRY_NUMBER ENTRY_TX_SEQ_NUMBER
     ,0 ENTRY_VEHICLE_SPEED
     ,0 LANE_TX_STATUS
     ,0 LANE_TX_TYPE
@@ -120,12 +120,11 @@ IS SELECT
 --    ,(select AGENCY_ID from PATRON.ST_INTEROP_AGENCIES 
 --        where AGENCY_CODE = SUBSTR(lt.TRANSP_ID,9,2))  ACCOUNT_AGENCY_ID 
     ,SUBSTR(lt.TRANSP_ID,9,2)  ACCOUNT_AGENCY_ID  
-    
     ,0 READ_AVI_CLASS
     ,0 READ_AVI_AXLES
     ,'N' DEVICE_PROGRAM_STATUS
     ,'N' BUFFERED_READ_FLAG
-    ,0 LANE_DEVICE_STATUS
+    ,nvl(lt.MSG_INVALID,0) LANE_DEVICE_STATUS
     ,0 POST_DEVICE_STATUS
     ,0 PRE_TXN_BALANCE
     ,1 PLAN_TYPE_ID
@@ -137,8 +136,8 @@ IS SELECT
            where cs.STATE_ABBR = lt.STATE_ID_CODE),'USA') PLATE_COUNTRY
 --PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
 -- ,(select s.STATE_CODE_ABBR from PA_STATE_CODE s where s.STATE_CODE_NUM=lt.STATE_ID_CODE)  
-    ,nvl(lt.STATE_ID_CODE,'XX') PLATE_STATE 
-    ,nvl(lt.VEH_LIC_NUM,'NULL') PLATE_NUMBER
+    ,lt.STATE_ID_CODE PLATE_STATE 
+    ,lt.VEH_LIC_NUM PLATE_NUMBER
     ,trunc(lt.EXT_DATE_TIME) REVENUE_DATE
     ,trunc(lt.TXN_PROCESS_DATE) POSTED_DATE
     ,0 ATP_FILE_ID
@@ -188,29 +187,30 @@ IS SELECT
 ----  VB_ACTIVITY.CHILD_DOC_ID NOT LIKE '%-%' 
 ----  and VB_ACTIVITY.BANKRUPTCY_flag is null
 ------  THEN 'REG STOP'    
---    ,CASE WHEN va.BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is null THEN 'UNBILLED'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is null THEN 'INVOICED'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is NOT null THEN 'ESCALATED'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID like '%-%' THEN 'UTC'
---          WHEN va.COLL_COURT_FLAG is NOT null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is NOT null and
---               va.COLL_COURT_FLAG = 'COLL' THEN 'COLLECTION'
---          WHEN va.COLL_COURT_FLAG is NOT null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is NOT null and
---               va.COLL_COURT_FLAG = 'CRT' THEN 'COURT'
---          ELSE NULL
---      END EVENT_TYPE  -- Derived
-    ,0 EVENT_TYPE  -- Derived
+    ,CASE WHEN va.BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
+          WHEN va.COLL_COURT_FLAG is null and
+               va.DOCUMENT_ID is null THEN 'UNBILLED'
+          WHEN va.COLL_COURT_FLAG is null and
+               va.DOCUMENT_ID is NOT null and
+               va.CHILD_DOC_ID is null THEN 'INVOICED'
+          WHEN va.COLL_COURT_FLAG is null and
+               va.DOCUMENT_ID is NOT null and
+               va.CHILD_DOC_ID like '%-%' THEN 'UTC'
+          WHEN va.COLL_COURT_FLAG is null and
+               va.DOCUMENT_ID is NOT null and
+               va.CHILD_DOC_ID is NOT null THEN 'ESCALATED'
+          WHEN va.COLL_COURT_FLAG is NOT null and
+               va.DOCUMENT_ID is NOT null and
+               va.CHILD_DOC_ID is NOT null and
+               va.COLL_COURT_FLAG = 'COLL' THEN 'COLLECTION'
+          WHEN va.COLL_COURT_FLAG is NOT null and
+               va.DOCUMENT_ID is NOT null and
+               va.CHILD_DOC_ID is NOT null and
+               va.COLL_COURT_FLAG = 'CRT' THEN 'COURT'
+--          WHEN va.BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
+          ELSE NULL
+      END EVENT_TYPE  -- Derived
+--    ,0 EVENT_TYPE  -- Derived
 
     ,0 PREV_EVENT_TYPE
     ,0 VIOL_TX_STATUS
@@ -297,7 +297,6 @@ WHERE lt.txn_id = kl.PA_LANE_TXN_ID
   AND kl.ID = ap.LEDGER_ID (+)
 AND lt.TRANSP_ID like '%2010'  --WHERE TRANSPONDER_ID ENDS WITH '2010'  
 --AND ACCTS_LIST
-and rownum<1001
 ;
 
 --select trunc(sysdate)-100, trunc(sysdate)-102 from dual;
