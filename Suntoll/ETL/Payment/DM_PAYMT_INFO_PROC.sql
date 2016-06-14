@@ -71,8 +71,7 @@ FROM PA_PURCHASE pp
     ,PA_REFUND_REQUEST rr
 WHERE pp.PUR_ID = pay.PUR_PUR_ID
 AND   pp.PUR_ID = pd.PUR_PUR_ID (+)
-AND   pp.PUR_ID = rr.PUR_PUR_ID (+)
-and rownum<10001; -- source
+AND   pp.PUR_ID = rr.PUR_PUR_ID (+); -- source
 
 SQL_STRING  varchar2(500) := 'truncate table ';
 LOAD_TAB    varchar2(50) := 'DM_PAYMT_INFO';
