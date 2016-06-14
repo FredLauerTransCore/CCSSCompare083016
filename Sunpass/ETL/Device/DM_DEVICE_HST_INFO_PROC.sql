@@ -24,7 +24,8 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 CURSOR C1 IS SELECT 
     ACCT_ACCT_NUM ACCOUNT_NUMBER
-    ,TRANSP_SEQ_NUM DEVICE_NUMBER
+    --,TRANSP_SEQ_NUM DEVICE_NUMBER
+	,INVTRANSP_TRANSP_TRANSP_ID DEVICE_NUMBER
     ,TRANSPTYPE_TRANSP_TYPE_CODE DEVICE_MODEL
     ,NULL BOX_NUMBER
     ,NULL AGENCY
@@ -59,7 +60,7 @@ CURSOR C1 IS SELECT
     ,ADD_months(SALE_DATE,12) CUST_WARRANTY_DT
     ,NULL  MANUFACTURER
     ,NULL RETAILER_NAME
-    ,APPRKG_FLAG DEVICE_INTERNAL_NUMBER
+    ,NULL DEVICE_INTERNAL_NUMBER
     ,APPRKG_FLAG MCOMMERCE_FLAG
     ,FRIENDLY_NAME FRIENDLY_NAME
     ,'0' IAG_CODE
@@ -70,7 +71,7 @@ CURSOR C1 IS SELECT
     ,NULL X_AGENCY_CLASS
     ,'0' X_ASSIGN_TYPE
     ,NULL X_COLOUR
-    ,'0' X_DATE_RECEIVED_AFTER_LOST
+    ,NULL X_DATE_RECEIVED_AFTER_LOST
     ,to_date('01/01/00','MM/DD/YY') X_TESTED_DATETIME
     ,NULL X_CHANGED_EMPLOYEE
     ,NULL X_IS_DEVICE_PREVALIDATED
@@ -113,7 +114,7 @@ BEGIN
     /* get PA_INV_TRANSP.TRAY_TRAY_NUM for BOX_NUMBER */
     begin
       select TRAY_TRAY_NUM into DM_DEVICE_HST_INFO_tab(i).BOX_NUMBER from PA_INV_TRANSP 
-      where INVTRANSP_TRANSP_TRANSP_ID=DM_DEVICE_HST_INFO_tab(i).INVTRANSP_TRANSP_TRANSP_ID
+      where INVTRANSP_TRANSP_ID=DM_DEVICE_HST_INFO_tab(i).DEVICE_NUMBER
             and rownum<=1;
       exception 
         when others then null;
@@ -123,17 +124,17 @@ BEGIN
     /* get PA_INV_TRANSP.TRANSP_SOURCE for MANUFACTURER */
     begin
       select TRANSP_SOURCE into DM_DEVICE_HST_INFO_tab(i).MANUFACTURER from PA_INV_TRANSP 
-      where INVTRANSP_TRANSP_TRANSP_ID=DM_DEVICE_HST_INFO_tab(i).INVTRANSP_TRANSP_TRANSP_ID
+      where INVTRANSP_TRANSP_ID=DM_DEVICE_HST_INFO_tab(i).DEVICE_NUMBER
             and rownum<=1;
       exception 
         when others then null;
-        DM_DEVICE_HST_INFO_tab(i).TRANSP_SOURCE:=null;
+        DM_DEVICE_HST_INFO_tab(i).MANUFACTURER:=null;
     end;
 
     /* get PA_INV_TRANSP.ISSUE_DATE for DOB */
     begin
       select ISSUE_DATE into DM_DEVICE_HST_INFO_tab(i).DOB from PA_INV_TRANSP 
-      where INVTRANSP_TRANSP_TRANSP_ID=DM_DEVICE_HST_INFO_tab(i).INVTRANSP_TRANSP_TRANSP_ID
+      where INVTRANSP_TRANSP_ID=DM_DEVICE_HST_INFO_tab(i).DEVICE_NUMBER
             and rownum<=1;
       exception 
         when others then null;
@@ -141,15 +142,16 @@ BEGIN
     end;
 
     /* get PA_TRANS_STATUS_CHG_CODE.STATUS_POST_DATE for STATUS_DATE */
+	/*
     begin
       select STATUS_POST_DATE into DM_DEVICE_HST_INFO_tab(i).STATUS_DATE from PA_TRANS_STATUS_CHG_CODE 
-      where TRANSPSTATCHG_ID=DM_DEVICE_HST_INFO_tab(i).INVTRANSP_TRANSP_TRANSP_ID
+      where TRANSPSTATCHG_ID=DM_DEVICE_HST_INFO_tab(i).DEVICE_NUMBER
             and rownum<=1;
       exception 
         when others then null;
         DM_DEVICE_HST_INFO_tab(i).STATUS_DATE:=null;
     end;
-
+    */
     /* get PA_INV_TRANSP_ASSGN.ISSUE_LOCATION for STORE */
     begin
       select ISSUE_LOCATION into DM_DEVICE_HST_INFO_tab(i).STORE from PA_INV_TRANSP_ASSGN 
@@ -163,7 +165,7 @@ BEGIN
     /* get PA_ACCT.ORG for RETAILER_NAME */
     begin
       select ORG into DM_DEVICE_HST_INFO_tab(i).RETAILER_NAME from PA_ACCT 
-      where ACCT_NUM=DM_DEVICE_HST_INFO_tab(i).ACCT_ACCT_NUM
+      where ACCT_NUM=DM_DEVICE_HST_INFO_tab(i).ACCOUNT_NUMBER
             and rownum<=1;
       exception 
         when others then null;
@@ -172,8 +174,8 @@ BEGIN
 
     /* get PA_INV_TRANSP.TRANSTYPE_TRANS_TYPE_CODE for X_MOUNT_TYPE */
     begin
-      select TRANSTYPE_TRANS_TYPE_CODE into DM_DEVICE_HST_INFO_tab(i).X_MOUNT_TYPE from PA_INV_TRANSP 
-      where INVTRANSP_TRANSP_ID=DM_DEVICE_HST_INFO_tab(i).INVTRANSP_TRANSP_TRANSP_ID
+      select TRANSPTYPE_TRANSP_TYPE_CODE into DM_DEVICE_HST_INFO_tab(i).X_MOUNT_TYPE from PA_INV_TRANSP 
+      where INVTRANSP_TRANSP_ID=DM_DEVICE_HST_INFO_tab(i).DEVICE_NUMBER
             and rownum<=1;
       exception 
         when others then null;
