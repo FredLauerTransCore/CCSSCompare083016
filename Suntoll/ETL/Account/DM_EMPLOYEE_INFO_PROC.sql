@@ -38,8 +38,8 @@ CURSOR C1 IS SELECT
     ,CREATED_BY_USER_ID CREATED_BY
     ,NULL LAST_UPD    -- N/A
     ,NULL LAST_UPD_BY   -- N/A
+    ,NULL EMP_STATUS
 FROM KS_USER
-where rownum<101
 ;   -- Source table SUNTOLL
 
 sql_string  VARCHAR2(500) := 'truncate table ';
