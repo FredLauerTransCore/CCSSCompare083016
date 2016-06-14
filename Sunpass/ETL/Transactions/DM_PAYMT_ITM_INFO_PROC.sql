@@ -21,6 +21,7 @@ DM_PAYMT_ITM_INFO_tab DM_PAYMT_ITM_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
+T_PRODUCT_PUR_PRODUCT_CODE varchar2(2);
 
 CURSOR C1 IS SELECT 
     NULL CATEGORY
@@ -41,7 +42,7 @@ CURSOR C1 IS SELECT
     ,PUR_ID INVOICE_NUM
     ,NULL INVOICE_REF_ID 
     ,'SUNPASS' SOURCE_SYSTEM
-FROM PATRON.PA_PURCHASE;
+FROM PA_PURCHASE;
 
 BEGIN
  
@@ -57,21 +58,22 @@ BEGIN
     /*ETL SECTION BEGIN */
 
 
-    FOR i in PA_PURCHASE_tab.first .. DM_PAYMT_ITM_INFO_tab.last loop
+    FOR i in 1 .. DM_PAYMT_ITM_INFO_tab.count loop
 
     /* get PA_PURCHASE_PAYMENT.EMP_EMP_CODE for CREATED_BY */
     begin
-      select EMP_EMP_CODE into PA_PURCHASE_tab(i).CREATED_BY from PA_PURCHASE_PAYMENT       where PUR_PAY_ID=PA_PURCHASE_tab(i).PUR_ID and rownum<=1;
+      select EMP_EMP_CODE into DM_PAYMT_ITM_INFO_tab(i).CREATED_BY from PA_PURCHASE_PAYMENT       
+	  where PUR_PAY_ID=DM_PAYMT_ITM_INFO_tab(i).INVOICE_NUM and rownum<=1;
       exception when others then null;
-      PA_PURCHASE_tab(i).CREATED_BY:=null;
+      DM_PAYMT_ITM_INFO_tab(i).CREATED_BY:=null;
     end;
 
-    end loop;
+
 
     /* get PA_PURCHASE_DETAIL.PRODUCT_PUR_PRODUCT_CODE for T_PRODUCT_PUR_PRODUCT_CODE */
     begin
       select PRODUCT_PUR_PRODUCT_CODE into T_PRODUCT_PUR_PRODUCT_CODE from       PA_PURCHASE_DETAIL 
-      where PUR_PUR_ID=PA_PURCHASE_tab(i).PUR_ID
+      where PUR_PUR_ID=DM_PAYMT_ITM_INFO_tab(i).INVOICE_NUM
             and rownum<=1;
       exception 
         when others then null;
@@ -79,59 +81,56 @@ BEGIN
 
     /* get PA_PUR_PRODUCT.PUR_PRODUCT_DESC for DESCRIPTION */
     begin
-      select PUR_PRODUCT_DESC into PA_PURCHASE_tab(i).DESCRIPTION from PA_PUR_PRODUCT 
+      select PUR_PRODUCT_DESC into DM_PAYMT_ITM_INFO_tab(i).DESCRIPTION from PA_PUR_PRODUCT 
       where PUR_PRODUCT_CODE=T_PRODUCT_PUR_PRODUCT_CODE
             and rownum<=1;
       exception 
         when others then null;
-        PA_PURCHASE_tab(i).DESCRIPTION:=null;
+        DM_PAYMT_ITM_INFO_tab(i).DESCRIPTION:=null;
     end;
 
     /* get PA_PURCHASE_DETAIL.PROD_AMT for AMOUNT */
     begin
-      select PROD_AMT into PA_PURCHASE_tab(i).AMOUNT from PA_PURCHASE_DETAIL 
-      where PUR_PUR_ID=PA_PURCHASE_tab(i).PUR_ID
+      select PROD_AMT into DM_PAYMT_ITM_INFO_tab(i).AMOUNT from PA_PURCHASE_DETAIL 
+      where PUR_PUR_ID=DM_PAYMT_ITM_INFO_tab(i).INVOICE_NUM
             and rownum<=1;
       exception 
         when others then null;
-        PA_PURCHASE_tab(i).AMOUNT:=null;
+        DM_PAYMT_ITM_INFO_tab(i).AMOUNT:=null;
     end;
 
 
-
-    FOR i in PA_PURCHASE_tab.first .. DM_PAYMT_ITM_INFO_tab.last loop
-
-    end loop;
-
     /* get PA_PURCHASE_DETAIL.PRODUCT_PUR_PRODUCT_CODE for TRANS_TYPE */
     begin
-      select PRODUCT_PUR_PRODUCT_CODE into PA_PURCHASE_tab(i).TRANS_TYPE from       PA_PURCHASE_DETAIL 
-      where PUR_PUR_ID=PA_PURCHASE_tab(i).PUR_ID
+      select PRODUCT_PUR_PRODUCT_CODE into DM_PAYMT_ITM_INFO_tab(i).TRANS_TYPE from       PA_PURCHASE_DETAIL 
+      where PUR_PUR_ID=DM_PAYMT_ITM_INFO_tab(i).INVOICE_NUM
             and rownum<=1;
       exception 
         when others then null;
-        PA_PURCHASE_tab(i).TRANS_TYPE:=null;
+        DM_PAYMT_ITM_INFO_tab(i).TRANS_TYPE:=null;
     end;
 
     /* get PA_PURCHASE_DETAIL.PRODUCT_PUR_PRODUCT_CODE for SUB_CATEGORY */
     begin
-      select PRODUCT_PUR_PRODUCT_CODE into PA_PURCHASE_tab(i).SUB_CATEGORY from       PA_PURCHASE_DETAIL 
-      where PUR_PUR_ID=PA_PURCHASE_tab(i).PUR_ID
+      select PRODUCT_PUR_PRODUCT_CODE into DM_PAYMT_ITM_INFO_tab(i).SUB_CATEGORY from       PA_PURCHASE_DETAIL 
+      where PUR_PUR_ID=DM_PAYMT_ITM_INFO_tab(i).INVOICE_NUM
             and rownum<=1;
       exception 
         when others then null;
-        PA_PURCHASE_tab(i).SUB_CATEGORY:=null;
+        DM_PAYMT_ITM_INFO_tab(i).SUB_CATEGORY:=null;
     end;
 
     begin
-      select PRODUCT_PUR_PRODUCT_CODE into PA_PURCHASE_tab(i).CATEGORY from PA_PURCHASE_DETAIL 
-      where PUR_PUR_ID=PA_PURCHASE_tab(i).PUR_ID
+      select PRODUCT_PUR_PRODUCT_CODE into DM_PAYMT_ITM_INFO_tab(i).CATEGORY from PA_PURCHASE_DETAIL 
+      where PUR_PUR_ID=DM_PAYMT_ITM_INFO_tab(i).INVOICE_NUM
             and rownum<=1;
       exception 
         when others then null;
-        PA_PURCHASE_tab(i).CATEGORY:=null;
+        DM_PAYMT_ITM_INFO_tab(i).CATEGORY:=null;
     end;
 
+	end loop;
+	
     /*ETL SECTION END   */
 
     /*Bulk insert */ 
