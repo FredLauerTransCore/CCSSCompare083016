@@ -32,15 +32,11 @@ CURSOR C1 IS SELECT
     ,'R' TX_TYPE_IND
     ,'T' TX_SUBTYPE_IND
     ,decode(substr(ext_plaza_id,1,3),'004','C','B') TOLL_SYSTEM_TYPE
-    ,EXT_LANE_TYPE_CODE LANE_MODE
+    ,NULL LANE_MODE
     ,'1' LANE_TYPE
     ,'0' LANE_STATE
     ,'0' LANE_HEALTH
-    ,(select io.AGENCY_ID
-        from PA_LANE_TXN ln, PA_PLAZA pl, ST_INTEROP_AGENCIES io
-        where ln.ext_plaza_id  = pl.plaza_id
-        and pl.AUTHCODE_AUTHORITY_CODE = io.AUTHORITY_CODE)
-        PLAZA_AGENCY_ID
+    ,NULL PLAZA_AGENCY_ID
     ,EXT_PLAZA_ID PLAZA_ID
     ,'0' COLLECTOR_ID
     ,'0' TOUR_SEGMENT_ID
@@ -116,7 +112,7 @@ CURSOR C1 IS SELECT
     ,NULL LOCATION
     ,'0' FARE_TBL_ID
     ,'SUNPASS' SOURCE_SYSTEM
-FROM SUNPASS.PA_LANE_TXN_REJECT;
+FROM PA_LANE_TXN_REJECT;
 
 BEGIN
  
@@ -134,24 +130,35 @@ BEGIN
     FOR i in 1 .. DM_TOLL_EXCEPTIONS_TRAN_tab.count loop
 
     /* get PA_PLAZA.Join ST_INTEROP_AGENCIES and PA_PLAZA on ENT_PLAZA_ID to PLAZA_ID for PLAZA_AGENCY_ID */
-    begin
-      select Join ST_INTEROP_AGENCIES and PA_PLAZA on ENT_PLAZA_ID to PLAZA_ID into DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLAZA_AGENCY_ID from PA_PLAZA 
-      where TXN_ID=DM_TOLL_EXCEPTIONS_TRAN_tab(i).TX_EXTERN_REF_NO
-            and rownum<=1;
-      exception 
-        when others then null;
-        DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLAZA_AGENCY_ID:=null;
-    end;
+	
+    BEGIN
+      SELECT io.AGENCY_ID
+      INTO DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLAZA_AGENCY_ID
+      FROM PA_PLAZA pl,
+        ST_INTEROP_AGENCIES io
+      WHERE DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLAZA_ID = pl.plaza_id
+      AND pl.AUTHCODE_AUTHORITY_CODE                = io.AUTHORITY_CODE
+      AND rownum                                   <=1;
+    EXCEPTION
+    WHEN OTHERS THEN
+      NULL;
+      DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLAZA_AGENCY_ID:=NULL;
+    END;
+
+
 
     /* get PA_LANE_TXN_REJECT.JOIN PA_PLAZA ON PLAZA_ID RETURN PLAZA_NAME for LOCATION */
-    begin
-      select JOIN PA_PLAZA ON PLAZA_ID RETURN PLAZA_NAME into DM_TOLL_EXCEPTIONS_TRAN_tab(i).LOCATION from PA_LANE_TXN_REJECT 
-      where PLAZA_ID=DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLAZA_ID
-            and rownum<=1;
-      exception 
-        when others then null;
-        DM_TOLL_EXCEPTIONS_TRAN_tab(i).LOCATION:=null;
-    end;
+    BEGIN
+      SELECT PLAZA_NAME
+      INTO DM_TOLL_EXCEPTIONS_TRAN_tab(i).LOCATION
+      FROM PA_PLAZA
+      WHERE PLAZA_ID=DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLAZA_ID
+      AND rownum   <=1;
+    EXCEPTION
+    WHEN OTHERS THEN
+      NULL;
+      DM_TOLL_EXCEPTIONS_TRAN_tab(i).LOCATION:=NULL;
+    END;
 
     end loop;
 
