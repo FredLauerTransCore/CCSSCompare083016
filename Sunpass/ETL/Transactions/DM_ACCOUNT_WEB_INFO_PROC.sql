@@ -122,8 +122,7 @@ BEGIN
 
     end loop;
 
-
-    
+ 
 
 
     /*ETL SECTION END   */
