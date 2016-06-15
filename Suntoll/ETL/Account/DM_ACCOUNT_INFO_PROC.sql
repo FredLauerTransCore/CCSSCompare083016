@@ -15,7 +15,6 @@ set echo on
 
 --declare
 CREATE OR REPLACE PROCEDURE DM_ACCOUNT_INFO_PROC   
---  (io_trac_rec IN OUT ccss_owner.dm_tracking_etl%ROWTYPE)
   (io_trac_rec IN OUT dm_tracking_etl%ROWTYPE)
 IS
 
@@ -25,8 +24,8 @@ DM_ACCOUNT_INFO_tab DM_ACCOUNT_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
-CURSOR C1(p_begin_date  DATE, 
-          p_end_date    DATE)
+CURSOR C1(p_begin_acct_num  pa_acct.acct_num%TYPE, 
+          p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
     pa.ACCT_NUM ACCOUNT_NUMBER
     ,pa.ACCTSTAT_ACCT_STATUS_CODE ACCOUNT_STATUS
@@ -98,34 +97,45 @@ IS SELECT
 FROM PA_ACCT pa
     ,PA_ACCT_DETAIL pad
 --    ,PATRON.KS_CHALLENGE_QUESTION
-WHERE pa.ACCT_NUM = pad.ACCT_NUM (+)
 --AND PA_ACCT.USER_ID = KS_USER_CHALLENGE_RESPONSE.USER_ID (+)
-AND pa.CREATED_ON > p_begin_date
-AND pa.CREATED_ON < p_end_date
-and rownum<3501
+WHERE pa.ACCT_NUM >= p_begin_acct_num
+AND   pa.ACCT_NUM <= p_end_acct_num
+AND   pa.ACCT_NUM = pad.ACCT_NUM (+)
+--AND pa.ACCT_NUM > 0
+--and rownum<3501
 ; 
 
 SQL_STRING  varchar2(500) := 'delete table ';
-LOAD_TAB    varchar2(50)  := 'DM_ACCOUNT_INFO';
-ROW_CNT NUMBER := 0;
 
-  v_begin_date    DATE := trunc(SYSDATE-200);
-  v_end_date      DATE := trunc(SYSDATE);
+v_begin_acct  dm_tracking.begin_acct%TYPE;
+v_end_acct    dm_tracking.end_acct%TYPE;
+row_cnt       NUMBER := 0;
 
 BEGIN
-  DBMS_OUTPUT.PUT_LINE('Start '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-  select count(1) into ROW_CNT from DM_ACCOUNT_INFO ;
-  DBMS_OUTPUT.PUT_LINE('ROW_CNT : '||ROW_CNT);
-  SQL_STRING := SQL_STRING||LOAD_TAB;
-  DBMS_OUTPUT.PUT_LINE('SQL_STRING : '||SQL_STRING);
-  execute immediate SQL_STRING;
-  commit;
-  select count(1) into ROW_CNT from DM_ACCOUNT_INFO ;
-  DBMS_OUTPUT.PUT_LINE('ROW_CNT : '||ROW_CNT);
-
-  update_track_proc(io_trac_rec);
+  DBMS_OUTPUT.PUT_LINE('Start '||io_trac_rec.etl_name||' load at: '||
+      to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+--  select count(1) into ROW_CNT from DM_ACCOUNT_INFO ;
+--  DBMS_OUTPUT.PUT_LINE('ROW_CNT : '||ROW_CNT);
+--  SQL_STRING := SQL_STRING||LOAD_TAB;
+--  DBMS_OUTPUT.PUT_LINE('SQL_STRING : '||SQL_STRING);
+--  execute immediate SQL_STRING;
+--  commit;
+--  select count(1) into ROW_CNT from DM_ACCOUNT_INFO ;
+--  DBMS_OUTPUT.PUT_LINE('ROW_CNT : '||ROW_CNT);  
+--  sql_string := sql_string||load_tab;
+--  dbms_output.put_line('SQL_STRING : '||sql_stri ng);
+--  EXECUTE IMMEDIATE sql_string;
+--  COMMIT;
+ 
+  SELECT begin_acct, end_acct
+  INTO   v_begin_acct, v_end_acct
+  FROM   dm_tracking
+  WHERE  track_id = io_trac_rec.track_id
+  ;
   
-  OPEN C1(v_begin_date,v_begin_date);  
+  OPEN C1(v_begin_acct,v_end_acct);  
+  io_trac_rec.status := 'Processing';
+  update_track_proc(io_trac_rec);
 
   LOOP
 
@@ -196,7 +206,7 @@ BEGIN
   CLOSE C1;
 
   COMMIT;
-  DBMS_OUTPUT.PUT_LINE('END '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  DBMS_OUTPUT.PUT_LINE('END '||io_trac_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
   
   EXCEPTION
