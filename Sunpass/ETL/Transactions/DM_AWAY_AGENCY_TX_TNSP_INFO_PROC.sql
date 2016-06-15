@@ -32,7 +32,7 @@ CURSOR C1 IS SELECT
     ,'O' TX_TYPE_IND
     ,'T' TX_SUBTYPE_IND
     ,decode(substr(ext_plaza_id,1,3),'004','C','B') TOLL_SYSTEM_TYPE
-    ,EXT_LANE_TYPE_CODE LANE_MODE
+    ,NULL LANE_MODE
     ,'1' LANE_TYPE
     ,'0' LANE_STATE
     ,'0' LANE_HEALTH
@@ -89,7 +89,7 @@ CURSOR C1 IS SELECT
     ,'7' ETC_TX_STATUS
     ,'F' SPEED_VIOL_FLAG
     ,decode(msg_id,'ITOL','Y','N') IMAGE_TAKEN
-    ,'Lookup for country' PLATE_COUNTRY
+    ,'..' PLATE_COUNTRY
     ,STATE_ID_CODE PLATE_STATE
     ,VEH_LIC_NUM PLATE_NUMBER
     ,trunc(EXT_DATE_TIME) REVENUE_DATE
@@ -115,7 +115,7 @@ CURSOR C1 IS SELECT
     ,'0' HUB_REF_ID
     ,'SUNPASS' SOURCE_SYSTEM
     ,TXN_ID LANE_TX_ID
-FROM SUNPASS.PA_LANE_TXN where TRANSP_ID not like '%0110' and TRANSP_ID not like '%0210' ;
+FROM PA_LANE_TXN where TRANSP_ID not like '%0110' and TRANSP_ID not like '%0210' ;
 
 BEGIN
  
@@ -145,14 +145,21 @@ BEGIN
     end;
 
     /* get PA_PLAZA.AGENCY_ID for PLAZA_AGENCY_ID */
-    begin
-      select ' Join with AGENCY_ID' into DM_AWAY_AGENCY_TX_TNSP_tab(i).PLAZA_AGENCY_ID from PA_PLAZA 
-      where PLAZA_ID=DM_AWAY_AGENCY_TX_TNSP_tab(i).PLAZA_ID
-            and rownum<=1;
-      exception 
-        when others then null;
-        DM_AWAY_AGENCY_TX_TNSP_tab(i).PLAZA_AGENCY_ID:=null;
-    end;
+	
+    BEGIN
+      SELECT io.AGENCY_ID
+      INTO DM_AWAY_AGENCY_TX_TNSP_tab(i).PLAZA_AGENCY_ID
+      FROM PA_PLAZA pl,
+        ST_INTEROP_AGENCIES io
+      WHERE DM_AWAY_AGENCY_TX_TNSP_tab(i).PLAZA_ID = pl.plaza_id
+      AND pl.AUTHCODE_AUTHORITY_CODE             = io.AUTHORITY_CODE
+      AND rownum                                <=1;
+    EXCEPTION
+    WHEN OTHERS THEN
+      NULL;
+      DM_AWAY_AGENCY_TX_TNSP_tab(i).PLAZA_AGENCY_ID:=NULL;
+    END;
+
 
     /* get UFM_LANE_TXN_INFO.HOST_UFM_TOKEN for TX_EXTERN_REF_NO */
     begin
