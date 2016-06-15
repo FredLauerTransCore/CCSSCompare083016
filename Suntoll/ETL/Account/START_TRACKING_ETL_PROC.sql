@@ -12,28 +12,30 @@ set verify on
 set echo on
 
 --declare
-CREATE OR REPLACE PROCEDURE START_TRACK_PROC (
-    i_rec IN  dm_control%ROWTYPE,
-    o_rec OUT dm_tracking%ROWTYPE)
+CREATE OR REPLACE PROCEDURE START_ETL_TRACK_PROC (
+    i_con_rec   IN  dm_control%ROWTYPE, 
+    i_trac_rec  IN  dm_tracking%ROWTYPE, 
+    o_etl_rec   OUT dm_tracking_etl%ROWTYPE)
 IS
 
-  etl_rec     dm_tracking_etl%ROWTYPE;
-  calc_rec    dm_tracking_calc%ROWTYPE;
   trac_rec    dm_tracking%ROWTYPE;
+  etl_rec     dm_tracking_etl%ROWTYPE;
+--  calc_rec    dm_tracking_calc%ROWTYPE;
 
 BEGIN
 --  DBMS_OUTPUT.PUT_LINE('Start '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   
-  trac_rec.track_id := track_id_seq.NEXTVAL;
---  trac_rec.dm_name := i_rec.dm_name;
---  trac_rec.PROC_START_DATE := SYSDATE;
-  trac_rec.source_system := i_rec.source_system;
-  
+  etl_rec.track_etl_id := track_etl_id_seq.NEXTVAL;
+  etl_rec.track_id := i_trac_rec.track_id;
+  etl_rec.etl_name := i_con_rec.etl_name;
+  etl_rec.proc_start_date := SYSDATE;
+  etl_rec.status := 'Start';
+  etl_rec.dm_load_cnt := 0;
 
-  INSERT INTO DM_TRACKING VALUES trac_rec;
+  INSERT INTO DM_TRACKING_ETL VALUES etl_rec;
   COMMIT;
   
-  o_rec :=  trac_rec;
+  o_etl_rec :=  etl_rec;
   
   EXCEPTION
   WHEN OTHERS THEN

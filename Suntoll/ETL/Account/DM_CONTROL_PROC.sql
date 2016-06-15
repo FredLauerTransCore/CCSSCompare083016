@@ -9,20 +9,22 @@
 ********************************************************/
 
 
-declare
---CREATE OR REPLACE PROCEDURE DM_CONTROL_PROC (p_source_system dm_control%TYPE)
---IS
+--declare
+CREATE OR REPLACE PROCEDURE DM_CONTROL_PROC (i_source_sys IN dm_control.source_system%TYPE)
+IS
 
-  p_source_system dm_control.source_system%TYPE := 'SUNTOLL'
+  v_source_sys dm_control.source_system%TYPE;
   
-  CURSOR c1 IS 
+  CURSOR c1(p_source_sys dm_control.source_system%TYPE)
+  IS 
   SELECT * FROM DM_CONTROL 
-  WHERE SOURCE_SYSTEM = 'SUNTOLL'
+  WHERE SOURCE_SYSTEM = p_source_sys
   ORDER BY load_order
   ;  
   acct_control      dm_control%ROWTYPE;
   trac_rec          dm_tracking%ROWTYPE;
   trac_etl_rec      dm_tracking_etl%ROWTYPE;
+  trac_calc_rec     dm_tracking_calc%ROWTYPE;
 
   sql_string  VARCHAR2(500);
   load_tab    VARCHAR2(50);
@@ -33,34 +35,40 @@ BEGIN
 
 -- Execute Acct_info first for acct driver.
 
-  START_TRACK(trac_rec);  
-  
-  SELECT * FROM DM_CONTROL 
-  INTO  acct_control
-  WHERE SOURCE_SYSTEM = p_source_system
-  AND ETL_NAME = 'DM_ACCNT_INFO'
+  SELECT * INTO acct_control FROM dm_control 
+  WHERE source_system = i_source_sys
+  AND etl_name = 'DM_ACCOUNT_INFO'
   ;
+  START_TRACK_PROC(acct_control, trac_rec);  
+  START_ETL_TRACK_PROC(acct_control, trac_rec, trac_etl_rec);    
 
-  START_ETL_TRACK(trac_rec, acct_control, trac_etl_rec);    
-  
   PRE_SOURCE_PROC(acct_control, trac_etl_rec);
-  DM_ACCT_INFO_PROC(acct_control);
-  POST_DM_PROC(acct_control);
-  
-  FOR c_rec IN c1
-  LOOP
-    DBMS_OUTPUT.PUT_LINE(c_rec.load_order||' - Start '||c_rec.dm_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-
-    START_ETL_TRACK(trac_rec, c_rec, trac_etl_rec)   
-
-    PRE_SOURCE_PROC(c_rec, trac_etl_rec);
+--  DM_ACCOUNT_INFO_PROC(trac_etl_rec);
+    sql_string := 'BEGIN '||c_rec.etl_name||'_PROC(trac_etl_rec) END;';
+--    sql_string := 'BEGIN '||acct_control.SOURCE_SYSTEM||'.'||acct_control.etl_name||'_PROC(':||trac_etl_rec||'); END;';
+--    DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
+--    EXECUTE IMMEDIATE sql_string
+--    USING IN OUT trac_etl_rec;
+--    DM_ACCOUNT_INFO_PROC(trac_etl_rec); 
+--    acct_control.etl_name||'_PROC('||:trac_etl_rec)||'; END;';
     
-    sql_string := c_rec.dm_name||'_PROC(trac_etl_rec)';
-    DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
-    EXECUTE IMMEDIATE sql_string;
---    END_TRACK(track_rec);
+--  POST_DM_PROC(acct_control);
+  
+  FOR c_rec IN c1(i_source_sys)
+  LOOP
+--    DBMS_OUTPUT.PUT_LINE(c_rec.load_order||' - Start '||c_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
 
-    POST_DM_PROC(c_rec, trac_etl_rec);
+--    START_ETL_TRACK(trac_rec, c_rec, trac_etl_rec);
+
+--    PRE_SOURCE_PROC(c_rec, trac_etl_rec);
+    
+    sql_string := 'BEGIN '||c_rec.etl_name||'_PROC(trac_etl_rec) END;';
+    DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
+--    EXECUTE IMMEDIATE sql_string;
+
+--    POST_DM_PROC(c_rec, trac_etl_rec);
+
+--    END_TRACK(track_rec);
 
   END LOOP;
 

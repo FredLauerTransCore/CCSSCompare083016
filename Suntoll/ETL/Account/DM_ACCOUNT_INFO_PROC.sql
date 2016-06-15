@@ -13,8 +13,11 @@ set serveroutput on
 set verify on
 set echo on
 
---CREATE OR REPLACE PROCEDURE DM_ACCOUNT_INFO_PROC IS
-DECLARE
+--declare
+CREATE OR REPLACE PROCEDURE DM_ACCOUNT_INFO_PROC   
+--  (io_trac_rec IN OUT ccss_owner.dm_tracking_etl%ROWTYPE)
+  (io_trac_rec IN OUT dm_tracking_etl%ROWTYPE)
+IS
 
 TYPE DM_ACCOUNT_INFO_TYP IS TABLE OF DM_ACCOUNT_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
@@ -22,7 +25,9 @@ DM_ACCOUNT_INFO_tab DM_ACCOUNT_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
-CURSOR C1 IS SELECT 
+CURSOR C1(p_begin_date  DATE, 
+          p_end_date    DATE)
+IS SELECT 
     pa.ACCT_NUM ACCOUNT_NUMBER
     ,pa.ACCTSTAT_ACCT_STATUS_CODE ACCOUNT_STATUS
     ,NULL ACCOUNT_STATUS_DATETIME    --  Sub query  ,max(PA_ACCT_STATUS_CHANGES.STATUS_CHG_DATE)  
@@ -75,13 +80,17 @@ CURSOR C1 IS SELECT
     ,pa.ANON_ACCT ANONYMOUS_ACCOUNT
     ,NULL SECONDARY_EMAIL_ADDRESS
     ,'SUNTOLL' SOURCE_SYSTEM
---    ,pad.BKTY_FILE_DATE BKTY_FILE_DATE
---    ,pad.BKTY_DICHG_DATE BKTY_DICHG_DATE
---    ,pad.BKTY_DISMISS_DATE BKTY_DISMISS_DATE
---    ,pad.BKTY_CASEID BKTY_CASEID
---    ,pad.BKTY_NOTIFY_BY BKTY_NOTIFY_BY
---    ,pad.IS_REGISTERED IS_REGISTERED
---    ,NULL OWNER_TYPE
+    ,pad.BKTY_FILE_DATE BKTY_FILE_DATE
+    ,pad.BKTY_DICHG_DATE BKTY_DICHG_DATE
+    ,pad.BKTY_DISMISS_DATE BKTY_DISMISS_DATE
+    ,pad.BKTY_CASEID BKTY_CASEID
+    ,pad.BKTY_NOTIFY_BY BKTY_NOTIFY_BY
+    ,pad.IS_REGISTERED IS_REGISTERED
+    ,NULL OWNER_TYPE
+    ,NULL DEATH_CERT_DATE
+    ,NULL COLL_ASSIGN_DATE
+    ,NULL DECEASE_NOTIFY_BY
+    ,NULL INIT_COLL_ASSIGN_DATE
 --    ,NULL PAYMENT_PLAN  -----------------------------------------
 --IF ACCOUNT_NUM EXISTS IN ST_REG_STOP_PAYMENT_PLAN AND 
 --NVL(PAYMENT_PLAN_END, TRUNC(SYSDATE))  >=  TRUNC(SYSDATE) THEN 'A' 
@@ -89,28 +98,34 @@ CURSOR C1 IS SELECT
 FROM PA_ACCT pa
     ,PA_ACCT_DETAIL pad
 --    ,PATRON.KS_CHALLENGE_QUESTION
-WHERE ACCT_NUM = pad.ACCT_NUM --(+)
+WHERE pa.ACCT_NUM = pad.ACCT_NUM (+)
 --AND PA_ACCT.USER_ID = KS_USER_CHALLENGE_RESPONSE.USER_ID (+)
+AND pa.CREATED_ON > p_begin_date
+AND pa.CREATED_ON < p_end_date
 and rownum<3501
 ; 
 
-SQL_STRING  varchar2(500) := 'truncate table ';
+SQL_STRING  varchar2(500) := 'delete table ';
 LOAD_TAB    varchar2(50)  := 'DM_ACCOUNT_INFO';
 ROW_CNT NUMBER := 0;
+
+  v_begin_date    DATE := trunc(SYSDATE-200);
+  v_end_date      DATE := trunc(SYSDATE);
 
 BEGIN
   DBMS_OUTPUT.PUT_LINE('Start '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   select count(1) into ROW_CNT from DM_ACCOUNT_INFO ;
   DBMS_OUTPUT.PUT_LINE('ROW_CNT : '||ROW_CNT);
-
   SQL_STRING := SQL_STRING||LOAD_TAB;
   DBMS_OUTPUT.PUT_LINE('SQL_STRING : '||SQL_STRING);
   execute immediate SQL_STRING;
   commit;
   select count(1) into ROW_CNT from DM_ACCOUNT_INFO ;
   DBMS_OUTPUT.PUT_LINE('ROW_CNT : '||ROW_CNT);
- 
-  OPEN C1;  
+
+  update_track_proc(io_trac_rec);
+  
+  OPEN C1(v_begin_date,v_begin_date);  
 
   LOOP
 
@@ -118,15 +133,18 @@ BEGIN
     FETCH C1 BULK COLLECT INTO DM_ACCOUNT_INFO_tab
     LIMIT P_ARRAY_SIZE --LIMIT 1000
     ;
-
+    
 --ETL SECTION BEGIN mapping
 -- DBMS_OUTPUT.PUT_LINE('FETCH '||LOAD_TAB||' ETL at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
 
     FOR i IN 1 .. DM_ACCOUNT_INFO_tab.COUNT LOOP
-
+      IF i=1 then
+        io_trac_rec.BEGIN_VAL := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
+      end if;
+      
       begin
         select max(sc.STATUS_CHG_DATE) into  DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME
-        from PATRON.PA_ACCT_STATUS_CHANGES sc
+        from PA_ACCT_STATUS_CHANGES sc
         where sc.ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
         ;
       exception 
@@ -136,7 +154,7 @@ BEGIN
       
       begin
         select max(di.CREATED_ON) into  DM_ACCOUNT_INFO_tab(i).LAST_INVOICE_DATE
-        from PATRON.ST_DOCUMENT_INFO di
+        from ST_DOCUMENT_INFO di
         where di.ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
         ;
       exception 
@@ -151,19 +169,23 @@ BEGIN
 --    THEN 'A'    -- (if plan end date is future or null) 
 --    ELSE 'N' 
 
+      io_trac_rec.track_last_val := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
+      io_trac_rec.end_val := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
+
     END LOOP;
 --      ETL SECTION END
 
     /*Bulk insert int Acount drive table list */    
-    FORALL i in DM_ACCOUNT_INFO_tab.first .. DM_ACCOUNT_INFO_tab.last
-           INSERT INTO DM_ACCOUNT_LIST VALUES DM_ACCOUNT_INFO_tab(i).ACCT_NUM;    
+--    FORALL i in DM_ACCOUNT_INFO_tab.first .. DM_ACCOUNT_INFO_tab.last
+--           INSERT INTO DM_ACCOUNT_LIST VALUES DM_ACCOUNT_INFO_tab(i).ACCT_NUM;    
 
     /*Bulk insert */ 
     FORALL i in DM_ACCOUNT_INFO_tab.first .. DM_ACCOUNT_INFO_tab.last
            INSERT INTO DM_ACCOUNT_INFO VALUES DM_ACCOUNT_INFO_tab(i);
 --    DBMS_OUTPUT.PUT_LINE('Inserted '||sql%rowcount||' into '||LOAD_TAB||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-    ROW_CNT := ROW_CNT +  sql%rowcount;                 
-    DBMS_OUTPUT.PUT_LINE('Rows Inserted : '||ROW_CNT);
+    row_cnt := row_cnt +  SQL%ROWCOUNT;
+    io_trac_rec.dm_load_cnt := row_cnt;
+    update_track_proc(io_trac_rec);
     
                        
     EXIT WHEN C1%NOTFOUND;
@@ -179,10 +201,13 @@ BEGIN
   
   EXCEPTION
   WHEN OTHERS THEN
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
-     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
+    io_trac_rec.result_code := SQLCODE;
+    io_trac_rec.result_msg := SQLERRM;
+    update_track_proc(io_trac_rec);
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||io_trac_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||io_trac_rec.result_msg);
 END;
---/
---SHOW ERRORS
+/
+SHOW ERRORS
 
 

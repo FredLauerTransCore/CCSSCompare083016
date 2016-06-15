@@ -23,10 +23,11 @@ IS
 
 BEGIN
 --  DBMS_OUTPUT.PUT_LINE('Start '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-  
+
   trac_rec.track_id := track_id_seq.NEXTVAL;
---  trac_rec.dm_name := i_rec.dm_name;
---  trac_rec.PROC_START_DATE := SYSDATE;
+--  trac_rec.etl_name := i_rec.etl_name;
+  trac_rec.status := 'Start';
+  trac_rec.proc_start_date := SYSDATE;
   trac_rec.source_system := i_rec.source_system;
   
 

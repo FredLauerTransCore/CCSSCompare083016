@@ -3,7 +3,7 @@
 * Name: PRE_SOURCE_PROC
 * Created by: RH, 5/25/2016
 * Revision: 1.0
-* Description: Pre load procedure for DM_EMPLOYEE_INFO
+* Description: Pre load procedure for 
 *
 ********************************************************/
 
@@ -11,50 +11,105 @@ set serveroutput on
 set verify on
 set echo on
 
-declare
+--declare
 --
-CREATE OR REPLACE PROCEDURE PRE_SOURCE_PROC (c_rec  IN dm_control%ROWTYPE)
+CREATE OR REPLACE PROCEDURE PRE_SOURCE_PROC (
+    i_c_rec   IN dm_control%ROWTYPE,
+--    i_calc_rec IN dm_tracking_calc%ROWTYPE,
+    io_trac_rec IN OUT dm_tracking_etl%ROWTYPE 
+    )
 IS
 
-  Trac_Rec Dm_Tracking%ROWTYPE;
-  tot_rec   dm_tracking_totals%ROWTYPE;
-  ent_rec   dm_tracking_entity%ROWTYPE;
---TYPE DM_TRACKING_TYP IS TABLE OF DM_TRACKING%ROWTYPE INDEX BY BINARY_INTEGER;
---DM_EMPLOYEE_INFO_tab DM_EMPLOYEE_INFO_TYP;
---P_ARRAY_SIZE NUMBER:=1000;
+  v_trac_rec  dm_tracking%ROWTYPE;
+  v_c_rec  dm_control%ROWTYPE;
+  v_del_rec  dm_control_detail%ROWTYPE;
+  calc_rec  dm_tracking_calc%ROWTYPE;
+ 
+  CURSOR c1(p_control_id NUMBER) IS 
+  SELECT * FROM DM_CONTROL_DETAIL 
+  WHERE control_id = p_control_id
+  ORDER BY control_detail_id
+;  
 
-  sql_string    VARCHAR2(500) := 'truncate table ';
+  sql_string    VARCHAR2(500); -- := 'truncate table ';
   p_row_cnt     NUMBER := 0;
-  v_select    VARCHAR2(100);
-  v_into    VARCHAR2(100);
-  v_from    VARCHAR2(100);
-  v_where    VARCHAR2(500);
-
-BEGIN
-  DBMS_OUTPUT.PUT_LINE('Start '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  v_select      VARCHAR2(100);
+  v_from        VARCHAR2(100);
+  v_where       VARCHAR2(500);
+  v_begin_date    DATE := trunc(SYSDATE-200);
+  v_end_date      DATE := trunc(SYSDATE);
   
-  TRACK_REC.DM_NAME := DM_LOAD_TAB;
-  START_TRACK(TRACK_REC);
+BEGIN
+--  DBMS_OUTPUT.PUT_LINE('Start '||io_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  v_c_rec := i_c_rec;
+--  v_etl_rec := io_trac_rec;
+--  track_rec.dm_name := dm_load_tab;
+--  start_track(track_rec);
+--  calc_rec.TRACK_ID :=  v_etl_rec.TRACK_ID;
 
-  TOT_REC.TOTAL_TYPE := 'P_ROW_CNT';
-  TOT_REC.TOTAL_NAME := SOURCE_TAB;
+  calc_rec.track_etl_id :=  io_trac_rec.track_etl_id;
+  
+--  FOR idx IN c1(c_rec.source_system, c_rec.control_id) 
+  FOR idx IN c1(i_c_rec.control_id) 
+  LOOP
+      
+    calc_rec.track_calc_id   :=  track_calc_id_seq.NEXTVAL;
+  
+    calc_rec.calc_name := 'PRE '||idx.CALC_FUNC||' '||idx.calc_field;
+    calc_rec.calc_func := idx.calc_func;
+    calc_rec.calc_field := idx.source_field;
+    calc_rec.calc_tab := idx.source_tab;
+    calc_rec.calc_value := 0;
+    
+    v_select :=   'SELECT '||idx.CALC_FUNC||'('||idx.calc_field||')';
+    v_from :=     ' FROM '||idx.source_tab;
+    sql_string := v_select||v_from;
+---    v_where :=    ' WHERE '||idx.source_where;
 
-    V_SELECT := GET_SELECT_CLAUSE(c_rec);
-    V_INTO := GET_INTO_CLAUSE(c_rec);
-    V_FROM := GET_FROM_CLAUSE(c_rec);
-    V_WHERE := GET_WHERE_CLAUSE(c_rec);
-    sql_string := 
-        'SELECT '||V_SELECT
-        ' INTO '||V_INTO
-        ' FROM '||V_FROM
-        ' WHERE '||V_WHERE;
-    DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
-    EXECUTE IMMEDIATE sql_string;
-    execute immediate 'begin :x := ' || vRunFunctie || '( :p1,  :p2, :vParmOut2 ); end;' using out vParmOut1, vParmIn1, vParmIn2, out vParmOut2;
+    IF idx.source_tab = 'PA_ACCT' THEN
+      v_where := ' WHERE rownum<11 AND '
+              ||v_c_rec.load_drive_field||' > :bind_begin AND '
+              ||v_c_rec.load_drive_field||' < :bind_end';
+--              ||v_c_rec.load_drive_field||' > to_date(''||v_begin_date||'') AND '
+--              ||v_c_rec.load_drive_field||' < to_date(''||v_end_date||'')';
+      
+--      v_bind := 
+--      IF v_c_rec.load_drive_field = 'CREATE_ON' THEN
+--        sql_string := sql_string||' AND ';
+--      ELSIF v_c_rec.load_drive_field = 'OPEN_DATE' THEN
+      
+--      v_where := ' AND 'idx.START_DATE|| 
+      sql_string := sql_string||v_where;
 
-  TOT_REC.TOTAL_TYPE := 'P_ROW_CNT';
-  TOT_REC.TOTAL_VALUE := P_ROW_CNT;
-  TRACK_TOTAL(TRACK_REC, TOT_REC);
+      DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
+      EXECUTE IMMEDIATE sql_string
+      INTO calc_rec.calc_value
+      USING v_c_rec.START_DATE, v_c_rec.END_DATE
+      ;
+
+      DBMS_OUTPUT.PUT_LINE('calc_rec.calc_value : '||calc_rec.calc_value);
+
+--  trac_calc_rec.track_calc_id   :=  ccss_owner.track_calc_id_seq.NEXTVAL;
+--  trac_calc_rec.track_calc_id   :=track_calc_id_seq.NEXTVAL;
+      INSERT INTO dm_tracking_calc VALUES calc_rec;      
+
+--
+--  UPDATE dm_tracking_calc
+--    SET ROW = calc_rec
+--  WHERE track_calc_id = calc_rec.track_calc_id
+----  AND TRACK_ID = track_rec.TRACK_ID
+     COMMIT;
+
+    END IF;
+
+--- RETURN calc_rec.calc_value;  
+--    execute immediate 'begin :x := ' || 
+-- vRunFunctie || '( :p1,  :p2, :vParmOut2 ); end;' using out vParmOut1, vParmIn1, vParmIn2, out vParmOut2;
+
+  END LOOP;
+--  TOT_REC.TOTAL_TYPE := 'P_ROW_CNT';
+--  TOT_REC.TOTAL_VALUE := P_ROW_CNT;
+--  TRACK_TOTAL(TRACK_REC, TOT_REC);
 
   COMMIT;
   
@@ -63,9 +118,11 @@ BEGIN
   WHEN OTHERS THEN
      DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
      DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
-    TOT_REC.RESULT_CODE = SQLCODE;
-    TOT_REC.RESULT_MSG = SQLERRM;
-    TRACK_ENTITY(TRACK_REC, TOT_REC);
+    io_trac_rec.result_code := SQLCODE;
+    io_trac_rec.result_msg := SQLERRM;
+    update_track_proc(io_trac_rec);
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||io_trac_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||io_trac_rec.result_msg);
 END;
 /
 SHOW ERRORS
