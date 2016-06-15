@@ -20,7 +20,8 @@ DM_ACCOUNT_TOLL_INFO_tab DM_ACCOUNT_TOLL_INFO_TYP;
 
 
 P_ARRAY_SIZE NUMBER:=10000;
-
+t_STATE_ID_CODE varchar2(2);
+t_uo_code varchar2(2);
 
 CURSOR C1 IS SELECT 
     NULL TX_EXTERN_REF_NO
@@ -116,10 +117,9 @@ CURSOR C1 IS SELECT
     ,'SUNPASS' SOURCE_SYSTEM
     ,TXN_ID LANE_TX_ID
     ,TRANSP_INTERNAL_NUM DEVICE_INTERNAL_NUMBER
-FROM SUNPASS.PA_LANE_TXN
+FROM PA_LANE_TXN
 WHERE TRANSP_ID like  '%0110' or 
-    (TRANSP_ID like '%0210' AND 
-     PLAZA_ID NOT LIKE '200%' AND NOT LIKE '008%');
+    TRANSP_ID like '%0210' AND ( EXT_PLAZA_ID NOT LIKE '200%' AND EXT_PLAZA_ID NOT LIKE '008%');
 
 BEGIN
  
@@ -139,29 +139,41 @@ BEGIN
     FOR i in 1 .. DM_ACCOUNT_TOLL_INFO_tab.count loop
 
     /* get UFM_LANE_TXN_INFO.HOST_UFM_TOKEN for TX_EXTERN_REF_NO */
+   /* get UFM_LANE_TXN_INFO.HOST_UFM_TOKEN for TX_EXTERN_REF_NO */
     begin
       select HOST_UFM_TOKEN into DM_ACCOUNT_TOLL_INFO_tab(i).TX_EXTERN_REF_NO from UFM_LANE_TXN_INFO 
-      where TXN_ID=DM_ACCOUNT_TOLL_INFO_tab(i).TXN_ID
+      where TXN_ID=DM_ACCOUNT_TOLL_INFO_tab(i).LANE_TX_ID
             and rownum<=1;
       exception 
         when others then null;
         DM_ACCOUNT_TOLL_INFO_tab(i).TX_EXTERN_REF_NO:=null;
     end;
 
+begin
+select uo_code, state_id_code into t_uo_code, t_STATE_ID_CODE from pa_lane_txn where DM_ACCOUNT_TOLL_INFO_tab(i).LANE_TX_ID=txn_id;
+EXCEPTION
+WHEN OTHERS THEN
+  NULL;
+end;	
     /* get PA_PLAZA.AGENCY_ID for PLAZA_AGENCY_ID */
-    begin
-      select AGENCY_ID into DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID from PA_PLAZA 
-      where PLAZA_ID=DM_ACCOUNT_TOLL_INFO_tab(i).EXT_PLAZA_ID
-            and rownum<=1;
-      exception 
-        when others then null;
-        DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID:=null;
-    end;
+BEGIN
+  SELECT agency_id
+  INTO DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID
+  FROM PA_PLAZA b,
+    ST_INTEROP_AGENCIES c
+  WHERE DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID=b.PLAZA_ID
+  AND t_uo_code       =c.AUTHORITY_CODE
+  AND rownum                                   <=1;
+EXCEPTION
+WHEN OTHERS THEN
+  NULL;
+  DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID:=NULL;
+END;
 
     /* get PA_STATE_CODE.STATE_CODE_ABB for PLATE_STATE */
     begin
-      select STATE_CODE_ABB into DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_STATE from PA_STATE_CODE 
-      where STATE_CODE_NUM=DM_ACCOUNT_TOLL_INFO_tab(i).STATE_ID_CODE
+      select STATE_CODE_ABBR into DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_STATE from PA_STATE_CODE 
+      where STATE_CODE_NUM=t_state_id_code
             and rownum<=1;
       exception 
         when others then null;
@@ -171,7 +183,7 @@ BEGIN
     /* get PA_TOUR.COLLECTION_DATE for EXTERN_FILE_DATE */
     begin
       select COLLECTION_DATE into DM_ACCOUNT_TOLL_INFO_tab(i).EXTERN_FILE_DATE from PA_TOUR 
-      where TOUR_SEQ=DM_ACCOUNT_TOLL_INFO_tab(i).TOUR_TOUR_SEQ
+      where TOUR_SEQ=DM_ACCOUNT_TOLL_INFO_tab(i).EXTERN_FILE_ID
             and rownum<=1;
       exception 
         when others then null;
@@ -181,7 +193,7 @@ BEGIN
     /* get PA_PLAZA.PLAZA_NAME for LOCATION */
     begin
       select PLAZA_NAME into DM_ACCOUNT_TOLL_INFO_tab(i).LOCATION from PA_PLAZA 
-      where PLAZA_ID=DM_ACCOUNT_TOLL_INFO_tab(i).EXT_PLAZA_ID
+      where PLAZA_ID=DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID
             and rownum<=1;
       exception 
         when others then null;
@@ -191,7 +203,7 @@ BEGIN
     /* get PA_PLAZA.FACCODE_FACILITY_CODE for FACILITY_ID */
     begin
       select FACCODE_FACILITY_CODE into DM_ACCOUNT_TOLL_INFO_tab(i).FACILITY_ID from PA_PLAZA 
-      where PLAZA_ID=DM_ACCOUNT_TOLL_INFO_tab(i).EXT_PLAZA_ID
+      where PLAZA_ID=DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID
             and rownum<=1;
       exception 
         when others then null;
@@ -200,8 +212,8 @@ BEGIN
 
     /* get PA_PLAZA.decode(FTE_PLAZA,'N','I',decode(MSG_ID,'ITOL','V','E')) for TX_TYPE_IND */
     begin
-      select decode(FTE_PLAZA,'N','I',decode(MSG_ID,'ITOL','V','E')) into DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND from PA_PLAZA 
-      where PLAZA_ID=DM_ACCOUNT_TOLL_INFO_tab(i).EXT_PLAZA_ID
+      select decode(FTE_PLAZA,'N','I') into DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND from PA_PLAZA 
+      where PLAZA_ID=DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID
             and rownum<=1;
       exception 
         when others then null;
