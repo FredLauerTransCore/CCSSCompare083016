@@ -20,8 +20,6 @@ DM_ACCOUNT_TOLL_INFO_tab DM_ACCOUNT_TOLL_INFO_TYP;
 
 
 P_ARRAY_SIZE NUMBER:=10000;
-t_STATE_ID_CODE varchar2(2);
-t_uo_code varchar2(2);
 
 CURSOR C1 IS SELECT 
     NULL TX_EXTERN_REF_NO
@@ -151,21 +149,16 @@ BEGIN
         DM_ACCOUNT_TOLL_INFO_tab(i).TX_EXTERN_REF_NO:=null;
     end;
 
-begin
-select uo_code, state_id_code into t_uo_code, t_STATE_ID_CODE from pa_lane_txn where DM_ACCOUNT_TOLL_INFO_tab(i).LANE_TX_ID=txn_id;
-EXCEPTION
-WHEN OTHERS THEN
-  NULL;
-end;	
+
     /* get PA_PLAZA.AGENCY_ID for PLAZA_AGENCY_ID */
 BEGIN
-  SELECT agency_id
+  SELECT io.AGENCY_ID
   INTO DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID
-  FROM PA_PLAZA b,
-    ST_INTEROP_AGENCIES c
-  WHERE DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID=b.PLAZA_ID
-  AND t_uo_code       =c.AUTHORITY_CODE
-  AND rownum                                   <=1;
+  FROM PA_PLAZA pl,
+    ST_INTEROP_AGENCIES io
+  WHERE DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID = pl.plaza_id
+  AND pl.AUTHCODE_AUTHORITY_CODE             = io.AUTHORITY_CODE
+  AND rownum                                <=1;
 EXCEPTION
 WHEN OTHERS THEN
   NULL;
@@ -174,8 +167,8 @@ END;
 
     /* get PA_STATE_CODE.STATE_CODE_ABB for PLATE_STATE */
     begin
-      select STATE_CODE_ABBR into DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_STATE from PA_STATE_CODE 
-      where STATE_CODE_NUM=t_state_id_code
+      select STATE_CODE_ABBR into DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_STATE from PA_STATE_CODE sc, pa_lane_txn ln
+      where sc.STATE_CODE_NUM=ln.state_id_code and DM_ACCOUNT_TOLL_INFO_tab(i).LANE_TX_ID=ln.txn_id
             and rownum<=1;
       exception 
         when others then null;

@@ -21,6 +21,8 @@ DM_ACCOUNT_EPS_TOLL_INF_tab DM_ACCOUNT_EPS_TOLL_INF_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
+t_uo_code varchar2(2);
+t_STATE_ID_CODE varchar2(2);
 
 CURSOR C1 IS SELECT 
     NULL TX_EXTERN_REF_NO
@@ -32,15 +34,12 @@ CURSOR C1 IS SELECT
     ,NULL TX_TYPE_IND
     ,'Z' TX_SUBTYPE_IND
     ,'C' TOLL_SYSTEM_TYPE
-    ,EXT_LANE_TYPE_CODE LANE_MODE
+	--,EXT_LANE_TYPE_CODE LANE_MODE
+    ,NULL LANE_MODE
     ,'1' LANE_TYPE
     ,'0' LANE_STATE
     ,'0' LANE_HEALTH
-    ,(select io.AGENCY_ID
-        from PA_LANE_TXN ln, PA_PLAZA pl, ST_INTEROP_AGENCIES io
-        where ln.ext_plaza_id  = pl.plaza_id
-        and pl.AUTHCODE_AUTHORITY_CODE = io.AUTHORITY_CODE)
-        PLAZA_AGENCY_ID
+    ,NULL PLAZA_AGENCY_ID
     ,EXT_PLAZA_ID PLAZA_ID
     ,'0' COLLECTOR_ID
     ,'0' TOUR_SEGMENT_ID
@@ -144,7 +143,7 @@ BEGIN
     /* get PARKING_REF.REF_TXN_ID for TX_EXTERN_REF_NO */
     begin
       select REF_TXN_ID into DM_ACCOUNT_EPS_TOLL_INF_tab(i).TX_EXTERN_REF_NO from PARKING_REF 
-      where TXN_ID=DM_ACCOUNT_EPS_TOLL_INF_tab(i).TXN_ID
+      where TXN_ID=DM_ACCOUNT_EPS_TOLL_INF_tab(i).LANE_TX_ID
             and rownum<=1;
       exception 
         when others then null;
@@ -152,19 +151,26 @@ BEGIN
     end;
 
     /* get PA_PLAZA.AGENCY_ID for PLAZA_AGENCY_ID */
-    begin
-      select AGENCY_ID into DM_ACCOUNT_EPS_TOLL_INF_tab(i).PLAZA_AGENCY_ID from PA_PLAZA 
-      where PLAZA_ID=DM_ACCOUNT_EPS_TOLL_INF_tab(i).ENT_PLAZA_ID
-            and rownum<=1;
-      exception 
-        when others then null;
-        DM_ACCOUNT_EPS_TOLL_INF_tab(i).PLAZA_AGENCY_ID:=null;
-    end;
+	
+BEGIN
+  SELECT io.AGENCY_ID
+  INTO DM_ACCOUNT_EPS_TOLL_INF_tab(i).PLAZA_AGENCY_ID
+  FROM PA_PLAZA pl,
+    ST_INTEROP_AGENCIES io
+  WHERE DM_ACCOUNT_EPS_TOLL_INF_tab(i).PLAZA_ID = pl.plaza_id
+  AND pl.AUTHCODE_AUTHORITY_CODE                = io.AUTHORITY_CODE
+  AND rownum                                   <=1;
+EXCEPTION
+WHEN OTHERS THEN
+  NULL;
+  DM_ACCOUNT_EPS_TOLL_INF_tab(i).PLAZA_AGENCY_ID:=NULL;
+END;
+	
 
     /* get st_ledger.ACCT_NUM for ETC_ACCOUNT_ID */
     begin
       select ACCT_NUM into DM_ACCOUNT_EPS_TOLL_INF_tab(i).ETC_ACCOUNT_ID from st_ledger 
-      where PA_LANE_TXN_ID=DM_ACCOUNT_EPS_TOLL_INF_tab(i).TXN_ID
+      where PA_LANE_TXN_ID=DM_ACCOUNT_EPS_TOLL_INF_tab(i).LANE_TX_ID
             and rownum<=1;
       exception 
         when others then null;
@@ -182,9 +188,10 @@ BEGIN
     end;
 
     /* get PA_STATE_CODE.STATE_CODE_ABB for PLATE_STATE */
+	
     begin
-      select STATE_CODE_ABB into DM_ACCOUNT_EPS_TOLL_INF_tab(i).PLATE_STATE from PA_STATE_CODE 
-      where STATE_CODE_NUM=DM_ACCOUNT_EPS_TOLL_INF_tab(i).STATE_ID_CODE
+      select STATE_CODE_ABBR into DM_ACCOUNT_EPS_TOLL_INF_tab(i).PLATE_STATE from PA_STATE_CODE sc, pa_lane_txn ln
+      where sc.STATE_CODE_NUM=ln.state_id_code and DM_ACCOUNT_EPS_TOLL_INF_tab(i).LANE_TX_ID=ln.txn_id
             and rownum<=1;
       exception 
         when others then null;
