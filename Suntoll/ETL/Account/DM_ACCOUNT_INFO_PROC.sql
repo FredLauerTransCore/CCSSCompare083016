@@ -15,7 +15,7 @@ set echo on
 
 --declare
 CREATE OR REPLACE PROCEDURE DM_ACCOUNT_INFO_PROC   
-  (io_trac_rec IN OUT dm_tracking_etl%ROWTYPE)
+  (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
 IS
 
 TYPE DM_ACCOUNT_INFO_TYP IS TABLE OF DM_ACCOUNT_INFO%ROWTYPE 
@@ -96,8 +96,6 @@ IS SELECT
 --(if plan end date is future or null) ELSE 'N'
 FROM PA_ACCT pa
     ,PA_ACCT_DETAIL pad
---    ,PATRON.KS_CHALLENGE_QUESTION
---AND PA_ACCT.USER_ID = KS_USER_CHALLENGE_RESPONSE.USER_ID (+)
 WHERE pa.ACCT_NUM >= p_begin_acct_num
 AND   pa.ACCT_NUM <= p_end_acct_num
 AND   pa.ACCT_NUM = pad.ACCT_NUM (+)
@@ -110,32 +108,25 @@ SQL_STRING  varchar2(500) := 'delete table ';
 v_begin_acct  dm_tracking.begin_acct%TYPE;
 v_end_acct    dm_tracking.end_acct%TYPE;
 row_cnt       NUMBER := 0;
+v_trac_rec dm_tracking_etl%ROWTYPE;
 
 BEGIN
-  DBMS_OUTPUT.PUT_LINE('Start '||io_trac_rec.etl_name||' load at: '||
+  select * into v_trac_rec
+  from dm_tracking_etl
+  where track_etl_id = i_trac_id;
+  DBMS_OUTPUT.PUT_LINE('Start '||v_trac_rec.etl_name||' load at: '||
       to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
---  select count(1) into ROW_CNT from DM_ACCOUNT_INFO ;
---  DBMS_OUTPUT.PUT_LINE('ROW_CNT : '||ROW_CNT);
---  SQL_STRING := SQL_STRING||LOAD_TAB;
---  DBMS_OUTPUT.PUT_LINE('SQL_STRING : '||SQL_STRING);
---  execute immediate SQL_STRING;
---  commit;
---  select count(1) into ROW_CNT from DM_ACCOUNT_INFO ;
---  DBMS_OUTPUT.PUT_LINE('ROW_CNT : '||ROW_CNT);  
---  sql_string := sql_string||load_tab;
---  dbms_output.put_line('SQL_STRING : '||sql_stri ng);
---  EXECUTE IMMEDIATE sql_string;
---  COMMIT;
+  
+  update_track_proc(v_trac_rec);
  
   SELECT begin_acct, end_acct
   INTO   v_begin_acct, v_end_acct
   FROM   dm_tracking
-  WHERE  track_id = io_trac_rec.track_id
+  WHERE  track_id = v_trac_rec.track_id
   ;
   
   OPEN C1(v_begin_acct,v_end_acct);  
-  io_trac_rec.status := 'Processing';
-  update_track_proc(io_trac_rec);
+  v_trac_rec.status := 'Processing';
 
   LOOP
 
@@ -149,7 +140,7 @@ BEGIN
 
     FOR i IN 1 .. DM_ACCOUNT_INFO_tab.COUNT LOOP
       IF i=1 then
-        io_trac_rec.BEGIN_VAL := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
+        v_trac_rec.BEGIN_VAL := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
       end if;
       
       begin
@@ -179,8 +170,8 @@ BEGIN
 --    THEN 'A'    -- (if plan end date is future or null) 
 --    ELSE 'N' 
 
-      io_trac_rec.track_last_val := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
-      io_trac_rec.end_val := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
+      v_trac_rec.track_last_val := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
+      v_trac_rec.end_val := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
 
     END LOOP;
 --      ETL SECTION END
@@ -192,30 +183,29 @@ BEGIN
     /*Bulk insert */ 
     FORALL i in DM_ACCOUNT_INFO_tab.first .. DM_ACCOUNT_INFO_tab.last
            INSERT INTO DM_ACCOUNT_INFO VALUES DM_ACCOUNT_INFO_tab(i);
---    DBMS_OUTPUT.PUT_LINE('Inserted '||sql%rowcount||' into '||LOAD_TAB||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+
     row_cnt := row_cnt +  SQL%ROWCOUNT;
-    io_trac_rec.dm_load_cnt := row_cnt;
-    update_track_proc(io_trac_rec);
-    
+    v_trac_rec.dm_load_cnt := row_cnt;
+    update_track_proc(v_trac_rec);
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
+  DBMS_OUTPUT.PUT_LINE('END '||v_trac_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
 
   COMMIT;
 
   CLOSE C1;
 
   COMMIT;
-  DBMS_OUTPUT.PUT_LINE('END '||io_trac_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-  DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
-  
+
   EXCEPTION
   WHEN OTHERS THEN
-    io_trac_rec.result_code := SQLCODE;
-    io_trac_rec.result_msg := SQLERRM;
-    update_track_proc(io_trac_rec);
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||io_trac_rec.result_code);
-     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||io_trac_rec.result_msg);
+    v_trac_rec.result_code := SQLCODE;
+    v_trac_rec.result_msg := SQLERRM;
+    update_track_proc(v_trac_rec);
+--     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_rec.result_code);
+--     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_rec.result_msg);
 END;
 /
 SHOW ERRORS

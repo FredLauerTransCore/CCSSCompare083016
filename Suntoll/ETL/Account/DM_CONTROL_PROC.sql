@@ -46,7 +46,7 @@ BEGIN
 
   PRE_SOURCE_PROC(acct_control, trac_etl_rec);
 
-  DM_ACCOUNT_INFO_PROC(trac_etl_rec);
+  DM_ACCOUNT_INFO_PROC(trac_etl_rec.track_etl_id);
 
 --    sql_string := 'BEGIN '||acct_control.SOURCE_SYSTEM||'.'||acct_control.etl_name||'_PROC(':||trac_etl_rec||'); END;';
 --    DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);

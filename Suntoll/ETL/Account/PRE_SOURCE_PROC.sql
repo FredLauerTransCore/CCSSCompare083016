@@ -93,22 +93,13 @@ BEGIN
     IF v_c_rec.load_order = 0 AND idx.CONTROL_DETAIL_ID = 1 THEN 
 
 ----  v_query_str := 'begin SELECT COUNT(*) INTO :into_bind FROM emp_' 
-----                 || p_loc
-----                 || ' WHERE job = :bind_job; end;';
+----                 || p_loc || ' WHERE job = :bind_job; end;';
 ----  EXECUTE IMMEDIATE v_query_str
 ----    USING out v_num_of_employees, p_job;
 --      v_select := v_select|| ', MIN(acct_num), MAX(acct_num) ';
 --      v_into := v_into||', :min_acct, :max_acct ';
 --      v_where := v_where||' AND ACCT_NUM > 0 AND '
---              ||v_c_rec.load_drive_field||' > :b_dt AND '
---              ||v_c_rec.load_drive_field||' < :e_dt';
---
-----      sql_string := v_select||v_into||v_from||v_where;
---      sql_string := v_select||v_from||v_where;
 --      
-----      DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
-----      EXECUTE IMMEDIATE sql_string
-----      USING out calc_rec.calc_value, v_begin_acct, v_end_acct, v_begin_date, v_end_date
 --      DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
 --      EXECUTE IMMEDIATE sql_string
 --      INTO calc_rec.calc_value, v_begin_acct, v_end_acct
@@ -118,8 +109,8 @@ BEGIN
       select count(acct_num), min(acct_num), max(acct_num)
       INTO calc_rec.calc_value, v_begin_acct, v_end_acct
       from pa_acct
-      where CREATED_ON < sysdate
-      and CREATED_ON > sysdate-200
+      where CREATED_ON >= v_begin_date
+      and CREATED_ON <= v_end_date
       and acct_num>0
       ;
       
@@ -132,21 +123,17 @@ BEGIN
       
     ELSIF v_c_rec.load_drive_field = 'ACCT_NUM' THEN 
 
-      SELECT begin_acct, end_acct
+      SELECT NVL(begin_acct,0), NVL(end_acct,0)
       INTO   v_begin_acct, v_end_acct
       FROM   dm_tracking
       WHERE  track_id = io_trac_rec.track_id
       ;
 
 -- execute immediate 'select dname, loc from dept where deptno = :1'
---   into l_nam, l_loc
---   using l_dept ;    
-
---      v_select := v_select|| ', MIN(acct_num), MAX(acct_num) ';
---      v_into := v_into||', :min_acct, :max_acct ';
-      v_where := v_where||' AND '
-              ||v_c_rec.load_drive_field||' > :1 AND '
-              ||v_c_rec.load_drive_field||' < :2 ;';
+--   into l_nam, l_loc using l_dept ;    
+--              ||v_c_rec.load_drive_field||' >= :1 AND '
+--              ||v_c_rec.load_drive_field||' <= :2 ;';
+      v_where := v_where||' AND ACCT_NUM >= :1 AND ACCT_NUM <= :2 ;';
 
 --      sql_string := v_select||v_into||v_from||v_where;
       sql_string := v_select||v_from||v_where;

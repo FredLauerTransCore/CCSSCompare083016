@@ -14,8 +14,7 @@ set echo on
 
 --DECLARE
 CREATE OR REPLACE PROCEDURE DM_ACCNT_NOTE_INFO_PROC
---  (io_trac_rec IN OUT dm_tracking_etl%ROWTYPE)
-  (io_trac_id dm_tracking_etl.track_etl_id%TYPE)
+  (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
 IS
 
 TYPE DM_ACCNT_NOTE_INFO_TYP IS TABLE OF DM_ACCNT_NOTE_INFO%ROWTYPE 
@@ -40,7 +39,6 @@ IS SELECT
 FROM NOTE
 WHERE ACCT_NUM >= p_begin_acct_num
 AND   ACCT_NUM <= p_end_acct_num
---and rownum<11
 ;   -- Source
 
 --sql_string  VARCHAR2(500) := 'truncate table ';
@@ -53,15 +51,10 @@ v_trac_rec dm_tracking_etl%ROWTYPE;
 BEGIN
   select * into v_trac_rec
   from dm_tracking_etl
-  where track_etl_id = io_trac_id;
+  where track_etl_id = i_trac_id;
   DBMS_OUTPUT.PUT_LINE('Start '||v_trac_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   
---  update_track_proc(io_trac_rec);
   update_track_proc(v_trac_rec);
---  sql_string := sql_string||load_tab;
---  dbms_output.put_line('SQL_STRING : '||sql_string);
---  EXECUTE IMMEDIATE sql_string;
---  COMMIT;
  
   SELECT begin_acct, end_acct
   INTO   v_begin_acct, v_end_acct

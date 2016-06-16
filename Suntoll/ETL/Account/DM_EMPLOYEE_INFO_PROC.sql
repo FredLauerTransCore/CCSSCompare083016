@@ -14,9 +14,7 @@ set echo on
 
 --declare
 CREATE OR REPLACE PROCEDURE DM_EMPLOYEE_INFO_PROC 
---  (io_trac_rec IN OUT dm_tracking_etl%ROWTYPE)
---  (io_trac_id IN OUT dm_tracking_etl.track_etl_id%TYPE)
-  (io_trac_id dm_tracking_etl.track_etl_id%TYPE)
+  (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
 IS
 
 TYPE DM_EMPLOYEE_INFO_TYP IS TABLE OF DM_EMPLOYEE_INFO%ROWTYPE 
@@ -52,7 +50,7 @@ v_trac_rec dm_tracking_etl%ROWTYPE;
 BEGIN
   select * into v_trac_rec
   from dm_tracking_etl
-  where track_etl_id = io_trac_id;
+  where track_etl_id = i_trac_id;
   DBMS_OUTPUT.PUT_LINE('Start '||v_trac_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   
 --  update_track_proc(io_trac_rec);
