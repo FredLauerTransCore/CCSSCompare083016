@@ -21,6 +21,8 @@ DM_INVOICE_ITM_INFO_tab DM_INVOICE_ITM_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
+REG_STOP_THRESHOLD_AMT_IN_CENTS NUMBER := 100000000; -- TODO: Need to get actual threshold from FTE
+
 
 CURSOR C1 IS SELECT 
     di.ACCT_NUM ACCOUNT_NUMBER -- ST_DOCUMENT_MAILING_EXCEPTION
@@ -91,7 +93,8 @@ CURSOR C1 IS SELECT
 --          
 --          va.KS_LEDGER_EVENT_TYPE_ID = '89'  and di.DOC_TYPE_ID in ('1','2') 
 --          THEN 'REGSTOP'
-          
+          WHEN (SELECT 'Y' FROM ST_ACCT_FLAGS saf WHERE saf.ACCT_NUM = di.acct_num and saf.FLAG_TYPE ='9' and END_DATE is null)='Y'
+          THEN 'REGHOLDTOLL'
   
 --ADMINFEE
 --FOR VB_ACTIVITY KS_LEDGER_EVENT_TYPE_ID in ('48') and COLL_COURT_FLAG is null and Bankruptcy_flag is null 
@@ -198,28 +201,38 @@ CURSOR C1 IS SELECT
 --For ST_document_info. Acct_num joined PA_ACCT_DETAIL.DECEASED_DATE -- CRT is provided above
           ELSE 'None'
       END SUB_CATEGORY  -- Derived
-      
-    ,'Mapping' STATUS
+--JOIN DOCUMENT_INFO_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of VB_ACTIVITY returns UNPAID_TXN_DETAILS
+--UNION ALL JOIN DOCUMENT_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of ST_ACTIVITY_PAID returns PAID_TXN_DETAILS
+--IF UNPAID_AMT > 0 THEN 'OPEN' ELSE 'CLOSED'  (Need PAID_TXN_DETAILS definition from FTE); 
+--JOIN LEDGER_ID OF ST_ACTIVITY_PAID to ID OF KS_LEDGER returns ORIGINAL_AMT from KS_LEDGER AND DISPUTED_AMT FROM ST_ACTIVITY_PAID; Use idfference to determine if dismissed or not (IF 0 THEN 'DISPUTED' ELSE 'CLOSED') 
+
+    ,CASE WHEN (va.AMT_CHARGED-va.TOTAL_AMT_PAID)>0 THEN 'OPEN'
+          WHEN st.TOTAL_AMT_PAID = 0 THEN 'DISPUTED'
+          ELSE 'CLOSED' END STATUS
     ,trunc(NVL(di.CREATED_ON,SYSDATE)) INVOICE_DATE
-    ,(di.PREV_DUE + di.TOLL_CHARGED + di.FEE_CHARGED + di.PAYMT_ADJS) PAYABLE
+    ,(select kl.AMOUNT from KS_LEDGER kl
+      where kl.ID = va.LEDGER_ID) PAYABLE -- di.PREV_DUE + di.TOLL_CHARGED + di.FEE_CHARGED + di.PAYMT_ADJS) PAYABLE
     ,0 INVOICE_ITEM_NUMBER
     ,nvl((select unique kl.PA_LANE_TXN_ID from KS_LEDGER kl
         where kl.ID = va.LEDGER_ID),0) LANE_TX_ID
     ,'Open' LEVEL_INFO
     ,di.PROMOTION_STATUS REASON_CODE  --PROMOTION_CODE
     ,'INVOICE-ITEM' INVOICE_TYPE
-    ,0 PAID_AMOUNT
-    ,di.CREATED_ON  CREATED
-    ,NULL CREATED_BY
-    ,SYSDATE LAST_UPD
-    ,NULL LAST_UPD_BY
+    ,st.TOTAL_AMT_PAID PAID_AMOUNT
+    ,(select pa.CREATED_ON from PA_ACCT pa
+      where pa.ACCT_NUM = di.ACCT_NUM) CREATED
+    ,'SUNTOLL_CSC_ID' CREATED_BY
+    ,(select pa.CREATED_ON from PA_ACCT pa
+      where pa.ACCT_NUM = di.ACCT_NUM) LAST_UPD
+    ,'SUNTOLL_CSC_ID' LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM PATRON.ST_DOCUMENT_INFO di
       ,PATRON.VB_ACTIVITY va
       ,PATRON.VB_ACTIVITY vac
-  WHERE di.DOCUMENT_ID = va.DOCUMENT_ID -- (+)
+      ,PATRON.ST_ACTIVITY_PAID st
+  WHERE di.DOCUMENT_ID = va.DOCUMENT_ID (+) -- UNPAID (+)
     AND di.DOCUMENT_ID = vac.CHILD_DOC_ID (+) 
-    and rownum<1101
+    and di.DOCUMENT_ID = st.DOCUMENT_ID (+)
     ; -- Source
 
 SQL_STRING  varchar2(500) := 'truncate table ';
