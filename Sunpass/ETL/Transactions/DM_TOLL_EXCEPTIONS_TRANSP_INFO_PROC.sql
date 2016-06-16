@@ -32,7 +32,7 @@ CURSOR C1 IS SELECT
     ,'R' TX_TYPE_IND
     ,'T' TX_SUBTYPE_IND
     ,decode(substr(ext_plaza_id,1,3),'004','C','B') TOLL_SYSTEM_TYPE
-    ,NULL LANE_MODE
+    ,'0' LANE_MODE
     ,'1' LANE_TYPE
     ,'0' LANE_STATE
     ,'0' LANE_HEALTH
