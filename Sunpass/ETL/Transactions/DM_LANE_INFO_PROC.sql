@@ -31,7 +31,14 @@ CURSOR C1 IS SELECT
     ,PLAZA_ID PLAZA_ID
     ,'0' LANE_IDX
     ,ASOF UPDATE_TS
-    ,DIRECTION DIRECTION
+    ,decode(DIRECTION,
+	'NORT',	'N',
+    'SOUT'	,'S',
+    'PRKG'	,'P',
+    'EAST'	,'E',
+    'WEST'	,'W',
+    'EPRK'	,'K','K')
+	DIRECTION
     ,'1' LANE_TYPE
     ,'0' LANE_MASK
     ,'00.00.00.00' LANE_IP
