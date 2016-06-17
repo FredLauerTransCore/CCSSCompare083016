@@ -1,6 +1,6 @@
 /********************************************************
 *
-* Name: POST_DM_PROC
+* Name: VALIDATION_PROC
 * Created by: RH, 6/14/2016
 * Revision: 1.0
 * Description: Post load procedure for DM table for
@@ -15,16 +15,16 @@ set echo on
 --declare
 --    i_calc_rec IN dm_tracking_calc%ROWTYPE,
 
-CREATE OR REPLACE PROCEDURE POST_DM_PROC (
+CREATE OR REPLACE PROCEDURE VALIDATION_PROC (
     i_c_rec     IN      dm_control%ROWTYPE,
     io_trac_rec IN OUT  dm_tracking_etl%ROWTYPE 
     )
 IS
 
   v_trac_rec  dm_tracking%ROWTYPE;
-  v_c_rec  dm_control%ROWTYPE;
-  v_del_rec  dm_control_detail%ROWTYPE;
-  calc_rec  dm_tracking_calc%ROWTYPE;
+  v_c_rec     dm_control%ROWTYPE;
+  v_del_rec   dm_control_detail%ROWTYPE;
+  calc_rec    dm_tracking_calc%ROWTYPE;
  
   CURSOR c1(p_control_id NUMBER) IS 
   SELECT * FROM DM_CONTROL_DETAIL 
@@ -41,12 +41,8 @@ IS
   v_end_date      DATE := trunc(SYSDATE);
   
 BEGIN
-  DBMS_OUTPUT.PUT_LINE('Start POST_DM_PROC for '||i_c_rec.etl_name||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  DBMS_OUTPUT.PUT_LINE('Start VALIDATION_PROC for '||i_c_rec.etl_name||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   v_c_rec := i_c_rec;
---  v_etl_rec := io_trac_rec;
---  track_rec.dm_name := dm_load_tab;
---  start_track(track_rec);
---  calc_rec.TRACK_ID :=  v_etl_rec.TRACK_ID;
 
   calc_rec.track_etl_id :=  io_trac_rec.track_etl_id;
   
@@ -66,14 +62,9 @@ BEGIN
     v_from :=     ' FROM '||calc_rec.calc_tab;
     sql_string := v_select||v_from;
     v_where := ' WHERE 1=1 ';
---    v_where := ' WHERE rownum<11';
 
---      v_where := v_where
---              ||v_c_rec.load_drive_field||' > :v_begin_date AND '
---              ||v_c_rec.load_drive_field||' < :v_end_date';
---      IF v_c_rec.load_drive_field = 'CREATE_ON' THEN
---        sql_string := sql_string||' AND ';
---      ELSIF v_c_rec.load_drive_field = 'OPEN_DATE' THEN
+      v_begin_date := v_c_rec.START_DATE;
+      v_end_date := v_c_rec.END_DATE;
 
       sql_string := sql_string||v_where;
 
@@ -96,17 +87,12 @@ BEGIN
 -- vRunFunctie || '( :p1,  :p2, :vParmOut2 ); end;' using out vParmOut1, vParmIn1, vParmIn2, out vParmOut2;
 
   END LOOP;
---  TOT_REC.TOTAL_TYPE := 'P_ROW_CNT';
---  TOT_REC.TOTAL_VALUE := P_ROW_CNT;
---  TRACK_TOTAL(TRACK_REC, TOT_REC);
 
   COMMIT;
   
   
   EXCEPTION
   WHEN OTHERS THEN
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
-     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
     io_trac_rec.result_code := SQLCODE;
     io_trac_rec.result_msg := SQLERRM;
     update_track_proc(io_trac_rec);

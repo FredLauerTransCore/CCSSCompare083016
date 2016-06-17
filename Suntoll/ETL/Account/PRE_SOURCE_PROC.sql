@@ -11,22 +11,6 @@ set serveroutput on
 set verify on
 set echo on
 
---- RETURN calc_rec.calc_value;  
---    execute immediate 'begin :x := ' || 
--- vRunFunctie || '( :p1,  :p2, :vParmOut2 ); end;' using out vParmOut1, vParmIn1, vParmIn2, out vParmOut2;
---      IF v_c_rec.load_drive_field = 'CREATE_ON' THEN
---        sql_string := sql_string||' AND ';
---      ELSIF v_c_rec.load_drive_field = 'OPEN_DATE' THEN
-
---      v_where := v_where
---              ||v_c_rec.load_drive_field||' > :v_begin_date AND '
---              ||v_c_rec.load_drive_field||' < :v_end_date';
---              ||v_c_rec.load_drive_field||' > to_date(''||v_begin_date||'') AND '
---              ||v_c_rec.load_drive_field||' < to_date(''||v_end_date||'')';
-
---declare
---    i_calc_rec IN dm_tracking_calc%ROWTYPE,
-
 CREATE OR REPLACE PROCEDURE PRE_SOURCE_PROC (
     i_c_rec       IN      dm_control%ROWTYPE,
     io_trac_rec   IN OUT  dm_tracking_etl%ROWTYPE 
@@ -35,7 +19,8 @@ IS
 
   v_c_rec     dm_control%ROWTYPE;
   v_del_rec   dm_control_detail%ROWTYPE;
---  v_trac_rec  dm_tracking_etl%ROWTYPE;
+  v_trac_rec  dm_tracking%ROWTYPE;
+  v_etl_rec   dm_tracking_etl%ROWTYPE;
   calc_rec    dm_tracking_calc%ROWTYPE;
  
   CURSOR c1(p_control_id NUMBER) IS 
@@ -51,27 +36,24 @@ IS
   v_from        VARCHAR2(100);
   v_where       VARCHAR2(500);
   
-  v_begin_date    DATE := trunc(SYSDATE-400);
-  v_end_date      DATE := trunc(SYSDATE);
-  v_begin_acct    pa_acct.acct_num%TYPE;
-  v_end_acct      pa_acct.acct_num%TYPE;
-  
 BEGIN
---  DBMS_OUTPUT.PUT_LINE('Start '||io_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  DBMS_OUTPUT.PUT_LINE('Start PRE_SOURCE_PROC for '||io_etl_rec.etl_name||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   v_c_rec := i_c_rec;
+  v_etl_rec := io_trac_rec;
 --  v_etl_rec := io_trac_rec;
---  start_track(track_rec);
 --  calc_rec.TRACK_ID :=  v_etl_rec.TRACK_ID;
-
-  v_begin_date := v_c_rec.START_DATE;
-  v_end_date := v_c_rec.END_DATE;
+  SELECT * INTO v_trac_rec
+  FROM  dm_tracking
+  WHERE track_id = io_trac_rec.track_id
+  ;
+  DBMS_OUTPUT.PUT_LINE('Acct between: '||v_trac_rec.begin_acct||' - '||v_trac_rec.end_acct);
   
   io_trac_rec.status := 'PRE process Started';
-  update_track_proc(io_trac_rec);
+  update_track_proc(v_etl_rec);
 
-  calc_rec.track_etl_id :=  io_trac_rec.track_etl_id;
+  calc_rec.track_etl_id :=  v_etl_rec.track_etl_id;
   
-  FOR idx IN c1(i_c_rec.control_id) 
+  FOR idx IN c1(v_c_rec.control_id) 
   LOOP   
     calc_rec.track_calc_id   :=  track_calc_id_seq.NEXTVAL;
   
@@ -90,71 +72,27 @@ BEGIN
       v_where :=  v_where||' AND '||idx.source_where;
     END IF;
 
-    IF v_c_rec.load_order = 0 AND idx.CONTROL_DETAIL_ID = 1 THEN 
-
-----  v_query_str := 'begin SELECT COUNT(*) INTO :into_bind FROM emp_' 
-----                 || p_loc || ' WHERE job = :bind_job; end;';
-----  EXECUTE IMMEDIATE v_query_str
-----    USING out v_num_of_employees, p_job;
---      v_select := v_select|| ', MIN(acct_num), MAX(acct_num) ';
---      v_into := v_into||', :min_acct, :max_acct ';
---      v_where := v_where||' AND ACCT_NUM > 0 AND '
---      
---      DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
---      EXECUTE IMMEDIATE sql_string
---      INTO calc_rec.calc_value, v_begin_acct, v_end_acct
---      USING v_begin_date, v_end_date
---      ;
-  
-      select count(acct_num), min(acct_num), max(acct_num)
-      INTO calc_rec.calc_value, v_begin_acct, v_end_acct
-      from pa_acct
-      where CREATED_ON >= v_begin_date
-      and CREATED_ON <= v_end_date
-      and acct_num>0
-      ;
-      
-      DBMS_OUTPUT.PUT_LINE('Acct num between: '||v_begin_acct||' - '||v_end_acct);
-      
-      UPDATE DM_TRACKING
-      SET   BEGIN_ACCT =  v_begin_acct,
-            END_ACCT =  v_end_acct
-      WHERE TRACK_ID = io_trac_rec.track_id;
-      
-    ELSIF v_c_rec.load_drive_field = 'ACCT_NUM' THEN 
-
-      SELECT NVL(begin_acct,0), NVL(end_acct,0)
-      INTO   v_begin_acct, v_end_acct
-      FROM   dm_tracking
-      WHERE  track_id = io_trac_rec.track_id
-      ;
-
 -- execute immediate 'select dname, loc from dept where deptno = :1'
 --   into l_nam, l_loc using l_dept ;    
 --              ||v_c_rec.load_drive_field||' >= :1 AND '
 --              ||v_c_rec.load_drive_field||' <= :2 ;';
-      v_where := v_where||' AND ACCT_NUM >= :1 AND ACCT_NUM <= :2 ;';
+--      v_where := v_where||' AND ACCT_NUM >= :1 AND ACCT_NUM <= :2 ;';
 
 --      sql_string := v_select||v_into||v_from||v_where;
       sql_string := v_select||v_from||v_where;
       
-      DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
-      EXECUTE IMMEDIATE sql_string
-      INTO calc_rec.calc_value
-      USING v_begin_acct, v_end_acct
-      ;
+--      DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
+--      EXECUTE IMMEDIATE sql_string
+--      INTO calc_rec.calc_value
+--      USING v_begin_acct, v_end_acct
+--      ;
 
-    ELSE
---      sql_string := v_select||v_into||v_from||v_where;
-      sql_string := v_select||v_from||v_where;
-
-      DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
+      DBMS_OUTPUT.PUT_LINE('PRE sql_string : '||sql_string);
       EXECUTE IMMEDIATE sql_string
       INTO calc_rec.calc_value;
 --      EXECUTE IMMEDIATE sql_string
 --      USING out calc_rec.calc_value
 
-    END IF;
     DBMS_OUTPUT.PUT_LINE('calc_rec.calc_value : '||calc_rec.calc_value);
 
     INSERT INTO dm_tracking_calc VALUES calc_rec;      
@@ -162,10 +100,10 @@ BEGIN
 
   END LOOP;
 
-  io_trac_rec.status := 'PRE process Completed';
-  io_trac_rec.result_code := SQLCODE;
-  io_trac_rec.result_msg := SQLERRM;
-  update_track_proc(io_trac_rec);
+  v_etl_rec.status := 'PRE process Completed';
+  v_etl_rec.result_code := SQLCODE;
+  v_etl_rec.result_msg := SQLERRM;
+  update_track_proc(v_etl_rec);
   
   EXCEPTION
   WHEN OTHERS THEN

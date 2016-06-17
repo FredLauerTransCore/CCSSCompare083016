@@ -25,8 +25,8 @@ DM_ADDRESS_INFO_tab DM_ADDRESS_INFO_TYP;
 P_ARRAY_SIZE NUMBER:=10000;
 
 
-CURSOR C1(p_begin_acct_num  pa_acct.acct_num%TYPE, 
-          p_end_acct_num    pa_acct.acct_num%TYPE)
+CURSOR C1
+--(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
     paa.ACCT_NUM ACCOUNT_NUMBER
     ,'MAILING' ADDR_TYPE
@@ -55,8 +55,7 @@ IS SELECT
 FROM PA_ACCT_ADDR paa
     ,PA_ACCT pa
 WHERE paa.ACCT_NUM = pa.ACCT_NUM
-AND   paa.ACCT_NUM >= p_begin_acct_num
-AND   paa.ACCT_NUM <= p_end_acct_num
+--AND   paa.ACCT_NUM >= p_begin_acct_num AND   paa.ACCT_NUM <= p_end_acct_num
 ;
 
 v_begin_acct  dm_tracking.begin_acct%TYPE;
@@ -69,17 +68,17 @@ BEGIN
   from dm_tracking_etl
   where track_etl_id = i_trac_id;
   DBMS_OUTPUT.PUT_LINE('Start '||v_trac_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-  
-  update_track_proc(v_trac_rec);
- 
+   
   SELECT begin_acct, end_acct
   INTO   v_begin_acct, v_end_acct
   FROM   dm_tracking
   WHERE  track_id = v_trac_rec.track_id
   ;
   
-  OPEN C1(v_begin_acct,v_end_acct);  
   v_trac_rec.status := 'Processing';
+  update_track_proc(v_trac_rec);
+
+  OPEN C1;  --(v_begin_acct,v_end_acct);  
 
   LOOP
 

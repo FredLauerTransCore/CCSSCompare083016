@@ -19,8 +19,10 @@ set echo on
 --  AND VEHICLE_ID of EVENT_OWNER_ADDR_VEHICLE_ACCT to ID of EVENT_VEHICLE
 DBMS_OUTPUT.PUT_LINE('Start load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
 
-declare
---CREATE OR REPLACE PROCEDURE DM_CONTACT_INFO_PROC IS
+---declare
+CREATE OR REPLACE PROCEDURE DM_CONTACT_INFO_PROC  
+  (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
+IS
 
 TYPE DM_CONTACT_INFO_TYP IS TABLE OF DM_CONTACT_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
@@ -57,23 +59,23 @@ CURSOR C1 IS SELECT
     ,to_date('27-FEB-2017','DD-MON-YYYY') LAST_UPD
     ,'SUNTOLL_CSC_ID' LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
-FROM PATRON.PA_ACCT pa
-where rownum<10001
-and L_NAME is null
+FROM PA_ACCT pa
 ; -- Source
 
-SQL_STRING  varchar2(500) := 'truncate table ';
-LOAD_TAB    varchar2(50) := 'DM_CONTACT_INFO';
-ROW_CNT NUMBER := 0;
+v_begin_acct  dm_tracking.begin_acct%TYPE;
+v_end_acct    dm_tracking.end_acct%TYPE;
+row_cnt       NUMBER := 0;
+v_trac_rec    dm_tracking_etl%ROWTYPE;
 
 BEGIN
-  DBMS_OUTPUT.PUT_LINE('Start '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-
-  SQL_STRING := SQL_STRING||LOAD_TAB;
-  DBMS_OUTPUT.PUT_LINE('SQL_STRING : '||SQL_STRING);
-  execute immediate SQL_STRING;
-  commit;
- 
+  select * into v_trac_rec
+  from dm_tracking_etl
+  where track_etl_id = i_trac_id;
+  DBMS_OUTPUT.PUT_LINE('Start '||v_trac_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  
+  v_trac_rec.status := 'Processing '||v_trac_rec.etl_name;
+  update_track_proc(v_trac_rec);
+  
   OPEN C1;  
 
   LOOP
@@ -89,10 +91,9 @@ BEGIN
     /*Bulk insert */ 
     FORALL i in DM_CONTACT_INFO_tab.first .. DM_CONTACT_INFO_tab.last
            INSERT INTO DM_CONTACT_INFO VALUES DM_CONTACT_INFO_tab(i);
-                       
---    DBMS_OUTPUT.PUT_LINE('Inserted '||sql%rowcount||' into '||LOAD_TAB||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-    ROW_CNT := ROW_CNT +  sql%rowcount;                 
-    DBMS_OUTPUT.PUT_LINE('Inserted ROW count : '||ROW_CNT);
+    row_cnt := row_cnt +  SQL%ROWCOUNT;
+    v_trac_rec.dm_load_cnt := row_cnt;
+    update_track_proc(v_trac_rec);
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
@@ -107,9 +108,11 @@ BEGIN
 
   EXCEPTION
   WHEN OTHERS THEN
-    DBMS_OUTPUT.PUT_LINE('ERROR on '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
-     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
+    v_trac_rec.result_code := SQLCODE;
+    v_trac_rec.result_msg := SQLERRM;
+    update_track_proc(v_trac_rec);
+--     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_rec.result_code);
+--     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_rec.result_msg);
 END;
 /
 SHOW ERRORS
