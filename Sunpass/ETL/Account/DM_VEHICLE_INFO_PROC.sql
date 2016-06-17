@@ -1,20 +1,9 @@
-/********************************************************
-*
-* Name: DM_VEHICLE_INFO_PROC
-* Created by: DT, 4/21/2016
-* Revision: 1.0
-* Description: This is the template for bulk read/write
-*              DM_VEHICLE_INFO
-*
-********************************************************/
-
-set serveroutput on
-set verify on
+set ver on
 set echo on
 
-CREATE OR REPLACE PROCEDURE DM_VEHICLE_INFO_PROC IS
+create or replace PROCEDURE DM_VEHICLE_INFO_PROC IS
 
-TYPE DM_VEHICLE_INFO_TYP IS TABLE OF DM_VEHICLE_INFO%ROWTYPE 
+TYPE DM_VEHICLE_INFO_TYP IS TABLE OF DM_VEHICLE_INFO%ROWTYPE
      INDEX BY BINARY_INTEGER;
 DM_VEHICLE_INFO_tab DM_VEHICLE_INFO_TYP;
 
@@ -22,7 +11,7 @@ DM_VEHICLE_INFO_tab DM_VEHICLE_INFO_TYP;
 P_ARRAY_SIZE NUMBER:=10000;
 
 
-CURSOR C1 IS SELECT 
+CURSOR C1 IS SELECT
     ACCT_ACCT_NUM ACCOUNT_NUMBER
     ,DECODE(VEH_LIC_NUM, 'O', '0', VEH_LIC_NUM) PLATE_NUMBER
     ,STATE_STATE_CODE_ABBR PLATE_STATE
@@ -31,7 +20,7 @@ CURSOR C1 IS SELECT
     ,'NA' VEHICLE_TYPE
     ,START_DATE EFFECTIVE_START_DATE
     ,END_DATE EFFECTIVE_END_DATE
-    ,VEH_MODEL_YR YEAR
+    ,decode(translate(lpad(VEH_MODEL_YR,4,'9'),'0123456789','9999999999'),'9999',VEH_MODEL_YR,null) YEAR
     ,VEH_MAKE MAKE
     ,VEH_MODEL MODEL
     ,VEH_COLOR COLOUR
@@ -58,8 +47,8 @@ CURSOR C1 IS SELECT
 FROM PA_ACCT_VEHICLE;
 
 BEGIN
- 
-  OPEN C1;  
+
+  OPEN C1;
 
   LOOP
 
@@ -72,10 +61,10 @@ BEGIN
 
     /*ETL SECTION END   */
 
-    /*Bulk insert */ 
+    /*Bulk insert */
     FORALL i in DM_VEHICLE_INFO_tab.first .. DM_VEHICLE_INFO_tab.last
            INSERT INTO DM_VEHICLE_INFO VALUES DM_VEHICLE_INFO_tab(i);
-                       
+
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
 
@@ -91,6 +80,4 @@ BEGIN
      DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
 END;
 /
-SHOW ERRORS
-
-
+show errors
