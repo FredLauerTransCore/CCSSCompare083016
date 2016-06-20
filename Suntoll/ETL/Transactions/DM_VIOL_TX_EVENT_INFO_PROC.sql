@@ -34,14 +34,27 @@ CURSOR C1 IS SELECT
 -- Sunny will provide extract rule to determine status once the status is finalized between Xerox and FTE. 
     NULL EVENT_TYPE     
     ,NULL PREV_EVENT_TYPE 
-    ,CASE WHEN va.BANKRUPTCY_FLAG is NOT NULL then 'BANKRUPTCY'
-          WHEN va.COLL_COURT_FLAG = 'COLL' and va.DOCUMENT_ID IS NOT NULL and va.CHILD_DOC_ID IS NOT NULL then 'COLLECTION'
-          WHEN va.COLL_COURT_FLAG = 'CRT' and va.DOCUMENT_ID IS NOT NULL and va.CHILD_DOC_ID IS NOT NULL then 'COURT'
+
+--   VIOL_TX_STATUS mapping:
+--   =======================
+--   DOCUMENT_ID   |  Value
+--   -----------------------
+--   UNBILLED      |  601
+--   INVOICED      |  602
+--   ESCALATED     |  603
+--   UTC           |  604
+--   COLLECTION    |  605
+--   COURT         |  606
+--   BANKRUPTCY    |  607
+--   -----------------------
+    ,CASE WHEN va.BANKRUPTCY_FLAG is NOT NULL then 607  -- 'BANKRUPTCY'
+          WHEN va.COLL_COURT_FLAG = 'COLL' and va.DOCUMENT_ID IS NOT NULL and va.CHILD_DOC_ID IS NOT NULL then 605  -- 'COLLECTION'
+          WHEN va.COLL_COURT_FLAG = 'CRT' and va.DOCUMENT_ID IS NOT NULL and va.CHILD_DOC_ID IS NOT NULL then 606  -- 'COURT'
           WHEN va.COLL_COURT_FLAG is NOT NULL then NULL
-          WHEN va.DOCUMENT_ID IS NULL THEN 'UNBILLED'
-          WHEN va.CHILD_DOC_ID IS NULL THEN 'INVOICED'
-          WHEN va.CHILD_DOC_ID LIKE '%-%' THEN 'UTC'  VIOL_TX_STATUS
-          WHEN va.CHILD_DOC_ID IS NOT NULL THEN 'ESCALATED'
+          WHEN va.DOCUMENT_ID IS NULL THEN 601  -- 'UNBILLED'
+          WHEN va.CHILD_DOC_ID IS NULL THEN 602  -- 'INVOICED'
+          WHEN va.CHILD_DOC_ID LIKE '%-%' THEN 604  -- 'UTC'
+          WHEN va.CHILD_DOC_ID IS NOT NULL THEN 603  -- 'ESCALATED'
           ELSE NULL
      END VIOL_TX_STATUS
     ,NULL PREV_VIOL_TX_STATUS
