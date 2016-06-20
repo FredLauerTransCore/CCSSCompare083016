@@ -44,25 +44,30 @@ FROM KS_USER
 ;   -- Source table SUNTOLL
 
 --sql_string  VARCHAR2(500) := 'delete table ';
-row_cnt NUMBER := 0;
-v_trac_rec dm_tracking_etl%ROWTYPE;
+SQL_STRING  varchar2(500) := 'delete table ';
+
+row_cnt          NUMBER := 0;
+v_trac_rec       dm_tracking%ROWTYPE;
+v_trac_etl_rec   dm_tracking_etl%ROWTYPE;
 
 BEGIN
-  select * into v_trac_rec
-  from dm_tracking_etl
-  where track_etl_id = i_trac_id;
-  DBMS_OUTPUT.PUT_LINE('Start '||v_trac_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-  
---  update_track_proc(io_trac_rec);
-  update_track_proc(v_trac_rec);
---  sql_string := sql_string||load_tab;
---  dbms_output.put_line('SQL_STRING : '||sql_string);
---  EXECUTE IMMEDIATE sql_string;
---  COMMIT;
+  SELECT * INTO v_trac_etl_rec
+  FROM  dm_tracking_etl
+  WHERE track_etl_id = i_trac_id;
+  DBMS_OUTPUT.PUT_LINE('Start '||v_trac_etl_rec.etl_name||' ETL load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
 
-  OPEN c1;  
+  v_trac_etl_rec.status := 'ETL Start ';
+  v_trac_etl_rec.proc_start_date := SYSDATE;  
+  update_track_proc(v_trac_etl_rec);
+ 
+  SELECT * INTO   v_trac_rec
+  FROM   dm_tracking
+  WHERE  track_id = v_trac_etl_rec.track_id
+  ;
 
-  v_trac_rec.status := 'Processing';
+  OPEN C1; 
+  v_trac_etl_rec.status := 'ETL Processing ';
+  update_track_proc(v_trac_etl_rec);
 
   LOOP
     
@@ -80,36 +85,35 @@ BEGIN
            INSERT INTO dm_employee_info VALUES dm_employee_info_tab(i);
 
     row_cnt := row_cnt +  SQL%ROWCOUNT;
-    v_trac_rec.dm_load_cnt := row_cnt;
-    update_track_proc(v_trac_rec);
-
+    v_trac_etl_rec.dm_load_cnt := row_cnt;
+    update_track_proc(v_trac_etl_rec);
+                       
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
+  DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
 
   COMMIT;
 
-  CLOSE c1;
+  CLOSE C1;
 
   COMMIT;
---  dbms_output.put_line('END '||load_tab||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
---  dbms_output.put_line('Total ROW count : '||row_cnt);
- -- DBMS_OUTPUT.PUT_LINE('END Count '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-
-    v_trac_rec.status := 'Completed';
-    v_trac_rec.result_code := SQLCODE;
-    v_trac_rec.result_msg := SQLERRM;
-    update_track_proc(v_trac_rec);
-
+  v_trac_etl_rec.status := 'ETL Completed';
+  v_trac_etl_rec.result_code := SQLCODE;
+  v_trac_etl_rec.result_msg := SQLERRM;
+  v_trac_etl_rec.end_val := v_trac_rec.end_acct;
+  v_trac_etl_rec.proc_end_date := SYSDATE;
+  update_track_proc(v_trac_etl_rec);
+  
   EXCEPTION
   WHEN OTHERS THEN
-    v_trac_rec.result_code := SQLCODE;
-    v_trac_rec.result_msg := SQLERRM;
-    update_track_proc(v_trac_rec);
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_rec.result_code);
-     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_rec.result_msg);
---    RAISE EXCEPTION;
+    v_trac_etl_rec.result_code := SQLCODE;
+    v_trac_etl_rec.result_msg := SQLERRM;
+    v_trac_etl_rec.proc_end_date := SYSDATE;
+    update_track_proc(v_trac_etl_rec);
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
 END;
 /
 SHOW ERRORS
-
 

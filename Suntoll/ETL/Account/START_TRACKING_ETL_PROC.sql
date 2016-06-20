@@ -24,8 +24,6 @@ IS
 
 BEGIN
   DBMS_OUTPUT.PUT_LINE('Start '||i_con_rec.etl_name||' ETL track at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-
-  DBMS_OUTPUT.PUT_LINE('i_trac_id '||i_trac_id);
   
   etl_rec.track_etl_id := track_etl_id_seq.NEXTVAL;
   etl_rec.track_id := i_trac_id;

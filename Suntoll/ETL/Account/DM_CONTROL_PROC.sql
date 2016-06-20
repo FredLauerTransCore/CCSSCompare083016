@@ -7,6 +7,9 @@
 *
 *  
 ********************************************************/
+set serveroutput on
+set verify on
+set echo on
 
 create or replace PROCEDURE DM_CONTROL_PROC 
   (i_track_id IN dm_tracking.track_id%TYPE)
@@ -16,6 +19,7 @@ IS
   IS 
   SELECT * FROM DM_CONTROL 
   WHERE source_system = p_source_sys
+  AND disabled IS NULL
 --  AND load_order > 0
   ORDER BY load_order
   ;  
@@ -45,10 +49,16 @@ BEGIN
     POST_DM_PROC(c_acct, trac_etl_rec);
 --  VALIDATE_DM_PROC(c_rec, trac_etl_rec);
   END IF;
+  
+  
+  UPDATE DM_TRACKING
+  set PROC_START_DATE = SYSDATE 
+  where TRACK_ID = i_track_id;
+  
 
   FOR c_rec IN c1(v_source_sys)
   LOOP
---    DBMS_OUTPUT.PUT_LINE(c_rec.load_order||' - Start '||c_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+    DBMS_OUTPUT.PUT_LINE(c_rec.load_order||' - Start '||c_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
 
     START_ETL_TRACK_PROC(c_rec, i_track_id, trac_etl_rec);    
 
@@ -62,7 +72,7 @@ BEGIN
 --  EXECUTE IMMEDIATE plsql_block
 --    USING IN OUT new_deptid, new_dname, new_mgrid, new_locid;
 
-    sql_string := 'BEGIN '||c_rec.etl_name||'_PROC(:id); END;';
+--    sql_string := 'BEGIN '||c_rec.etl_name||'_PROC(:id); END;';
     DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
 
     EXECUTE IMMEDIATE sql_string
@@ -82,8 +92,11 @@ BEGIN
 
   EXCEPTION
   WHEN OTHERS THEN
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
-     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
+    trac_etl_rec.result_code := SQLCODE;
+    trac_etl_rec.result_msg := SQLERRM;
+    update_track_proc(trac_etl_rec);
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||trac_etl_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||trac_etl_rec.result_code);
 END;
 /
 SHOW ERRORS

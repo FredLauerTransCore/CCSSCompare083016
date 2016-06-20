@@ -21,14 +21,17 @@ CREATE OR REPLACE PROCEDURE POST_DM_PROC (
     )
 IS
 
+  v_c_rec     dm_control%ROWTYPE;
+  v_del_rec   dm_control_detail%ROWTYPE;
   v_trac_rec  dm_tracking%ROWTYPE;
-  v_c_rec  dm_control%ROWTYPE;
-  v_del_rec  dm_control_detail%ROWTYPE;
-  calc_rec  dm_tracking_calc%ROWTYPE;
+  v_etl_rec   dm_tracking_etl%ROWTYPE;
+  calc_rec    dm_tracking_calc%ROWTYPE;
+
  
   CURSOR c1(p_control_id NUMBER) IS 
   SELECT * FROM DM_CONTROL_DETAIL 
   WHERE control_id = p_control_id
+  AND disabled IS NULL
   ORDER BY control_detail_id
 ;  
 
@@ -37,18 +40,22 @@ IS
   v_select      VARCHAR2(100);
   v_from        VARCHAR2(100);
   v_where       VARCHAR2(500);
-  v_begin_date    DATE := trunc(SYSDATE-200);
-  v_end_date      DATE := trunc(SYSDATE);
   
 BEGIN
-  DBMS_OUTPUT.PUT_LINE('Start POST_DM_PROC for '||i_c_rec.etl_name||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-  v_c_rec := i_c_rec;
---  v_etl_rec := io_trac_rec;
---  track_rec.dm_name := dm_load_tab;
---  start_track(track_rec);
---  calc_rec.TRACK_ID :=  v_etl_rec.TRACK_ID;
 
-  calc_rec.track_etl_id :=  io_trac_rec.track_etl_id;
+  v_c_rec := i_c_rec;
+  v_etl_rec := io_trac_rec;
+  DBMS_OUTPUT.PUT_LINE('Start POST_DM_PROC for '||v_etl_rec.etl_name||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  SELECT * INTO v_trac_rec
+  FROM  dm_tracking
+  WHERE track_id = v_etl_rec.track_id
+  ;
+--  DBMS_OUTPUT.PUT_LINE('Acct between: '||v_trac_rec.begin_acct||' - '||v_trac_rec.end_acct);
+  
+  io_trac_rec.status := 'POST process Started';
+  update_track_proc(v_etl_rec);
+
+  calc_rec.track_etl_id :=  v_etl_rec.track_etl_id;
   
 --  FOR idx IN c1(c_rec.source_system, c_rec.control_id) 
   FOR idx IN c1(i_c_rec.control_id) 
@@ -59,7 +66,7 @@ BEGIN
     calc_rec.calc_func := idx.calc_func;
     calc_rec.calc_field := idx.dm_field;
     calc_rec.calc_tab := i_c_rec.etl_name;
-    calc_rec.calc_name := 'DM '||calc_rec.calc_func||' '||calc_rec.calc_field;
+    calc_rec.calc_name := 'POST '||calc_rec.calc_func||' '||calc_rec.calc_field;
     calc_rec.calc_value := 0;
     
     v_select :=   'SELECT '||calc_rec.calc_func||'('||calc_rec.calc_field||')';
@@ -67,13 +74,6 @@ BEGIN
     sql_string := v_select||v_from;
     v_where := ' WHERE 1=1 ';
 --    v_where := ' WHERE rownum<11';
-
---      v_where := v_where
---              ||v_c_rec.load_drive_field||' > :v_begin_date AND '
---              ||v_c_rec.load_drive_field||' < :v_end_date';
---      IF v_c_rec.load_drive_field = 'CREATE_ON' THEN
---        sql_string := sql_string||' AND ';
---      ELSIF v_c_rec.load_drive_field = 'OPEN_DATE' THEN
 
       sql_string := sql_string||v_where;
 
@@ -96,17 +96,16 @@ BEGIN
 -- vRunFunctie || '( :p1,  :p2, :vParmOut2 ); end;' using out vParmOut1, vParmIn1, vParmIn2, out vParmOut2;
 
   END LOOP;
---  TOT_REC.TOTAL_TYPE := 'P_ROW_CNT';
---  TOT_REC.TOTAL_VALUE := P_ROW_CNT;
---  TRACK_TOTAL(TRACK_REC, TOT_REC);
 
   COMMIT;
-  
+
+  v_etl_rec.status := 'POST process ompleted';
+  v_etl_rec.result_code := SQLCODE;
+  v_etl_rec.result_msg := SQLERRM;
+  update_track_proc(v_etl_rec);  
   
   EXCEPTION
   WHEN OTHERS THEN
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
-     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
     io_trac_rec.result_code := SQLCODE;
     io_trac_rec.result_msg := SQLERRM;
     update_track_proc(io_trac_rec);

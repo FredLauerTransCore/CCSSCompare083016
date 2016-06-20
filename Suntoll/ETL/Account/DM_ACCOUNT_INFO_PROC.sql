@@ -24,8 +24,7 @@ DM_ACCOUNT_INFO_tab DM_ACCOUNT_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
-CURSOR C1(p_begin_acct_num  pa_acct.acct_num%TYPE, 
-          p_end_acct_num    pa_acct.acct_num%TYPE)
+CURSOR C1   --(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
     pa.ACCT_NUM ACCOUNT_NUMBER
     ,pa.ACCTSTAT_ACCT_STATUS_CODE ACCOUNT_STATUS
@@ -96,37 +95,38 @@ IS SELECT
 --(if plan end date is future or null) ELSE 'N'
 FROM PA_ACCT pa
     ,PA_ACCT_DETAIL pad
-WHERE pa.ACCT_NUM >= p_begin_acct_num
-AND   pa.ACCT_NUM <= p_end_acct_num
-AND   pa.ACCT_NUM = pad.ACCT_NUM (+)
+WHERE  pa.ACCT_NUM = pad.ACCT_NUM (+)
 --AND pa.ACCT_NUM > 0
 --and rownum<3501
+--AND   pa.ACCT_NUM >= p_begin_acct_num
+--AND   pa.ACCT_NUM <= p_end_acct_num
 ; 
 
 SQL_STRING  varchar2(500) := 'delete table ';
 
-v_begin_acct  dm_tracking.begin_acct%TYPE;
-v_end_acct    dm_tracking.end_acct%TYPE;
-row_cnt       NUMBER := 0;
-v_trac_rec dm_tracking_etl%ROWTYPE;
+row_cnt          NUMBER := 0;
+v_trac_rec       dm_tracking%ROWTYPE;
+v_trac_etl_rec   dm_tracking_etl%ROWTYPE;
 
 BEGIN
-  select * into v_trac_rec
-  from dm_tracking_etl
-  where track_etl_id = i_trac_id;
-  DBMS_OUTPUT.PUT_LINE('Start '||v_trac_rec.etl_name||' load at: '||
-      to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-  
-  update_track_proc(v_trac_rec);
+  SELECT * INTO v_trac_etl_rec
+  FROM  dm_tracking_etl
+  WHERE track_etl_id = i_trac_id;
+  DBMS_OUTPUT.PUT_LINE('Start '||v_trac_etl_rec.etl_name||' ETL load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+
+  v_trac_etl_rec.status := 'ETL Start ';
+  v_trac_etl_rec.proc_start_date := SYSDATE;  
+  update_track_proc(v_trac_etl_rec);
  
-  SELECT begin_acct, end_acct
-  INTO   v_begin_acct, v_end_acct
+  SELECT * INTO   v_trac_rec
   FROM   dm_tracking
-  WHERE  track_id = v_trac_rec.track_id
+  WHERE  track_id = v_trac_etl_rec.track_id
   ;
-  
-  OPEN C1(v_begin_acct,v_end_acct);  
-  v_trac_rec.status := 'Processing';
+
+  OPEN C1;  -- (v_trac_rec.begin_acct,v_end_acct,end_acct);  
+--  v_trac_etl_rec.begin_val := v_trac_rec.begin_acct;
+  v_trac_etl_rec.status := 'ETL Processing ';
+  update_track_proc(v_trac_etl_rec);
 
   LOOP
 
@@ -140,7 +140,7 @@ BEGIN
 
     FOR i IN 1 .. DM_ACCOUNT_INFO_tab.COUNT LOOP
       IF i=1 then
-        v_trac_rec.BEGIN_VAL := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
+        v_trac_etl_rec.BEGIN_VAL := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
       end if;
       
       begin
@@ -170,8 +170,8 @@ BEGIN
 --    THEN 'A'    -- (if plan end date is future or null) 
 --    ELSE 'N' 
 
-      v_trac_rec.track_last_val := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
-      v_trac_rec.end_val := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
+      v_trac_etl_rec.track_last_val := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
+      v_trac_etl_rec.end_val := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
 
     END LOOP;
 --      ETL SECTION END
@@ -185,12 +185,12 @@ BEGIN
            INSERT INTO DM_ACCOUNT_INFO VALUES DM_ACCOUNT_INFO_tab(i);
 
     row_cnt := row_cnt +  SQL%ROWCOUNT;
-    v_trac_rec.dm_load_cnt := row_cnt;
-    update_track_proc(v_trac_rec);
+    v_trac_etl_rec.dm_load_cnt := row_cnt;
+    update_track_proc(v_trac_etl_rec);
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
-  DBMS_OUTPUT.PUT_LINE('END '||v_trac_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
 
   COMMIT;
@@ -198,14 +198,21 @@ BEGIN
   CLOSE C1;
 
   COMMIT;
-
+  v_trac_etl_rec.status := 'ETL Completed';
+  v_trac_etl_rec.result_code := SQLCODE;
+  v_trac_etl_rec.result_msg := SQLERRM;
+  v_trac_etl_rec.end_val := v_trac_rec.end_acct;
+  v_trac_etl_rec.proc_end_date := SYSDATE;
+  update_track_proc(v_trac_etl_rec);
+  
   EXCEPTION
   WHEN OTHERS THEN
-    v_trac_rec.result_code := SQLCODE;
-    v_trac_rec.result_msg := SQLERRM;
-    update_track_proc(v_trac_rec);
---     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_rec.result_code);
---     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_rec.result_msg);
+    v_trac_etl_rec.result_code := SQLCODE;
+    v_trac_etl_rec.result_msg := SQLERRM;
+    v_trac_etl_rec.proc_end_date := SYSDATE;
+    update_track_proc(v_trac_etl_rec);
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
 END;
 /
 SHOW ERRORS
