@@ -32,7 +32,23 @@ CURSOR C1 IS SELECT
     ,NULL TX_SUBTYPE_IND
     ,decode(substr(ext_PLAZA_ID,1,3),'004','C','B') TOLL_SYSTEM_TYPE
 	--,EXT_LANE_TYPE_CODE LANE_MODE
-    ,'0' LANE_MODE
+    ,CASE WHEN EXT_LANE_TYPE_CODE = 'A' THEN 100  -- AC Lane
+          WHEN EXT_LANE_TYPE_CODE = 'E' THEN 101  -- AE Lane
+          WHEN EXT_LANE_TYPE_CODE = 'M' THEN 102  -- MB Lane
+          WHEN EXT_LANE_TYPE_CODE = 'D' THEN 103  -- Dedicated
+          WHEN EXT_LANE_TYPE_CODE = 'C' THEN 104  -- AC-AVI
+          WHEN EXT_LANE_TYPE_CODE = 'B' THEN 105  -- MB-AVI
+          WHEN EXT_LANE_TYPE_CODE = 'N' THEN 106  -- ME Lane
+          WHEN EXT_LANE_TYPE_CODE = 'X' THEN 107  -- MX Lane
+          WHEN EXT_LANE_TYPE_CODE = 'F' THEN 108  -- Free Lane
+          WHEN EXT_LANE_TYPE_CODE = 'Y' THEN 109  -- Dedicated Entry
+          WHEN EXT_LANE_TYPE_CODE = 'Z' THEN 110  -- Dedicated Exit
+          WHEN EXT_LANE_TYPE_CODE = 'S' THEN 111  -- Express Lane
+          WHEN EXT_LANE_TYPE_CODE = 'G' THEN 112  -- Magic Lane
+          WHEN EXT_LANE_TYPE_CODE = 'Q' THEN 113  -- APM Lane
+          WHEN EXT_LANE_TYPE_CODE = 'T' THEN 114  -- MA Lane
+          ELSE NULL
+     END LANE_MODE
     ,'1' LANE_TYPE
     ,'0' LANE_STATE
     ,'0' LANE_HEALTH
