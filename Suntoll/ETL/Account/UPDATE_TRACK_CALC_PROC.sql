@@ -26,10 +26,6 @@ BEGIN
     SET ROW = v_calc_rec
   WHERE track_calc_id = v_calc_rec.track_calc_id
   ;
---  UPDATE DM_TRACKING
---  set PROC_END_DATE = SYSDATE,
---      STATUS = track_calc_id.etl_name||' '||track_calc_id.status
---  where TRACK_ID = v_etl_rec.track_id;
   COMMIT;
   
   EXCEPTION

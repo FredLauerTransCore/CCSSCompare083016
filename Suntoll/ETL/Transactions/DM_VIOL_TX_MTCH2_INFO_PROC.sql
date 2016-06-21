@@ -12,8 +12,11 @@ set serveroutput on
 set verify on
 set echo on
 
-declare
---CREATE OR REPLACE PROCEDURE DM_VIOL_TX_MTCH2_INFO_PROC IS
+-- 6/20/2016 RH Added Tracking and acct num parameters
+
+CREATE OR REPLACE PROCEDURE DM_VIOL_TX_MTCH2_INFO_PROC 
+  (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
+IS
 
 TYPE DM_VIOL_TX_MTCH2_INFO_TYP IS TABLE OF DM_VIOL_TX_MTCH2_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
@@ -30,7 +33,9 @@ P_ARRAY_SIZE NUMBER:=10000;
 --  SELECT * FROM DHSMV_ROV_TABLE 
 --  JOIN PLATE AND JURISDICTION COLUMNS WITH VH_LIC_NUM AND STATE_ID_CODE 
 
-CURSOR C1 IS SELECT 
+CURSOR C1
+--(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+IS SELECT 
     lt.TXN_ID TX_EXTERN_REF_NO
     ,lt.EXT_MSG_SEQ_NUM TX_SEQ_NUMBER
     ,lt.TOUR_TOUR_SEQ EXTERN_FILE_ID
@@ -49,7 +54,7 @@ CURSOR C1 IS SELECT
 --Join ST_INTEROP_AGENCIES and PA_PLAZA on ENT_PLAZA_ID to PLAZA_ID
 --    ,NULL  PLAZA_AGENCY_ID 
     ,(select ia.AGENCY_ID 
-        from PATRON.ST_INTEROP_AGENCIES ia, PATRON.PA_PLAZA p
+        from ST_INTEROP_AGENCIES ia, PA_PLAZA p
         where ia.AUTHORITY_CODE = p.AUTHCODE_AUTHORITY_CODE
         and   p.PLAZA_ID = lt.EXT_PLAZA_ID)  PLAZA_AGENCY_ID 
 
@@ -89,7 +94,7 @@ CURSOR C1 IS SELECT
 --    ,TT_ID DEVICE_NO -- VIOLATION_EVENTS_AUX 
 -- JOIN WITH JOIN TO TXN_ID OF PA_LANE_TXN TO TXN_ID OF VB_TRANSPONDER_INFO 
 --  RETURNS TRANSPONDER_ID
-    ,(select vt.TRANSPONDER_ID from PATRON.VB_TRANSPONDER_INFO vt
+    ,(select vt.TRANSPONDER_ID from VB_TRANSPONDER_INFO vt
         where vt.LANE_TXN_ID = lt.TXN_ID) DEVICE_NO
     ,(select pa.ACCTTYPE_ACCT_TYPE_CODE from PA_ACCT pa 
         where pa.ACCT_NUM=kl.ACCT_NUM)  ACCOUNT_TYPE -- PA_ACCT
@@ -147,8 +152,8 @@ CURSOR C1 IS SELECT
 --    ,NULL LOAD_DATE -- DHSMV_ROV.LOOKUP_DATE - Per EXTRACT RULE (part 2) above
     ,(select elr.REQUEST_DATE
         from EVENT_LOOKUP_ROV elr, EVENT_ROV er
-	where elr.id = er.LOOKUP_Q_ID
-	and   elr.EVENT_OAVA_LINK_ID = lt.OAVA_LINK_ID) LOAD_DATE
+        where elr.id = er.LOOKUP_Q_ID
+        and   elr.EVENT_OAVA_LINK_ID = lt.OAVA_LINK_ID) LOAD_DATE
 
     ,3 VIOL_TYPE
     ,0 REVIEWED_VEHICLE_TYPE
@@ -231,11 +236,11 @@ CURSOR C1 IS SELECT
     ,nvl(lt.TOLL_AMT_COLLECTED,0) AMOUNT_PAID 
 -- IF VIOL_TX_STATUS = 'UTC' then $25 ELSE 0
      ,CASE WHEN va.COLL_COURT_FLAG is null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID like '%-%' 
-          THEN 25
-          ELSE 0
-      END NOTICE_FEE_AMOUNT  -- Derived  
+                va.DOCUMENT_ID is NOT null and
+                va.CHILD_DOC_ID like '%-%' 
+           THEN 25
+           ELSE 0
+       END NOTICE_FEE_AMOUNT  -- Derived  
 ---- {IF AMT_CHARGED = TOTAL_AMT_PAID } THEN 'Y' ELSE 
 ---- JOIN EXT_ACTIVITY_PAID JOIN WITH KS_LEDGER ON LEDGER_ID 
 ---- AND KS_LEDGER TO PA_LANE_TXN on PA_LANE_TXN_ID 
@@ -252,17 +257,18 @@ CURSOR C1 IS SELECT
 --  IF VB_ACTIVITY.COLL_COURT_FLAG = 'COLL' THEN 'SEND_TO_COLLECTION' 
 --  IF ST_ACTIVITY_PAID.COLL_COURT_FLAG = 'COLL'  AND AMT_CHARGED <> 0 THEN 'PAID_ON_COLLECTION'
     ,CASE WHEN va.COLL_COURT_FLAG = 'COLL' THEN 1   -- 'SEND_TO_COLLECTION'
-          WHEN ap.COLL_COURT_FLAG = 'COLL' AND ap.AMT_CHARGED <> 0 THEN 2  -- 'PAID_ON_COLLECTION'
-        ELSE 0
+          WHEN ap.COLL_COURT_FLAG = 'COLL' AND 
+               ap.AMT_CHARGED <> 0 THEN 2  -- 'PAID_ON_COLLECTION'
+          ELSE 0
       END COLL_STATUS
     ,0 LIMOUSINE
     ,0 TAXI
     ,0 TAXI_LIMO 
 --    ,(select ACCT_NUM from PA_RENTAL_AGNCY where ACCT_NUM = pp.ACCT_NUM)  RENTAL_COMPANY_ID -- PA_RENTAL_AGNCY
-    ,(select NVL(ra.ACCT_NUM,0) from PATRON.PA_RENTAL_AGENCY  ra
+    ,(select NVL(ra.ACCT_NUM,0) from PA_RENTAL_AGENCY  ra
         where ra.ACCT_NUM = kl.ACCT_NUM)  RENTAL_COMPANY_ID -- PA_RENTAL_AGNCY
     ,NVL2(OAVA_LINK_ID,'DMV','OTH') ADDRESS_SOURCE  -- IF OAVA_LINK_ID IS NOT NULL THEN 'DMV' ELSE 'OTH'
-    ,trunc(.ltEXT_DATE_TIME) IMAGE_RECEIVE_DATE
+    ,trunc(lt.EXT_DATE_TIME) IMAGE_RECEIVE_DATE
     ,0 IMG_FILE_INDEX
     ,'**' BASEFILENAME -- ** Vector assigns internally **NOTE** 
     ,(select pp.PLAZA_NAME from PA_PLAZA pp
@@ -281,19 +287,39 @@ CURSOR C1 IS SELECT
     ,decode(kl.TRANSACTION_TYPE,253,1,0)  TXN_DISPUTED 
 --  substr(a.description,41,8) on KS_LEDGER joining PA_LANE_TXN on pa_lane_txn_id
     ,to_number(substr(kl.DESCRIPTION,41,8)) DISPUTED_ETC_ACCT_ID  
-FROM PATRON.PA_LANE_TXN lt
-    ,PATRON.KS_LEDGER kl
-    ,PATRON.VB_ACTIVITY va
-    ,PATRON.ST_ACTIVITY_PAID ap
+FROM PA_LANE_TXN lt
+    ,KS_LEDGER kl
+    ,VB_ACTIVITY va
+    ,ST_ACTIVITY_PAID ap
 WHERE lt.txn_id = kl.PA_LANE_TXN_ID
   AND kl.ID = va.LEDGER_ID (+)
   AND kl.ID = ap.LEDGER_ID (+)
-AND lt.TRANSP_ID like '%2010'  --WHERE TRANSPONDER_ID ENDS WITH '2010'  
+AND lt.TRANSP_ID like '%2010'  --WHERE TRANSPONDER_ID ENDS WITH '2010'
+--AND   kl.ACCT_NUM >= p_begin_acct_num AND   kl.ACCT_NUM <= p_end_acct_num
 ;
 
+row_cnt          NUMBER := 0;
+v_trac_rec       dm_tracking%ROWTYPE;
+v_trac_etl_rec   dm_tracking_etl%ROWTYPE;
+
 BEGIN
+  SELECT * INTO v_trac_etl_rec
+  FROM  dm_tracking_etl
+  WHERE track_etl_id = i_trac_id;
+  DBMS_OUTPUT.PUT_LINE('Start '||v_trac_etl_rec.etl_name||' ETL load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+
+  v_trac_etl_rec.status := 'ETL Start ';
+  v_trac_etl_rec.proc_start_date := SYSDATE;  
+  update_track_proc(v_trac_etl_rec);
  
-  OPEN C1;  
+  SELECT * INTO   v_trac_rec
+  FROM   dm_tracking
+  WHERE  track_id = v_trac_etl_rec.track_id
+  ;
+
+  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  v_trac_etl_rec.status := 'ETL Processing ';
+  update_track_proc(v_trac_etl_rec);
 
   LOOP
 
@@ -310,19 +336,35 @@ BEGIN
     FORALL i in DM_VIOL_TX_MTCH2_INFO_tab.first .. DM_VIOL_TX_MTCH2_INFO_tab.last
            INSERT INTO DM_VIOL_TX_MTCH2_INFO VALUES DM_VIOL_TX_MTCH2_INFO_tab(i);
                        
+    row_cnt := row_cnt +  SQL%ROWCOUNT;
+    v_trac_etl_rec.dm_load_cnt := row_cnt;
+    update_track_proc(v_trac_etl_rec);
+                       
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
+  DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
 
   COMMIT;
 
   CLOSE C1;
 
   COMMIT;
-
+  v_trac_etl_rec.status := 'ETL Completed';
+  v_trac_etl_rec.result_code := SQLCODE;
+  v_trac_etl_rec.result_msg := SQLERRM;
+  v_trac_etl_rec.end_val := v_trac_rec.end_acct;
+  v_trac_etl_rec.proc_end_date := SYSDATE;
+  update_track_proc(v_trac_etl_rec);
+  
   EXCEPTION
   WHEN OTHERS THEN
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
-     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
+    v_trac_etl_rec.result_code := SQLCODE;
+    v_trac_etl_rec.result_msg := SQLERRM;
+    v_trac_etl_rec.proc_end_date := SYSDATE;
+    update_track_proc(v_trac_etl_rec);
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
 END;
 /
 SHOW ERRORS

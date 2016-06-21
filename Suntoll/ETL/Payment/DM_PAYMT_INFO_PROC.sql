@@ -12,7 +12,7 @@ set serveroutput on
 set verify on
 set echo on
 
---DECLARE
+-- 6/20/2016 RH Added Tracking and acct num parameters
 
 CREATE OR REPLACE PROCEDURE DM_PAYMT_INFO_PROC 
   (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
@@ -45,9 +45,9 @@ CURSOR C1 IS SELECT
     ,trim(pay.CHECK_NUM) CHECK_NUMBER
 -- DERIVED  PA_PURCHASE_DETAIL.RODUCT_PUR_PRODUCT_CODE ?
     ,NULL NSF_FEE -- DERIVED  PA_PURCHASE_DETAIL.RODUCT_PUR_PRODUCT_CODE ?
-    ,pay.PUR_PUR_ID PAYMENT_REFERENCE_NUM   -- unique
+    ,nvl(pay.PUR_PUR_ID,'NULL') PAYMENT_REFERENCE_NUM   -- unique
     ,trim(pay.EMP_EMP_CODE) EMPLOYEE_NUMBER    
-    ,nvl(pay.PUR_PAY_ID,0) TRANSACTION_ID
+    ,nvl(pay.PUR_PAY_ID,'NULL') TRANSACTION_ID
 -- Derived from product code and VES_REF_NUM from PA_PURCHASE_DETAIL table. Default Derived
     ,nvl(pd.VES_REF_NUM,'NULL') ORG_TRANSACTION_ID 
 --    ,(select PROD_ABBRV from PA_PUR_PRODUCT where PUR_PRODUCT_CODE = pd.PRODUCT_PUR_PRODUCT_CODE) REVERSED    

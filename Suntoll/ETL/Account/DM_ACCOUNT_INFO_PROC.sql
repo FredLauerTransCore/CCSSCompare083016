@@ -123,8 +123,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;  -- (v_trac_rec.begin_acct,v_end_acct,end_acct);  
---  v_trac_etl_rec.begin_val := v_trac_rec.begin_acct;
+  OPEN C1;  --  -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 

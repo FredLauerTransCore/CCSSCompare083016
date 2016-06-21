@@ -12,7 +12,11 @@ set serveroutput on
 set verify on
 set echo on
 
-CREATE OR REPLACE PROCEDURE DM_ACCOUNT_HST_INFO_PROC IS
+-- RH 6/20/2016 Added Tracking and acct num parameters
+
+CREATE OR REPLACE PROCEDURE DM_ACCOUNT_HST_INFO_PROC 
+  (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
+IS
 
 TYPE DM_ACCOUNT_HST_INFO_TYP IS TABLE OF DM_ACCOUNT_HST_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
@@ -20,7 +24,9 @@ DM_ACCOUNT_HST_INFO_tab DM_ACCOUNT_HST_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
-CURSOR C1 IS SELECT 
+CURSOR C1
+--(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+IS SELECT
     pa.ACCT_NUM ACCOUNT_NUMBER
     ,pa.ACCTSTAT_ACCT_STATUS_CODE ACCOUNT_STATUS
     ,NULL ACCOUNT_STATUS_DATETIME -- MAX(STATUS_CHG_DATE) PA_ACCT_STATUS_CHANGES - ETL sec
@@ -33,7 +39,9 @@ CURSOR C1 IS SELECT
     ,NULL DBA -- N/A
     ,pa.E_MAIL_ADDR EMAIL_ADDRESS
 --    ,PA_ACCT_REPL_DETAIL.REPLENISHMENT_AMT REBILL_AMOUNT
+    ,0 REBILL_AMOUNT
 --    ,PA_ACCT_REPL_DETAIL.LOW_BAL_AMT REBILL_THRESHOLD
+    ,0 REBILL_THRESHOLD
     ,pa.ACCT_PIN_NUMBER PIN
     ,NULL VIDEO_ACCT_STATUS -- N/A
     ,NULL SUSPENDED_DATE -- N/A
@@ -71,27 +79,30 @@ CURSOR C1 IS SELECT
     ,pa.ANON_ACCT ANONYMOUS_ACCOUNT
     ,NULL SECONDARY_EMAIL_ADDRESS
     ,'SUNTOLL' SOURCE_SYSTEM
-    ,pad.BKTY_FILE_DATE BKTY_FILE_DATE
-    ,pad.BKTY_DICHG_DATE BKTY_DICHG_DATE
-    ,pad.BKTY_DISMISS_DATE BKTY_DISMISS_DATE
-    ,pad.BKTY_CASEID BKTY_CASEID
-    ,pad.BKTY_NOTIFY_BY BKTY_NOTIFY_BY
-    ,pad.DECEASE_NOTIFY_BY DECEASE_NOTIFY_BY
-    ,pad.DEATH_CERT_DATE DEATH_CERT_DATE
-    ,pad.COLL_ASSIGN_DATE COLL_ASSIGN_DATE
-    ,pad.ACCT_HOLD_DATE INIT_COLL_ASSIGN_DATE
-    ,pad.ACCT_HOLD_DATE ACCT_HOLD_DATE
-    ,pad.IS_REGISTERED IS_REGISTERED
-    ,pa.OWNER_TYPE OWNER_TYPE
--- IF ACCOUNT_NUM EXISTS IN ST_REG_STOP_PAYMENT_PLAN AND 
---  NVL(PAYMENT_PLAN_END, TRUNC(SYSDATE)) ST_REG_STOP_PAYMENT_PLAN) >=  TRUNC(SYSDATE) THEN 'A' 
---  (if plan end date is future or null) ELSE 'N'
-    ,case when pa.ACCT_NUM = (select ACCT_NUM 
-                            from PATRON.ST_REG_STOP_PAYMENT_PLAN rsp
-                            where rsp.ACCT_NUM = pa.ACCT_NUM
-                            and nvl(PAYMENT_PLAN_END, trunc(SYSDATE)) >= trunc(SYSDATE)) THEN 'A' 
-          else 'N'
-        end PAYMENT_PLAN
+--    ,pad.BKTY_FILE_DATE BKTY_FILE_DATE
+--    ,pad.BKTY_DICHG_DATE BKTY_DICHG_DATE
+--    ,pad.BKTY_DISMISS_DATE BKTY_DISMISS_DATE
+--    ,pad.BKTY_CASEID BKTY_CASEID
+--    ,pad.BKTY_NOTIFY_BY BKTY_NOTIFY_BY
+--    ,pad.DECEASE_NOTIFY_BY DECEASE_NOTIFY_BY
+--    ,pad.DEATH_CERT_DATE DEATH_CERT_DATE
+--    ,pad.COLL_ASSIGN_DATE COLL_ASSIGN_DATE
+--    ,pad.ACCT_HOLD_DATE INIT_COLL_ASSIGN_DATE
+--    ,pad.ACCT_HOLD_DATE ACCT_HOLD_DATE
+--    ,pad.IS_REGISTERED IS_REGISTERED
+--    ,NULL OWNER_TYPE
+----    ,pa.OWNER_TYPE OWNER_TYPE
+---- IF ACCOUNT_NUM EXISTS IN ST_REG_STOP_PAYMENT_PLAN AND 
+----  NVL(PAYMENT_PLAN_END, TRUNC(SYSDATE)) ST_REG_STOP_PAYMENT_PLAN) >=  TRUNC(SYSDATE) THEN 'A' 
+----  (if plan end date is future or null) ELSE 'N'
+--
+----    ,case when pa.ACCT_NUM = (select ACCT_NUM 
+----                            from PATRON.ST_REG_STOP_PAYMENT_PLAN rsp
+----                            where rsp.ACCT_NUM = pa.ACCT_NUM
+----                            and nvl(PAYMENT_PLAN_END, trunc(SYSDATE)) >= trunc(SYSDATE)) THEN 'A' 
+----          else 'N'
+----        end PAYMENT_PLAN
+--    ,NULL PAYMENT_PLAN
     
     ,NULL ACTIVITY_ID
     ,NULL X_VERSION
@@ -134,16 +145,36 @@ CURSOR C1 IS SELECT
     ,NULL X_TAXILEMO
     ,NULL X_TAXILIMOASSOCIATIONNAME
     ,NULL X_THRUWAY_REF_NUMBER
-FROM PATRON.PA_ACCT pa
-    ,PATRON.PA_ACCT_DETAIL pad
+FROM PA_ACCT pa
+    ,PA_ACCT_DETAIL pad
 --    ,PATRON.KS_CHALLENGE_QUESTION
 WHERE pa.ACCT_NUM = pad.ACCT_NUM --(+)
+--AND   paa.ACCT_NUM >= p_begin_acct_num AND   paa.ACCT_NUM <= p_end_acct_num
 ;
 /*Change FTE_TABLE to the actual table name*/
 
+row_cnt          NUMBER := 0;
+v_trac_rec       dm_tracking%ROWTYPE;
+v_trac_etl_rec   dm_tracking_etl%ROWTYPE;
+
 BEGIN
+  SELECT * INTO v_trac_etl_rec
+  FROM  dm_tracking_etl
+  WHERE track_etl_id = i_trac_id;
+  DBMS_OUTPUT.PUT_LINE('Start '||v_trac_etl_rec.etl_name||' ETL load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+
+  v_trac_etl_rec.status := 'ETL Start ';
+  v_trac_etl_rec.proc_start_date := SYSDATE;  
+  update_track_proc(v_trac_etl_rec);
  
-  OPEN C1;  
+  SELECT * INTO   v_trac_rec
+  FROM   dm_tracking
+  WHERE  track_id = v_trac_etl_rec.track_id
+  ;
+
+  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  v_trac_etl_rec.status := 'ETL Processing ';
+  update_track_proc(v_trac_etl_rec);
 
   LOOP
 
@@ -154,25 +185,25 @@ BEGIN
 
     /*ETL SECTION BEGIN */
 
-    FOR i IN 1 .. DM_ACCOUNT_INFO_tab.COUNT LOOP
+    FOR i IN 1 .. DM_ACCOUNT_HST_INFO_tab.COUNT LOOP
 
       begin
-        select max(sc.STATUS_CHG_DATE) into  DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME
-        from PATRON.PA_ACCT_STATUS_CHANGES sc
-        where sc.ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
+        select max(sc.STATUS_CHG_DATE) into  DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_STATUS_DATETIME
+        from PA_ACCT_STATUS_CHANGES sc
+        where sc.ACCT_NUM = DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_NUMBER
         ;
       exception 
         when others then null;
-        DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
+        DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
       end;
       begin
-        select max(di.CREATED_ON) into  DM_ACCOUNT_INFO_tab(i).LAST_INVOICE_DATE
-        from PATRON.ST_DOCUMENT_INFO di
-        where di.ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
+        select max(di.CREATED_ON) into  DM_ACCOUNT_HST_INFO_tab(i).LAST_INVOICE_DATE
+        from ST_DOCUMENT_INFO di
+        where di.ACCT_NUM = DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_NUMBER
         ;
       exception 
         when others then null;
-        DM_ACCOUNT_INFO_tab(i).LAST_INVOICE_DATE:=null;
+        DM_ACCOUNT_HST_INFO_tab(i).LAST_INVOICE_DATE:=null;
       end;
 --    DBMS_OUTPUT.PUT_LINE('ACCT- '||i||' - '||DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
 --        ||' - '||DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME
@@ -196,19 +227,35 @@ BEGIN
     FORALL i in DM_ACCOUNT_HST_INFO_tab.first .. DM_ACCOUNT_HST_INFO_tab.last
            INSERT INTO DM_ACCOUNT_HST_INFO VALUES DM_ACCOUNT_HST_INFO_tab(i);
                        
+    row_cnt := row_cnt +  SQL%ROWCOUNT;
+    v_trac_etl_rec.dm_load_cnt := row_cnt;
+    update_track_proc(v_trac_etl_rec);
+                       
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
+  DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
 
   COMMIT;
 
   CLOSE C1;
 
   COMMIT;
-
+  v_trac_etl_rec.status := 'ETL Completed';
+  v_trac_etl_rec.result_code := SQLCODE;
+  v_trac_etl_rec.result_msg := SQLERRM;
+  v_trac_etl_rec.end_val := v_trac_rec.end_acct;
+  v_trac_etl_rec.proc_end_date := SYSDATE;
+  update_track_proc(v_trac_etl_rec);
+  
   EXCEPTION
   WHEN OTHERS THEN
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
-     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
+    v_trac_etl_rec.result_code := SQLCODE;
+    v_trac_etl_rec.result_msg := SQLERRM;
+    v_trac_etl_rec.proc_end_date := SYSDATE;
+    update_track_proc(v_trac_etl_rec);
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
 END;
 /
 SHOW ERRORS

@@ -15,10 +15,11 @@ set serveroutput on
 set verify on
 set echo on
 
---  DBMS_OUTPUT.PUT_LINE('Start '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+-- 6/20/2016 RH Added Tracking and acct num parameters
 
-declare
---CREATE OR REPLACE PROCEDURE DM_VIOL_TX_MTCH1_INFO_PROC IS
+CREATE OR REPLACE PROCEDURE DM_VIOL_TX_MTCH1_INFO_PROC 
+  (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
+IS
 
 v_date_range NUMBER := 1;
 v_end_date    DATE  := trunc(SYSDATE)-100;
@@ -40,7 +41,8 @@ P_ARRAY_SIZE NUMBER:=10000;
 --  AND ADDRESS_ID of EVENT_OWNER_ADDR_VEHICLE_ACCT to ID of EVENT_ADDRESS 
 --  AND VEHICLE_ID of EVENT_OWNER_ADDR_VEHICLE_ACCT to ID of EVENT_VEHICLE
 
-CURSOR C1  --(p_begin_date DATE, p_end_date DATE) 
+CURSOR C1
+--(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
     lt.TXN_ID TX_EXTERN_REF_NO
     ,lt.EXT_MSG_SEQ_NUM TX_SEQ_NUMBER
@@ -60,7 +62,7 @@ IS SELECT
     
 ----Join ST_INTEROP_AGENCIES and PA_PLAZA on ENT_PLAZA_ID to PLAZA_ID
     ,(select ia.AGENCY_ID 
-        from PATRON.ST_INTEROP_AGENCIES ia, PATRON.PA_PLAZA p
+        from ST_INTEROP_AGENCIES ia, PA_PLAZA p
         where ia.AUTHORITY_CODE = p.AUTHCODE_AUTHORITY_CODE
         and   p.PLAZA_ID =lt.EXT_PLAZA_ID)  PLAZA_AGENCY_ID 
         
@@ -263,7 +265,7 @@ IS SELECT
     
 ----    ,lt.ACCT_NUM in (select ra.ACCT_NUM from PATRON.PA_RENTAL_AGENCY)
 ----    ,CASE WHEN lt.ACCT_NUM IN (select ra.ACCT_NUM from PATRON.PA_RENTAL_AGENCY) THEN 
-    ,nvl((select ra.ACCT_NUM from PATRON.PA_RENTAL_AGENCY  ra
+    ,nvl((select ra.ACCT_NUM from PA_RENTAL_AGENCY  ra
         where ra.ACCT_NUM = kl.ACCT_NUM),0) RENTAL_COMPANY_ID -- PA_RENTAL_AGNCY -- NULLs
         
     ,NVL2(lt.OAVA_LINK_ID,'DMV','OTH') ADDRESS_SOURCE  -- IF OAVA_LINK_ID IS NOT NULL THEN 'DMV' ELSE 'OTH'
@@ -296,32 +298,32 @@ WHERE lt.txn_id = kl.PA_LANE_TXN_ID
   AND kl.ID = va.LEDGER_ID (+)
   AND kl.ID = ap.LEDGER_ID (+)
 AND lt.TRANSP_ID like '%2010'  --WHERE TRANSPONDER_ID ENDS WITH '2010'  
---AND ACCTS_LIST
+--AND  k1.ACCT_NUM >= p_begin_acct_num AND   k1.ACCT_NUM <= p_end_acct_num
 ;
 
---select trunc(sysdate)-100, trunc(sysdate)-102 from dual;
 
-SQL_STRING  varchar2(500) := 'truncate table ';
-LOAD_TAB    varchar2(50)  := 'DM_VIOL_TX_MTCH1_INFO';
-ROW_CNT NUMBER := 0;
+row_cnt          NUMBER := 0;
+v_trac_rec       dm_tracking%ROWTYPE;
+v_trac_etl_rec   dm_tracking_etl%ROWTYPE;
 
 BEGIN
+  SELECT * INTO v_trac_etl_rec
+  FROM  dm_tracking_etl
+  WHERE track_etl_id = i_trac_id;
+  DBMS_OUTPUT.PUT_LINE('Start '||v_trac_etl_rec.etl_name||' ETL load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
 
-  DBMS_OUTPUT.PUT_LINE('Start '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-
-  select count(1) into ROW_CNT from DM_VIOL_TX_MTCH1_INFO ;
-  DBMS_OUTPUT.PUT_LINE('ROW_CNT : '||ROW_CNT);
-
-  SQL_STRING := SQL_STRING||LOAD_TAB;
-  DBMS_OUTPUT.PUT_LINE('SQL_STRING : '||SQL_STRING);
-  execute immediate SQL_STRING;
-  commit;
-  select count(1) into ROW_CNT from DM_VIOL_TX_MTCH1_INFO ;
-  DBMS_OUTPUT.PUT_LINE('ROW_CNT : '||ROW_CNT);
-
+  v_trac_etl_rec.status := 'ETL Start ';
+  v_trac_etl_rec.proc_start_date := SYSDATE;  
+  update_track_proc(v_trac_etl_rec);
  
---  OPEN C1(v_begin_date, v_end_date);  
-  OPEN C1;  
+  SELECT * INTO   v_trac_rec
+  FROM   dm_tracking
+  WHERE  track_id = v_trac_etl_rec.track_id
+  ;
+
+  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  v_trac_etl_rec.status := 'ETL Processing ';
+  update_track_proc(v_trac_etl_rec);
 
   LOOP
 
@@ -338,29 +340,37 @@ BEGIN
     FORALL i in DM_VIOL_TX_MTCH1_INFO_tab.first .. DM_VIOL_TX_MTCH1_INFO_tab.last
            INSERT INTO DM_VIOL_TX_MTCH1_INFO VALUES DM_VIOL_TX_MTCH1_INFO_tab(i);
                        
---    DBMS_OUTPUT.PUT_LINE('Inserted '||sql%rowcount||' into '||LOAD_TAB||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-    ROW_CNT := ROW_CNT +  sql%rowcount;                 
-    DBMS_OUTPUT.PUT_LINE('Rows Inserted : '||ROW_CNT);
+    row_cnt := row_cnt +  SQL%ROWCOUNT;
+    v_trac_etl_rec.dm_load_cnt := row_cnt;
+    update_track_proc(v_trac_etl_rec);
                        
     EXIT WHEN C1%NOTFOUND;
---    EXIT WHEN DM_VIOL_TX_MTCH1_INFO_tab.COUNT=0;
   END LOOP;
+  DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
 
   COMMIT;
 
   CLOSE C1;
 
   COMMIT;
-  DBMS_OUTPUT.PUT_LINE('END '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-  DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
-
+  v_trac_etl_rec.status := 'ETL Completed';
+  v_trac_etl_rec.result_code := SQLCODE;
+  v_trac_etl_rec.result_msg := SQLERRM;
+  v_trac_etl_rec.end_val := v_trac_rec.end_acct;
+  v_trac_etl_rec.proc_end_date := SYSDATE;
+  update_track_proc(v_trac_etl_rec);
+  
   EXCEPTION
   WHEN OTHERS THEN
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
-     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
+    v_trac_etl_rec.result_code := SQLCODE;
+    v_trac_etl_rec.result_msg := SQLERRM;
+    v_trac_etl_rec.proc_end_date := SYSDATE;
+    update_track_proc(v_trac_etl_rec);
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
 END;
 /
 SHOW ERRORS
 
---  DBMS_OUTPUT.PUT_LINE('END '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
 

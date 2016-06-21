@@ -13,6 +13,7 @@ set verify on
 set echo on
 
 -- EMP_CODE IS LIKE '99xx' or '0100' -- SYSTEM
+-- RH 6/20/2016 Added Tracking and acct num parameters
 
 CREATE OR REPLACE PROCEDURE DM_NONFIN_ACT_INFO_PROC   
   (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
@@ -27,7 +28,9 @@ DM_NONFIN_ACT_INFO_tab DM_NONFIN_ACT_INFO_TYP;
 P_ARRAY_SIZE NUMBER:=10000;
 
 
-CURSOR C1 IS SELECT 
+CURSOR C1
+--(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+IS SELECT 
     ACCT_NUM ACCOUNT_NUMBER
     ,nvl((SELECT MAX(ACTIVITY_NUMBER + 1) 
         FROM DM_NONFIN_ACT_INFO 
@@ -44,7 +47,7 @@ CURSOR C1 IS SELECT
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM NOTE
 where EMP_CODE like '99%' or EMP_CODE = '0100'
-and rownum<101
+--AND  ACCT_NUM >= p_begin_acct_num AND   ACCT_NUM <= p_end_acct_num
 ; 
 --
 
@@ -69,7 +72,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1; 
+  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 

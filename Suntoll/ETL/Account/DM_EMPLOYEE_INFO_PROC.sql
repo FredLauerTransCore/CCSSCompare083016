@@ -12,7 +12,8 @@ set serveroutput on
 set verify on
 set echo on
 
---declare
+-- 6/20/2016 RH Added Tracking process and parameters
+
 CREATE OR REPLACE PROCEDURE DM_EMPLOYEE_INFO_PROC 
   (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
 IS
@@ -42,9 +43,6 @@ CURSOR C1 IS SELECT
 --    ,NULL EMP_STATUS
 FROM KS_USER
 ;   -- Source table SUNTOLL
-
---sql_string  VARCHAR2(500) := 'delete table ';
-SQL_STRING  varchar2(500) := 'delete table ';
 
 row_cnt          NUMBER := 0;
 v_trac_rec       dm_tracking%ROWTYPE;

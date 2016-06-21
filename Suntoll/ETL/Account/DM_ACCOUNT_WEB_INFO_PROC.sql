@@ -12,8 +12,11 @@ set serveroutput on
 set verify on
 set echo on
 
-declare
---CREATE OR REPLACE PROCEDURE DM_ACCOUNT_WEB_INFO_PROC IS
+-- 6/20/2016 RH Added Tracking and acct num parameters
+
+CREATE OR REPLACE PROCEDURE DM_ACCOUNT_WEB_INFO_PROC 
+  (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
+IS
 
 TYPE DM_ACCOUNT_WEB_INFO_TYP IS TABLE OF DM_ACCOUNT_WEB_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
@@ -25,7 +28,9 @@ P_ARRAY_SIZE NUMBER:=10000;
 -- EXTRACT RULE 
 -- Join id of KS_USER to user_id of KS_USER_PA_ACCT_ASSOC to get external user acct_num
 
-CURSOR C1 IS SELECT 
+CURSOR C1
+--(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+IS SELECT 
 --    ETC_ACCOUNT_ID ETC_ACCOUNT_ID
     ua.PA_ACCT_NUM ETC_ACCOUNT_ID
     ,u.USERNAME USER_NAME
@@ -43,8 +48,8 @@ CURSOR C1 IS SELECT
     ,ic.END_TIME IVR_CALL_END_TIME  -- IVR_CALL
     ,NULL LAST_IVR_CALL_DATE  -- SELECT MAX(LAST_LOGIN_DATE) from PA_WEB_LOGIN_INFO WHERE USER AGENT = 'IVR'
     ,'SUNTOLL' SOURCE_SYSTEM
-FROM PATRON.KS_USER_PA_ACCT_ASSOC ua
-    ,PATRON.KS_USER u
+FROM KS_USER_PA_ACCT_ASSOC ua
+    ,KS_USER u
 --    ,PA_WEB_LOGIN_INFO wl
     ,IVR_CALL ic
     ,IVR_CALL_DETAIL icd
@@ -53,25 +58,34 @@ AND ua.PA_ACCT_NUM = icd.ACCT_NUM -- (+) ?
 AND icd.CALL_ID = ic.CALL_ID
 --AND ACTIVE_FLAG = 'Y'
 --AND   ua.PA_ACCT_NUM = wi.ACCT_NUM (+)
-and rownum<1001
+--AND   ua.ACCT_NUM >= p_begin_acct_num AND   ua.ACCT_NUM <= p_end_acct_num
+
 ; -- Source SunToll
 
 --PA_WEB_LOGIN_INFO
 --IVR_CALL -- Using IVR_CALL_DETAIL ? ACCT_NUM ?
-
-SQL_STRING  varchar2(500) := 'truncate table ';
-LOAD_TAB    varchar2(50) := 'DM_ACCOUNT_WEB_INFO';
-ROW_CNT NUMBER := 0;
+row_cnt          NUMBER := 0;
+v_trac_rec       dm_tracking%ROWTYPE;
+v_trac_etl_rec   dm_tracking_etl%ROWTYPE;
 
 BEGIN
-  DBMS_OUTPUT.PUT_LINE('Start '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  SELECT * INTO v_trac_etl_rec
+  FROM  dm_tracking_etl
+  WHERE track_etl_id = i_trac_id;
+  DBMS_OUTPUT.PUT_LINE('Start '||v_trac_etl_rec.etl_name||' ETL load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
 
-  SQL_STRING := SQL_STRING||LOAD_TAB;
-  DBMS_OUTPUT.PUT_LINE('SQL_STRING : '||SQL_STRING);
-  execute immediate SQL_STRING;
-  commit;
+  v_trac_etl_rec.status := 'ETL Start ';
+  v_trac_etl_rec.proc_start_date := SYSDATE;  
+  update_track_proc(v_trac_etl_rec);
  
-  OPEN C1;  
+  SELECT * INTO   v_trac_rec
+  FROM   dm_tracking
+  WHERE  track_id = v_trac_etl_rec.track_id
+  ;
+
+  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  v_trac_etl_rec.status := 'ETL Processing ';
+  update_track_proc(v_trac_etl_rec);
 
   LOOP
 
@@ -102,25 +116,35 @@ BEGIN
     FORALL i in DM_ACCOUNT_WEB_INFO_tab.first .. DM_ACCOUNT_WEB_INFO_tab.last
            INSERT INTO DM_ACCOUNT_WEB_INFO VALUES DM_ACCOUNT_WEB_INFO_tab(i);
                        
---    DBMS_OUTPUT.PUT_LINE('Inserted '||sql%rowcount||' into '||LOAD_TAB||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-    ROW_CNT := ROW_CNT +  sql%rowcount;                 
-    DBMS_OUTPUT.PUT_LINE('Inserted ROW count : '||ROW_CNT);
+    row_cnt := row_cnt +  SQL%ROWCOUNT;
+    v_trac_etl_rec.dm_load_cnt := row_cnt;
+    update_track_proc(v_trac_etl_rec);
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
+  DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
 
   COMMIT;
 
   CLOSE C1;
 
   COMMIT;
-  DBMS_OUTPUT.PUT_LINE('End '||LOAD_TAB||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-  DBMS_OUTPUT.PUT_LINE('Total Rows : '||ROW_CNT);
-
+  v_trac_etl_rec.status := 'ETL Completed';
+  v_trac_etl_rec.result_code := SQLCODE;
+  v_trac_etl_rec.result_msg := SQLERRM;
+  v_trac_etl_rec.end_val := v_trac_rec.end_acct;
+  v_trac_etl_rec.proc_end_date := SYSDATE;
+  update_track_proc(v_trac_etl_rec);
+  
   EXCEPTION
   WHEN OTHERS THEN
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
-     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
+    v_trac_etl_rec.result_code := SQLCODE;
+    v_trac_etl_rec.result_msg := SQLERRM;
+    v_trac_etl_rec.proc_end_date := SYSDATE;
+    update_track_proc(v_trac_etl_rec);
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
 END;
 /
 SHOW ERRORS
