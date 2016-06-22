@@ -74,6 +74,23 @@ BEGIN
 
 
     /*ETL SECTION BEGIN */
+	
+	
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_DELINQUENT_ACCOUNT_I_tab.count loop
+	 if DM_DELINQUENT_ACCOUNT_I_tab(i).X_COLL_EXCLUDE_FLG is null then
+          DM_DELINQUENT_ACCOUNT_I_tab(i).X_COLL_EXCLUDE_FLG:='0';
+         end if;
+	 if DM_DELINQUENT_ACCOUNT_I_tab(i).X_REVOKE_EXCLUDE is null then
+          DM_DELINQUENT_ACCOUNT_I_tab(i).X_REVOKE_EXCLUDE:='0';
+         end if;
+	 if DM_DELINQUENT_ACCOUNT_I_tab(i).X_ZRO_STATUS_DT is null then
+          DM_DELINQUENT_ACCOUNT_I_tab(i).X_ZRO_STATUS_DT:='0';
+         end if;
+	 if DM_DELINQUENT_ACCOUNT_I_tab(i).ACCNT_STATUS is null then
+          DM_DELINQUENT_ACCOUNT_I_tab(i).ACCNT_STATUS:='0';
+         end if;
+    end loop;
 
     /*ETL SECTION END   */
 
