@@ -120,6 +120,70 @@ BEGIN
     end loop;
 
 
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_LANE_INFO_tab.count loop
+	 if DM_LANE_INFO_tab(i).STATUS is null then
+          DM_LANE_INFO_tab(i).STATUS:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).PLAZA_ID is null then
+          DM_LANE_INFO_tab(i).PLAZA_ID:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).LANE_IDX is null then
+          DM_LANE_INFO_tab(i).LANE_IDX:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).UPDATE_TS is null then
+          DM_LANE_INFO_tab(i).UPDATE_TS:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).DIRECTION is null then
+          DM_LANE_INFO_tab(i).DIRECTION:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).LANE_TYPE is null then
+          DM_LANE_INFO_tab(i).LANE_TYPE:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).LANE_IP is null then
+          DM_LANE_INFO_tab(i).LANE_IP:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).PORT_NO is null then
+          DM_LANE_INFO_tab(i).PORT_NO:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).HOST_QUEUE_NAME is null then
+          DM_LANE_INFO_tab(i).HOST_QUEUE_NAME:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).CALCULATE_TOLL_AMOUNT is null then
+          DM_LANE_INFO_tab(i).CALCULATE_TOLL_AMOUNT:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).ROADWAY is null then
+          DM_LANE_INFO_tab(i).ROADWAY:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).STMT_DESC is null then
+          DM_LANE_INFO_tab(i).STMT_DESC:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).LOCATION is null then
+          DM_LANE_INFO_tab(i).LOCATION:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).COURT_ID is null then
+          DM_LANE_INFO_tab(i).COURT_ID:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).JURISDICTION is null then
+          DM_LANE_INFO_tab(i).JURISDICTION:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).LANE_PLAZA_ABBR is null then
+          DM_LANE_INFO_tab(i).LANE_PLAZA_ABBR:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).AGENCY_ID is null then
+          DM_LANE_INFO_tab(i).AGENCY_ID:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).EXTERN_LANE_ID is null then
+          DM_LANE_INFO_tab(i).EXTERN_LANE_ID:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).AVI is null then
+          DM_LANE_INFO_tab(i).AVI:='0';
+         end if;
+	 if DM_LANE_INFO_tab(i).OPERATIONAL_MODE is null then
+          DM_LANE_INFO_tab(i).OPERATIONAL_MODE:='0';
+         end if;
+    end loop;
+
 
     /*ETL SECTION END   */
 
