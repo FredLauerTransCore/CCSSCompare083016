@@ -133,6 +133,34 @@ BEGIN
 
 	end loop;
 	
+	
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_PAYMT_ITM_INFO_tab.count loop
+	 if DM_PAYMT_ITM_INFO_tab(i).CATEGORY is null then
+          DM_PAYMT_ITM_INFO_tab(i).CATEGORY:='0';
+         end if;
+	 if DM_PAYMT_ITM_INFO_tab(i).SUB_CATEGORY is null then
+          DM_PAYMT_ITM_INFO_tab(i).SUB_CATEGORY:='0';
+         end if;
+	 if DM_PAYMT_ITM_INFO_tab(i).TRANS_TYPE is null then
+          DM_PAYMT_ITM_INFO_tab(i).TRANS_TYPE:='0';
+         end if;
+	 if DM_PAYMT_ITM_INFO_tab(i).AMOUNT is null then
+          DM_PAYMT_ITM_INFO_tab(i).AMOUNT:='0';
+         end if;
+	 if DM_PAYMT_ITM_INFO_tab(i).PARENT_PAYMENT_ID is null then
+          DM_PAYMT_ITM_INFO_tab(i).PARENT_PAYMENT_ID:='0';
+         end if;
+	 if DM_PAYMT_ITM_INFO_tab(i).CREATED is null then
+          DM_PAYMT_ITM_INFO_tab(i).CREATED:=sysdate;
+         end if;
+	 if DM_PAYMT_ITM_INFO_tab(i).LAST_UPD is null then
+          DM_PAYMT_ITM_INFO_tab(i).LAST_UPD:=sysdate;
+         end if;
+    end loop;
+
+	
+	
     /*ETL SECTION END   */
 
     /*Bulk insert */ 

@@ -69,7 +69,24 @@ BEGIN
 
 
     /*ETL SECTION BEGIN */
+    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_PA_PLAZA_tab.count loop
+	 if DM_PA_PLAZA_tab(i).PLAZA_ID is null then
+          DM_PA_PLAZA_tab(i).PLAZA_ID:='0';
+         end if;
+	 if DM_PA_PLAZA_tab(i).REBATE_REBATE_PROGRAM_CODE is null then
+          DM_PA_PLAZA_tab(i).REBATE_REBATE_PROGRAM_CODE:='0';
+         end if;
+	 if DM_PA_PLAZA_tab(i).TRIP_PLAZA is null then
+          DM_PA_PLAZA_tab(i).TRIP_PLAZA:='0';
+         end if;
+	 if DM_PA_PLAZA_tab(i).UTURN_INTERVAL is null then
+          DM_PA_PLAZA_tab(i).UTURN_INTERVAL:='0';
+         end if;
+    end loop;
 
+	
+	
     /*ETL SECTION END   */
 
     /*Bulk insert */ 
