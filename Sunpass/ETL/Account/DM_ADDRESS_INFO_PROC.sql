@@ -33,7 +33,7 @@ CURSOR C1 IS SELECT
     ,ZIP_CODE ZIP_CODE
     ,SUBSTR(ZIP_CODE,6,4) ZIP_PLUS4
     ,(select csl.COUNTRY from COUNTRY_STATE_LOOKUP csl
-        where csl.ST_ABBR = PA_ACCT.STATE)
+        where csl.ST_ABBR = PA_ACCT.STATE_STATE_CODE_ABBR)
         COUNTRY
     ,NULL NIXIE
     ,to_date('02/27/2017','MM/DD/YYYY') NIXIE_DATE
