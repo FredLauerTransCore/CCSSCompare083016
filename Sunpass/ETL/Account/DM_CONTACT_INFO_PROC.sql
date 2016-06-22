@@ -61,6 +61,33 @@ BEGIN
 
     /*ETL SECTION BEGIN */
 
+	    /* to default the values NOT NULL columns */
+    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_CONTACT_INFO_tab.count loop
+	 if DM_CONTACT_INFO_tab(i).CREATED is null then
+          DM_CONTACT_INFO_tab(i).CREATED:=sysdate;
+         end if;
+	 if DM_CONTACT_INFO_tab(i).LAST_UPD is null then
+          DM_CONTACT_INFO_tab(i).LAST_UPD:=sysdate;
+         end if;
+	 if DM_CONTACT_INFO_tab(i).ACCOUNT_NUMBER is null then
+          DM_CONTACT_INFO_tab(i).ACCOUNT_NUMBER:='0';
+         end if;
+	 if DM_CONTACT_INFO_tab(i).IS_PRIMARY is null then
+          DM_CONTACT_INFO_tab(i).IS_PRIMARY:='0';
+         end if;
+	 if DM_CONTACT_INFO_tab(i).FIRST_NAME is null then
+          DM_CONTACT_INFO_tab(i).FIRST_NAME:='0';
+         end if;
+	 if DM_CONTACT_INFO_tab(i).LAST_NAME is null then
+          DM_CONTACT_INFO_tab(i).LAST_NAME:='0';
+         end if;
+	 if DM_CONTACT_INFO_tab(i).PHONE_NUMBER_DAYTIME is null then
+          DM_CONTACT_INFO_tab(i).PHONE_NUMBER_DAYTIME:='0';
+         end if;
+    end loop;
+
+
     /*ETL SECTION END   */
 
     /*Bulk insert */ 

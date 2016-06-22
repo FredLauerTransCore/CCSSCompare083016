@@ -61,6 +61,38 @@ BEGIN
 
 
     /*ETL SECTION BEGIN */
+	
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_RETAILER_INFO_tab.count loop
+	 if DM_RETAILER_INFO_tab(i).ACCOUNT_NUMBER is null then
+          DM_RETAILER_INFO_tab(i).ACCOUNT_NUMBER:='0';
+         end if;
+	 if DM_RETAILER_INFO_tab(i).ACCOUNT_NAME is null then
+          DM_RETAILER_INFO_tab(i).ACCOUNT_NAME:='0';
+         end if;
+	 if DM_RETAILER_INFO_tab(i).ACCOUNT_STATUS is null then
+          DM_RETAILER_INFO_tab(i).ACCOUNT_STATUS:='0';
+         end if;
+	 if DM_RETAILER_INFO_tab(i).RETAILER_ACCOUNT_OPEN_DT is null then
+          DM_RETAILER_INFO_tab(i).RETAILER_ACCOUNT_OPEN_DT:=sysdate;
+         end if;
+	 if DM_RETAILER_INFO_tab(i).COMM_PER_DEVICE is null then
+          DM_RETAILER_INFO_tab(i).COMM_PER_DEVICE:='0';
+         end if;
+	 if DM_RETAILER_INFO_tab(i).EMAIL_ADDRESS is null then
+          DM_RETAILER_INFO_tab(i).EMAIL_ADDRESS:='0';
+         end if;
+	 if DM_RETAILER_INFO_tab(i).LOGIN_NAME is null then
+          DM_RETAILER_INFO_tab(i).LOGIN_NAME:='0';
+         end if;
+	 if DM_RETAILER_INFO_tab(i).CREATED is null then
+          DM_RETAILER_INFO_tab(i).CREATED:=sysdate;
+         end if;
+	 if DM_RETAILER_INFO_tab(i).LAST_UPD is null then
+          DM_RETAILER_INFO_tab(i).LAST_UPD:=sysdate;
+         end if;
+    end loop;
+
 
     /*ETL SECTION END   */
 

@@ -76,6 +76,38 @@ BEGIN
 
 
     /*ETL SECTION BEGIN */
+	
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_VEHICLE_HST_INFO_tab.count loop
+	 if DM_VEHICLE_HST_INFO_tab(i).ACCOUNT_NUMBER is null then
+          DM_VEHICLE_HST_INFO_tab(i).ACCOUNT_NUMBER:='0';
+         end if;
+	 if DM_VEHICLE_HST_INFO_tab(i).PLATE_NUMBER is null then
+          DM_VEHICLE_HST_INFO_tab(i).PLATE_NUMBER:='0';
+         end if;
+	 if DM_VEHICLE_HST_INFO_tab(i).PLATE_STATE is null then
+          DM_VEHICLE_HST_INFO_tab(i).PLATE_STATE:='0';
+         end if;
+	 if DM_VEHICLE_HST_INFO_tab(i).PLATE_TYPE is null then
+          DM_VEHICLE_HST_INFO_tab(i).PLATE_TYPE:='0';
+         end if;
+	 if DM_VEHICLE_HST_INFO_tab(i).MAKE is null then
+          DM_VEHICLE_HST_INFO_tab(i).MAKE:='0';
+         end if;
+	 if DM_VEHICLE_HST_INFO_tab(i).VEHICLE_CLASS is null then
+          DM_VEHICLE_HST_INFO_tab(i).VEHICLE_CLASS:='0';
+         end if;
+	 if DM_VEHICLE_HST_INFO_tab(i).CREATED is null then
+          DM_VEHICLE_HST_INFO_tab(i).CREATED:=sysdate;
+         end if;
+	 if DM_VEHICLE_HST_INFO_tab(i).LAST_UPD is null then
+          DM_VEHICLE_HST_INFO_tab(i).LAST_UPD:=sysdate;
+         end if;
+	 if DM_VEHICLE_HST_INFO_tab(i).VEHICLE_SEQUENCE is null then
+          DM_VEHICLE_HST_INFO_tab(i).VEHICLE_SEQUENCE:='0';
+         end if;
+    end loop;
+
 
     /*ETL SECTION END   */
 

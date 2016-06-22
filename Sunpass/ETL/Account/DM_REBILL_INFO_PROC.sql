@@ -55,6 +55,26 @@ BEGIN
 
 
     /*ETL SECTION BEGIN */
+	
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_REBILL_INFO_tab.count loop
+	 if DM_REBILL_INFO_tab(i).ACCOUNT_NUMBER is null then
+          DM_REBILL_INFO_tab(i).ACCOUNT_NUMBER:='0';
+         end if;
+	 if DM_REBILL_INFO_tab(i).PAY_TYPE is null then
+          DM_REBILL_INFO_tab(i).PAY_TYPE:='0';
+         end if;
+	 if DM_REBILL_INFO_tab(i).CREATED is null then
+          DM_REBILL_INFO_tab(i).CREATED:=sysdate;
+         end if;
+	 if DM_REBILL_INFO_tab(i).LAST_UPD is null then
+          DM_REBILL_INFO_tab(i).LAST_UPD:=sysdate;
+         end if;
+	 if DM_REBILL_INFO_tab(i).LAST_USED_DATE is null then
+          DM_REBILL_INFO_tab(i).LAST_USED_DATE:=sysdate;
+         end if;
+    end loop;
+
 
     /*ETL SECTION END   */
 

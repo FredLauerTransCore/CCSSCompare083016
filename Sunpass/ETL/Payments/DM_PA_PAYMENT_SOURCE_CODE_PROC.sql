@@ -40,6 +40,17 @@ BEGIN
 
 
     /*ETL SECTION BEGIN */
+	
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_PA_PAYMENT_SOURCE_CO_tab.count loop
+	 if DM_PA_PAYMENT_SOURCE_CO_tab(i).PAYMENT_SOURCE_CODE is null then
+          DM_PA_PAYMENT_SOURCE_CO_tab(i).PAYMENT_SOURCE_CODE:='0';
+         end if;
+	 if DM_PA_PAYMENT_SOURCE_CO_tab(i).PAYMENT_SOURCE_DESC is null then
+          DM_PA_PAYMENT_SOURCE_CO_tab(i).PAYMENT_SOURCE_DESC:='0';
+         end if;
+    end loop;
+
 
     /*ETL SECTION END   */
 

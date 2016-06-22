@@ -55,6 +55,32 @@ BEGIN
 
 
     /*ETL SECTION BEGIN */
+	
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_EMPLOYEE_INFO_tab.count loop
+	 if DM_EMPLOYEE_INFO_tab(i).FIRST_NAME is null then
+          DM_EMPLOYEE_INFO_tab(i).FIRST_NAME:='0';
+         end if;
+	 if DM_EMPLOYEE_INFO_tab(i).LAST_NAME is null then
+          DM_EMPLOYEE_INFO_tab(i).LAST_NAME:='0';
+         end if;
+	 if DM_EMPLOYEE_INFO_tab(i).EMP_NUM is null then
+          DM_EMPLOYEE_INFO_tab(i).EMP_NUM:='0';
+         end if;
+	 if DM_EMPLOYEE_INFO_tab(i).JOB_TITLE is null then
+          DM_EMPLOYEE_INFO_tab(i).JOB_TITLE:='0';
+         end if;
+	 if DM_EMPLOYEE_INFO_tab(i).MID_NAME is null then
+          DM_EMPLOYEE_INFO_tab(i).MID_NAME:='0';
+         end if;
+	 if DM_EMPLOYEE_INFO_tab(i).BIRTH_DT is null then
+          DM_EMPLOYEE_INFO_tab(i).BIRTH_DT:=sysdate;
+         end if;
+	 if DM_EMPLOYEE_INFO_tab(i).STORE_NAME is null then
+          DM_EMPLOYEE_INFO_tab(i).STORE_NAME:='0';
+         end if;
+    end loop;
+
 
     /*ETL SECTION END   */
 
