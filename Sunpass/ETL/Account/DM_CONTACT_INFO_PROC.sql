@@ -38,9 +38,7 @@ CURSOR C1 IS SELECT
     ,DR_LIC_NUM DRIVER_LIC_NUMBER
     ,to_date('01/01/1858', 'MM/DD/YYYY') DRIVER_LIC_EXP_DT
     ,DR_STATE_CODE DRIVER_LIC_STATE
-    ,(select csl.COUNTRY from COUNTRY_STATE_LOOKUP csl
-        where csl.ST_ABBR = PA_ACCT.STATE)
-        DRIVER_LIC_COUNTRY
+    ,NULL DRIVER_LIC_COUNTRY
     ,ACCT_OPEN_DATE CREATED
     ,'SUNPASS_CSC_ID' CREATED_BY
     ,to_date('02/27/2017','MM/DD/YYYY') LAST_UPD
@@ -60,10 +58,18 @@ BEGIN
 
 
     /*ETL SECTION BEGIN */
+	 FOR i in 1 .. DM_CONTACT_INFO_tab.count loop
+	 begin
+      select COUNTRY into DM_CONTACT_INFO_tab(i).DRIVER_LIC_COUNTRY from COUNTRY_STATE_LOOKUP 
+      where STATE_ABBR in (select STATE_STATE_CODE_ABBR from PA_ACCT where acct_num=DM_CONTACT_INFO_tab(i).account_number)
+            and rownum<=1;
+      exception 
+        when others then null;
+        DM_CONTACT_INFO_tab(i).DRIVER_LIC_COUNTRY:=null;
+      end;
 
-	    /* to default the values NOT NULL columns */
     /* to default the values NOT NULL columns */
-    FOR i in 1 .. DM_CONTACT_INFO_tab.count loop
+ 
 	 if DM_CONTACT_INFO_tab(i).CREATED is null then
           DM_CONTACT_INFO_tab(i).CREATED:=sysdate;
          end if;
