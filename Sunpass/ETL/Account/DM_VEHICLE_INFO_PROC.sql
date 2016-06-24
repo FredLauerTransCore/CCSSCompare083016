@@ -17,7 +17,7 @@ CURSOR C1 IS SELECT
     ,STATE_STATE_CODE_ABBR PLATE_STATE
     ,NULL PLATE_COUNTRY
     ,VEH_LIC_TYPE PLATE_TYPE
-    ,'NA' VEHICLE_TYPE
+    ,'REGULAR' VEHICLE_TYPE
     ,START_DATE EFFECTIVE_START_DATE
     ,END_DATE EFFECTIVE_END_DATE
     ,decode(translate(lpad(VEH_MODEL_YR,4,'9'),'0123456789','9999999999'),'9999',VEH_MODEL_YR,null) YEAR
@@ -59,8 +59,18 @@ BEGIN
 
     /*ETL SECTION BEGIN */
 
-	    /* to default the values NOT NULL columns */
     FOR i in 1 .. DM_VEHICLE_INFO_tab.count loop
+    
+    begin
+      select COUNTRY into DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY from COUNTRY_STATE_LOOKUP 
+      where STATE_ABBR in (select STATE_STATE_CODE_ABBR from PA_ACCT_VEHICLE where acct_acct_num=DM_VEHICLE_INFO_tab(i).account_number)
+            and rownum<=1;
+      exception 
+        when others then null;
+        DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY:=null;
+    end;
+    
+	   /* to default the values NOT NULL columns */
 	 if DM_VEHICLE_INFO_tab(i).ACCOUNT_NUMBER is null then
           DM_VEHICLE_INFO_tab(i).ACCOUNT_NUMBER:='0';
          end if;
