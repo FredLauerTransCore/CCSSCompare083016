@@ -59,21 +59,21 @@ BEGIN
 
     /*ETL SECTION BEGIN */
     /* to default the values NOT NULL columns */
-    FOR i in 1 .. DM_RETAILER_CONTACT_INF_tab.count loop
-	 if DM_RETAILER_CONTACT_INF_tab(i).ACCOUNT_NUMBER is null then
-          DM_RETAILER_CONTACT_INF_tab(i).ACCOUNT_NUMBER:='0';
+    FOR i in 1 .. DM_RETAILER_CONTACT_INFO_tab.count loop
+	 if DM_RETAILER_CONTACT_INFO_tab(i).ACCOUNT_NUMBER is null then
+          DM_RETAILER_CONTACT_INFO_tab(i).ACCOUNT_NUMBER:='0';
          end if;
-	 if DM_RETAILER_CONTACT_INF_tab(i).FIRST_NAME is null then
-          DM_RETAILER_CONTACT_INF_tab(i).FIRST_NAME:='0';
+	 if DM_RETAILER_CONTACT_INFO_tab(i).FIRST_NAME is null then
+          DM_RETAILER_CONTACT_INFO_tab(i).FIRST_NAME:='0';
          end if;
-	 if DM_RETAILER_CONTACT_INF_tab(i).LAST_NAME is null then
-          DM_RETAILER_CONTACT_INF_tab(i).LAST_NAME:='0';
+	 if DM_RETAILER_CONTACT_INFO_tab(i).LAST_NAME is null then
+          DM_RETAILER_CONTACT_INFO_tab(i).LAST_NAME:='0';
          end if;
-	 if DM_RETAILER_CONTACT_INF_tab(i).PHONE_NUMBER_DAYTIME is null then
-          DM_RETAILER_CONTACT_INF_tab(i).PHONE_NUMBER_DAYTIME:='0';
+	 if DM_RETAILER_CONTACT_INFO_tab(i).PHONE_NUMBER_DAYTIME is null then
+          DM_RETAILER_CONTACT_INFO_tab(i).PHONE_NUMBER_DAYTIME:='0';
          end if;
-	 if DM_RETAILER_CONTACT_INF_tab(i).CREATED is null then
-          DM_RETAILER_CONTACT_INF_tab(i).CREATED:=sysdate;
+	 if DM_RETAILER_CONTACT_INFO_tab(i).CREATED is null then
+          DM_RETAILER_CONTACT_INFO_tab(i).CREATED:=sysdate;
          end if;
     end loop;
 
