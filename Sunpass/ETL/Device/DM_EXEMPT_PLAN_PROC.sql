@@ -40,7 +40,7 @@ CURSOR C1 IS SELECT
     ,ex.PLATE PLATE_NUMBER
 FROM PA_ACCT_TRANSP pat,
      EXEMPTIONS ex
-WHERE pat.TRANSP_ID = ex.TRANSPONDER_ID;
+WHERE pat.INVTRANSP_TRANSP_TRANSP_ID = ex.TRANSPONDER_ID;
 
 BEGIN
  
@@ -140,6 +140,25 @@ BEGIN
 
     end loop;
 
+
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_EXEMPT_PLAN_tab.count loop
+	 if DM_EXEMPT_PLAN_tab(i).ACCOUNT_NUMBER is null then
+          DM_EXEMPT_PLAN_tab(i).ACCOUNT_NUMBER:='0';
+         end if;
+	 if DM_EXEMPT_PLAN_tab(i).PLAN_NAME is null then
+          DM_EXEMPT_PLAN_tab(i).PLAN_NAME:='0';
+         end if;
+	 if DM_EXEMPT_PLAN_tab(i).PLAN_STATUS is null then
+          DM_EXEMPT_PLAN_tab(i).PLAN_STATUS:='0';
+         end if;
+	 if DM_EXEMPT_PLAN_tab(i).CREATED is null then
+          DM_EXEMPT_PLAN_tab(i).CREATED:=sysdate;
+         end if;
+	 if DM_EXEMPT_PLAN_tab(i).LAST_UPD is null then
+          DM_EXEMPT_PLAN_tab(i).LAST_UPD:=sysdate;
+         end if;
+    end loop;
 
 
     /*ETL SECTION END   */

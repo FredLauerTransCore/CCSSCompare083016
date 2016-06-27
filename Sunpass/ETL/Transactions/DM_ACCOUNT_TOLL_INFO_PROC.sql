@@ -243,6 +243,191 @@ END;
 
    */
 
+       /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_ACCOUNT_TOLL_INFO_tab.count loop
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).FULL_FARE_AMOUNT is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).FULL_FARE_AMOUNT:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).DISCOUNTED_AMOUNT is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).DISCOUNTED_AMOUNT:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).COLLECTED_AMOUNT is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).COLLECTED_AMOUNT:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).UNREALIZED_AMOUNT is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).UNREALIZED_AMOUNT:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).IS_MEDIAN_FARE is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).IS_MEDIAN_FARE:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).IS_PEAK is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).IS_PEAK:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).VEHICLE_SPEED is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).VEHICLE_SPEED:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).DEVICE_NO is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).DEVICE_NO:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).DEVICE_CODED_CLASS is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).DEVICE_CODED_CLASS:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).DEVICE_AGENCY_CLASS is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).DEVICE_AGENCY_CLASS:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).DEVICE_AXLES is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).DEVICE_AXLES:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).ACCOUNT_AGENCY_ID is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).ACCOUNT_AGENCY_ID:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).READ_AVI_CLASS is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).READ_AVI_CLASS:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).READ_AVI_AXLES is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).READ_AVI_AXLES:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).DEVICE_PROGRAM_STATUS is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).DEVICE_PROGRAM_STATUS:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).BUFFERED_READ_FLAG is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).BUFFERED_READ_FLAG:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).LANE_DEVICE_STATUS is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).LANE_DEVICE_STATUS:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).PRE_TXN_BALANCE is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).PRE_TXN_BALANCE:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).PLAN_TYPE_ID is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).PLAN_TYPE_ID:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).ETC_TX_STATUS is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).ETC_TX_STATUS:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).SPEED_VIOL_FLAG is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).SPEED_VIOL_FLAG:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).IMAGE_TAKEN is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).IMAGE_TAKEN:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_COUNTRY is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_COUNTRY:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_STATE is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_STATE:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_NUMBER is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_NUMBER:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).REVENUE_DATE is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).REVENUE_DATE:=sysdate;
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).POSTED_DATE is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).POSTED_DATE:=sysdate;
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).UPDATE_TS is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).UPDATE_TS:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).IS_REVERSED is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).IS_REVERSED:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).CORR_REASON_ID is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).CORR_REASON_ID:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).RECON_DATE is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).RECON_DATE:=sysdate;
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).EXTERN_FILE_DATE is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).EXTERN_FILE_DATE:=sysdate;
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).TX_DATE is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).TX_DATE:=sysdate;
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).LOCATION is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).LOCATION:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).FACILITY_ID is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).FACILITY_ID:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).TX_EXTERN_REF_NO is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).TX_EXTERN_REF_NO:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).TX_SEQ_NUMBER is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).TX_SEQ_NUMBER:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).EXTERN_FILE_ID is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).EXTERN_FILE_ID:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).LANE_ID is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).LANE_ID:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).TX_TIMESTAMP is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).TX_TIMESTAMP:=sysdate;
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).TX_SUBTYPE_IND is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).TX_SUBTYPE_IND:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).TOLL_SYSTEM_TYPE is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).TOLL_SYSTEM_TYPE:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).LANE_MODE is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).LANE_MODE:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).LANE_TYPE is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).LANE_TYPE:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).COLLECTOR_ID is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).COLLECTOR_ID:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).TOUR_SEGMENT_ID is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).TOUR_SEGMENT_ID:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).ENTRY_LANE_ID is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).ENTRY_LANE_ID:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).ENTRY_PLAZA_ID is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).ENTRY_PLAZA_ID:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).ENTRY_TIMESTAMP is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).ENTRY_TIMESTAMP:=sysdate;
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).ENTRY_TX_SEQ_NUMBER is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).ENTRY_TX_SEQ_NUMBER:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).ENTRY_VEHICLE_SPEED is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).ENTRY_VEHICLE_SPEED:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).LANE_TX_STATUS is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).LANE_TX_STATUS:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).LANE_TX_TYPE is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).LANE_TX_TYPE:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).TOLL_REVENUE_TYPE is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).TOLL_REVENUE_TYPE:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).ACTUAL_CLASS is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).ACTUAL_CLASS:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).ACTUAL_AXLES is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).ACTUAL_AXLES:='0';
+         end if;
+	 if DM_ACCOUNT_TOLL_INFO_tab(i).ACTUAL_EXTRA_AXLES is null then
+          DM_ACCOUNT_TOLL_INFO_tab(i).ACTUAL_EXTRA_AXLES:='0';
+         end if;
+    end loop;
+
+   
     /*ETL SECTION END   */
 
     /*Bulk insert */ 

@@ -223,6 +223,103 @@ BEGIN
     end loop;
 
 
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_TPMS_ACCOUNT_INFO_tab.count loop
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).AGENCY_ID is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).AGENCY_ID:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_TYPE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_TYPE:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).CURRENT_BALANCE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).CURRENT_BALANCE:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_BALANCE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_BALANCE:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).DEVICE_DEPOSIT is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).DEVICE_DEPOSIT:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_PREPAYMENT is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_PREPAYMENT:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_OVERPAYMENT is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_OVERPAYMENT:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_POSTED_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_POSTED_DATE:=sysdate;
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_AMT is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_AMT:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_TIMESTAMP is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_TIMESTAMP:=sysdate;
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).FIRST_TOLL_TIMESTAMP is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).FIRST_TOLL_TIMESTAMP:=sysdate;
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).EVAL_START_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).EVAL_START_DATE:=sysdate;
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).EVAL_END_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).EVAL_END_DATE:=sysdate;
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).UPDATE_TS is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).UPDATE_TS:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).OPEN_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).OPEN_DATE:=sysdate;
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_UNBILLED_BALANCE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_UNBILLED_BALANCE:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_TOLL_BALANCE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_TOLL_BALANCE:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_FEE_BALANCE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_FEE_BALANCE:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_BALANCE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_BALANCE:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_DATE:=sysdate;
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_FIN_TX_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_FIN_TX_DATE:=sysdate;
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_PAYMENT_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_PAYMENT_DATE:=sysdate;
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_FIN_TX_AMT is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_FIN_TX_AMT:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_BAL_POS_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_BAL_POS_DATE:=sysdate;
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_BAL_NEG_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_BAL_NEG_DATE:=sysdate;
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_VIOL_PAYMENT_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_VIOL_PAYMENT_DATE:=sysdate;
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_OVERPAYMENT is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_OVERPAYMENT:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_STMT_CLOSE_BALANCE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_STMT_CLOSE_BALANCE:='0';
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_STMT_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_STMT_DATE:=sysdate;
+         end if;
+	 if DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_CCU is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_CCU:='0';
+         end if;
+    end loop;
+
 
     /*ETL SECTION END   */
 

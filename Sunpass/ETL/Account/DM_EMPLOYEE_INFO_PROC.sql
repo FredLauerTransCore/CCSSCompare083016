@@ -25,7 +25,9 @@ P_ARRAY_SIZE NUMBER:=10000;
 CURSOR C1 IS SELECT 
     EMP_NAME FIRST_NAME
     ,EMP_NAME LAST_NAME
-    ,NULL ACTIVE_FLAG
+    ,CASE WHEN TEAM IS NOT NULL THEN 'Y'
+          ELSE 'N'
+     END ACTIVE_FLAG
     ,EMP_CODE EMP_NUM
     ,DECODE(ACCESS_LEVEL, '99','SYSTEM_ADMIN',
                           '95','DEPT_MANAGER',
@@ -55,6 +57,32 @@ BEGIN
 
 
     /*ETL SECTION BEGIN */
+	
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_EMPLOYEE_INFO_tab.count loop
+	 if DM_EMPLOYEE_INFO_tab(i).FIRST_NAME is null then
+          DM_EMPLOYEE_INFO_tab(i).FIRST_NAME:='0';
+         end if;
+	 if DM_EMPLOYEE_INFO_tab(i).LAST_NAME is null then
+          DM_EMPLOYEE_INFO_tab(i).LAST_NAME:='0';
+         end if;
+	 if DM_EMPLOYEE_INFO_tab(i).EMP_NUM is null then
+          DM_EMPLOYEE_INFO_tab(i).EMP_NUM:='0';
+         end if;
+	 if DM_EMPLOYEE_INFO_tab(i).JOB_TITLE is null then
+          DM_EMPLOYEE_INFO_tab(i).JOB_TITLE:='0';
+         end if;
+	 if DM_EMPLOYEE_INFO_tab(i).MID_NAME is null then
+          DM_EMPLOYEE_INFO_tab(i).MID_NAME:='0';
+         end if;
+	 if DM_EMPLOYEE_INFO_tab(i).BIRTH_DT is null then
+          DM_EMPLOYEE_INFO_tab(i).BIRTH_DT:=sysdate;
+         end if;
+	 if DM_EMPLOYEE_INFO_tab(i).STORE_NAME is null then
+          DM_EMPLOYEE_INFO_tab(i).STORE_NAME:='0';
+         end if;
+    end loop;
+
 
     /*ETL SECTION END   */
 

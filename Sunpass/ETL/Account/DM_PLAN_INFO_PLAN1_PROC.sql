@@ -56,7 +56,26 @@ BEGIN
 
 
     /*ETL SECTION BEGIN */
+    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_PLAN_INFO_PLAN1_tab.count loop
+	 if DM_PLAN_INFO_PLAN1_tab(i).ACCOUNT_NUMBER is null then
+          DM_PLAN_INFO_PLAN1_tab(i).ACCOUNT_NUMBER:='0';
+         end if;
+	 if DM_PLAN_INFO_PLAN1_tab(i).PLAN_NAME is null then
+          DM_PLAN_INFO_PLAN1_tab(i).PLAN_NAME:='0';
+         end if;
+	 if DM_PLAN_INFO_PLAN1_tab(i).PLAN_STATUS is null then
+          DM_PLAN_INFO_PLAN1_tab(i).PLAN_STATUS:='0';
+         end if;
+	 if DM_PLAN_INFO_PLAN1_tab(i).CREATED is null then
+          DM_PLAN_INFO_PLAN1_tab(i).CREATED:=sysdate;
+         end if;
+	 if DM_PLAN_INFO_PLAN1_tab(i).LAST_UPD is null then
+          DM_PLAN_INFO_PLAN1_tab(i).LAST_UPD:=sysdate;
+         end if;
+    end loop;
 
+	
     /*ETL SECTION END   */
 
     /*Bulk insert */ 

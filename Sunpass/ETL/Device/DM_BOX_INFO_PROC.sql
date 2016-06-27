@@ -83,6 +83,32 @@ BEGIN
 
 
     end loop;
+	
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_BOX_INFO_tab.count loop
+	 if DM_BOX_INFO_tab(i).BOX_NUMBER is null then
+          DM_BOX_INFO_tab(i).BOX_NUMBER:='0';
+         end if;
+	 if DM_BOX_INFO_tab(i).BOX_TYPE is null then
+          DM_BOX_INFO_tab(i).BOX_TYPE:='0';
+         end if;
+	 if DM_BOX_INFO_tab(i).BOX_STATUS is null then
+          DM_BOX_INFO_tab(i).BOX_STATUS:='0';
+         end if;
+	 if DM_BOX_INFO_tab(i).DEVICE_MODEL is null then
+          DM_BOX_INFO_tab(i).DEVICE_MODEL:='0';
+         end if;
+	 if DM_BOX_INFO_tab(i).STORE is null then
+          DM_BOX_INFO_tab(i).STORE:='0';
+         end if;
+	 if DM_BOX_INFO_tab(i).CREATED is null then
+          DM_BOX_INFO_tab(i).CREATED:=sysdate;
+         end if;
+	 if DM_BOX_INFO_tab(i).LAST_UPD is null then
+          DM_BOX_INFO_tab(i).LAST_UPD:=sysdate;
+         end if;
+    end loop;
+
 
     /*ETL SECTION END   */
 

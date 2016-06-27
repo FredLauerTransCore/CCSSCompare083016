@@ -162,6 +162,39 @@ BEGIN
 	end;
 
     end loop;
+	
+	
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_PAYMT_INFO_tab.count loop
+	 if DM_PAYMT_INFO_tab(i).ACCOUNT_NUMBER is null then
+          DM_PAYMT_INFO_tab(i).ACCOUNT_NUMBER:='0';
+         end if;
+	 if DM_PAYMT_INFO_tab(i).TX_DT is null then
+          DM_PAYMT_INFO_tab(i).TX_DT:=sysdate;
+         end if;
+	 if DM_PAYMT_INFO_tab(i).PAY_TYPE is null then
+          DM_PAYMT_INFO_tab(i).PAY_TYPE:='0';
+         end if;
+	 if DM_PAYMT_INFO_tab(i).AMOUNT is null then
+          DM_PAYMT_INFO_tab(i).AMOUNT:='0';
+         end if;
+	 if DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM is null then
+          DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM:='0';
+         end if;
+	 if DM_PAYMT_INFO_tab(i).TRANSACTION_ID is null then
+          DM_PAYMT_INFO_tab(i).TRANSACTION_ID:='0';
+         end if;
+	 if DM_PAYMT_INFO_tab(i).TOD_ID is null then
+          DM_PAYMT_INFO_tab(i).TOD_ID:='0';
+         end if;
+	 if DM_PAYMT_INFO_tab(i).CREATED is null then
+          DM_PAYMT_INFO_tab(i).CREATED:=sysdate;
+         end if;
+	 if DM_PAYMT_INFO_tab(i).LAST_UPD is null then
+          DM_PAYMT_INFO_tab(i).LAST_UPD:=sysdate;
+         end if;
+    end loop;
+
 
     /*ETL SECTION END   */
 

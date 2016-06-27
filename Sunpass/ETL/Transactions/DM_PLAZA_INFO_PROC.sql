@@ -61,14 +61,14 @@ CURSOR C1 IS SELECT
     ,'0' HWY_NO
     ,FTE_PLAZA IS_HOME_PLAZA
     ,'0' PORT_NO
-    ,'NO' CALCULATE_TOLL_AMOUNT
+    ,'N' CALCULATE_TOLL_AMOUNT
     ,'N' LPR_ENABLED
     ,NULL GRACE_PERIOD
     ,NULL GRACE_TIME
     ,CTY.COUNTY_CODE_DESC JURISDICTION
     ,'NA' IMAGE_RESOLUTION
     ,FACCODE_FACILITY_CODE FACILITY_ID
-    ,'NA' JURISDICTION_CODE
+    ,'0' JURISDICTION_CODE
     ,'0' POSTING_TYPE
     ,PLAZA_ID HOST_PLAZA_ID
     ,'SUNPASS' SOURCE_SYSTEM
@@ -76,8 +76,8 @@ CURSOR C1 IS SELECT
 FROM PA_PLAZA PA,
      PA_COUNTY CTY,
      ST_INTEROP_AGENCIES SIA
-WHERE PA.COUNTY_COUNTY_CODE = CTY.COUNTY_CODE
-AND   PA.AUTHCODE_AUTHORITY_CODE = SIA.AUTHORITY_CODE;
+WHERE PA.COUNTY_COUNTY_CODE = CTY.COUNTY_CODE(+)
+AND   PA.AUTHCODE_AUTHORITY_CODE = SIA.AUTHORITY_CODE(+);
 
 BEGIN
  
@@ -90,9 +90,92 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-    /*ETL SECTION BEGIN
+    /*ETL SECTION BEGIN */
 
-      ETL SECTION END*/
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_PLAZA_INFO_tab.count loop
+	 if DM_PLAZA_INFO_tab(i).HOST_PLAZA_ID is null then
+          DM_PLAZA_INFO_tab(i).HOST_PLAZA_ID:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).PLAZA_ID is null then
+          DM_PLAZA_INFO_tab(i).PLAZA_ID:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).EXTERN_PLAZA_ID is null then
+          DM_PLAZA_INFO_tab(i).EXTERN_PLAZA_ID:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).NAME is null then
+          DM_PLAZA_INFO_tab(i).NAME:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).ADDRESS_ID is null then
+          DM_PLAZA_INFO_tab(i).ADDRESS_ID:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).OPENED_DT is null then
+          DM_PLAZA_INFO_tab(i).OPENED_DT:=sysdate;
+         end if;
+	 if DM_PLAZA_INFO_tab(i).DMQ_PLAZA_MASK is null then
+          DM_PLAZA_INFO_tab(i).DMQ_PLAZA_MASK:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).UPDATE_TS is null then
+          DM_PLAZA_INFO_tab(i).UPDATE_TS:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).AGENCY_ID is null then
+          DM_PLAZA_INFO_tab(i).AGENCY_ID:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).DEFAULT_PLAN_ID is null then
+          DM_PLAZA_INFO_tab(i).DEFAULT_PLAN_ID:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).REVENUE_TIME is null then
+          DM_PLAZA_INFO_tab(i).REVENUE_TIME:=sysdate;
+         end if;
+	 if DM_PLAZA_INFO_tab(i).COURT_ID is null then
+          DM_PLAZA_INFO_tab(i).COURT_ID:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).PLAZA_GROUP is null then
+          DM_PLAZA_INFO_tab(i).PLAZA_GROUP:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).IP_ADDRESS is null then
+          DM_PLAZA_INFO_tab(i).IP_ADDRESS:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).NODENAME is null then
+          DM_PLAZA_INFO_tab(i).NODENAME:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).USERNAME is null then
+          DM_PLAZA_INFO_tab(i).USERNAME:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).PASSWORD is null then
+          DM_PLAZA_INFO_tab(i).PASSWORD:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).PLAZA_TYPE_IND is null then
+          DM_PLAZA_INFO_tab(i).PLAZA_TYPE_IND:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).END_PLAZA_IND is null then
+          DM_PLAZA_INFO_tab(i).END_PLAZA_IND:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).SECTION_CODE_IND is null then
+          DM_PLAZA_INFO_tab(i).SECTION_CODE_IND:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).SECTION_ID is null then
+          DM_PLAZA_INFO_tab(i).SECTION_ID:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).PLAZA_ABBR is null then
+          DM_PLAZA_INFO_tab(i).PLAZA_ABBR:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).MILEAGE is null then
+          DM_PLAZA_INFO_tab(i).MILEAGE:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).JURISDICTION is null then
+          DM_PLAZA_INFO_tab(i).JURISDICTION:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).FACILITY_ID is null then
+          DM_PLAZA_INFO_tab(i).FACILITY_ID:='0';
+         end if;
+	 if DM_PLAZA_INFO_tab(i).JURISDICTION_CODE is null then
+          DM_PLAZA_INFO_tab(i).JURISDICTION_CODE:='0';
+         end if;
+    end loop;
+
+	
+    /*ETL SECTION END*/
 
     /*Bulk insert */ 
     FORALL i in DM_PLAZA_INFO_tab.first .. DM_PLAZA_INFO_tab.last

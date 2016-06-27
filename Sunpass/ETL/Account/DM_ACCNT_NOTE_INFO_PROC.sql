@@ -50,6 +50,32 @@ BEGIN
 
     /*ETL SECTION BEGIN */
 
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_ACCNT_NOTE_INFO_tab.count loop
+	 if DM_ACCNT_NOTE_INFO_tab(i).ACCOUNT_NUMBER is null then
+          DM_ACCNT_NOTE_INFO_tab(i).ACCOUNT_NUMBER:='0';
+         end if;
+	 if DM_ACCNT_NOTE_INFO_tab(i).NOTE_TYPE is null then
+          DM_ACCNT_NOTE_INFO_tab(i).NOTE_TYPE:='0';
+         end if;
+	 if DM_ACCNT_NOTE_INFO_tab(i).NOTE_SUB_TYPE is null then
+          DM_ACCNT_NOTE_INFO_tab(i).NOTE_SUB_TYPE:='0';
+         end if;
+	 if DM_ACCNT_NOTE_INFO_tab(i).NOTE is null then
+          DM_ACCNT_NOTE_INFO_tab(i).NOTE:='0';
+         end if;
+	 if DM_ACCNT_NOTE_INFO_tab(i).NOTE_CREATED_DT is null then
+          DM_ACCNT_NOTE_INFO_tab(i).NOTE_CREATED_DT:=sysdate;
+         end if;
+	 if DM_ACCNT_NOTE_INFO_tab(i).CREATED is null then
+          DM_ACCNT_NOTE_INFO_tab(i).CREATED:=sysdate;
+         end if;
+	 if DM_ACCNT_NOTE_INFO_tab(i).LAST_UPD is null then
+          DM_ACCNT_NOTE_INFO_tab(i).LAST_UPD:=sysdate;
+         end if;
+    end loop;
+
+	
     /*ETL SECTION END   */
 
     /*Bulk insert */ 

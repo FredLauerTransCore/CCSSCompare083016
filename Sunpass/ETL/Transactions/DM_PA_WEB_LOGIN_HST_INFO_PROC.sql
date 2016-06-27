@@ -43,6 +43,23 @@ BEGIN
 
     /*ETL SECTION BEGIN */
 
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_PA_WEB_LOGIN_HST_INF_tab.count loop
+	 if DM_PA_WEB_LOGIN_HST_INF_tab(i).ACCT_NUM is null then
+          DM_PA_WEB_LOGIN_HST_INF_tab(i).ACCT_NUM:='0';
+         end if;
+	 if DM_PA_WEB_LOGIN_HST_INF_tab(i).LOGIN_DATE is null then
+          DM_PA_WEB_LOGIN_HST_INF_tab(i).LOGIN_DATE:=sysdate;
+         end if;
+	 if DM_PA_WEB_LOGIN_HST_INF_tab(i).LOGIN_IP is null then
+          DM_PA_WEB_LOGIN_HST_INF_tab(i).LOGIN_IP:='0';
+         end if;
+	 if DM_PA_WEB_LOGIN_HST_INF_tab(i).USER_AGENT is null then
+          DM_PA_WEB_LOGIN_HST_INF_tab(i).USER_AGENT:='0';
+         end if;
+    end loop;
+
+	
     /*ETL SECTION END   */
 
     /*Bulk insert */ 

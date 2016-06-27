@@ -123,6 +123,31 @@ BEGIN
     end loop;
 
  
+     /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_ACCOUNT_WEB_INFO_tab.count loop
+	 if DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID is null then
+          DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID:='0';
+         end if;
+	 if DM_ACCOUNT_WEB_INFO_tab(i).USER_NAME is null then
+          DM_ACCOUNT_WEB_INFO_tab(i).USER_NAME:='0';
+         end if;
+	 if DM_ACCOUNT_WEB_INFO_tab(i).PASSWORD is null then
+          DM_ACCOUNT_WEB_INFO_tab(i).PASSWORD:='0';
+         end if;
+	 if DM_ACCOUNT_WEB_INFO_tab(i).LAST_LOGIN_DATETIME is null then
+          DM_ACCOUNT_WEB_INFO_tab(i).LAST_LOGIN_DATETIME:=sysdate;
+         end if;
+	 if DM_ACCOUNT_WEB_INFO_tab(i).INVALID_LOGIN_DATETIME is null then
+          DM_ACCOUNT_WEB_INFO_tab(i).INVALID_LOGIN_DATETIME:=sysdate;
+         end if;
+	 if DM_ACCOUNT_WEB_INFO_tab(i).INVALID_LOGIN_COUNT is null then
+          DM_ACCOUNT_WEB_INFO_tab(i).INVALID_LOGIN_COUNT:='0';
+         end if;
+	 if DM_ACCOUNT_WEB_INFO_tab(i).PASSWORD_RESET is null then
+          DM_ACCOUNT_WEB_INFO_tab(i).PASSWORD_RESET:='0';
+         end if;
+    end loop;
+
 
 
     /*ETL SECTION END   */

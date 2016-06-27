@@ -24,7 +24,7 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 CURSOR C1 IS SELECT 
     ACCT_NUM ACCOUNT_NUMBER
-    ,NULL ADDR_TYPE
+    ,'MAILING' ADDR_TYPE
     ,NULL ADDR_TYPE_INT_ID
     ,ADDR_1 STREET_1
     ,ADDR_2 STREET_2
@@ -32,7 +32,7 @@ CURSOR C1 IS SELECT
     ,STATE_STATE_CODE_ABBR STATE
     ,ZIP_CODE ZIP_CODE
     ,SUBSTR(ZIP_CODE,6,4) ZIP_PLUS4
-    ,COUNTRY_COUNTRY_CODE COUNTRY
+    ,NULL COUNTRY
     ,NULL NIXIE
     ,to_date('02/27/2017','MM/DD/YYYY') NIXIE_DATE
     ,'N' NCOA_FLAG
@@ -73,6 +73,17 @@ BEGIN
         DM_ADDRESS_INFO_tab(i).NIXIE:=null;
     end;
 
+	    /* get COUNTRY_STATE_LOOKUP.COUNTRY for COUNTRY */
+    begin
+      select COUNTRY into DM_ADDRESS_INFO_tab(i).COUNTRY from COUNTRY_STATE_LOOKUP 
+      where STATE_ABBR in 
+            (select STATE_STATE_CODE_ABBR from pa_acct where acct_num=DM_ADDRESS_INFO_tab(i).account_number)
+            and rownum<=1;
+      exception 
+        when others then null;
+        DM_ADDRESS_INFO_tab(i).COUNTRY:=null;
+    end;
+	
     end loop;
 
 

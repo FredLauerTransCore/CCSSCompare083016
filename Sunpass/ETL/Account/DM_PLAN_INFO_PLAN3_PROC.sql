@@ -36,7 +36,8 @@ CURSOR C1 IS SELECT
     ,decode(EMP_EMP_CODE,NULL,'20000', EMP_EMP_CODE) LAST_UPD_BY
     ,'SUNPASS' SOURCE_SYSTEM
 FROM PA_ACCT_TRANSP
-WHERE BAYWAY_PASS2_PAID = 'Y';
+WHERE BAYWAY_PASS1_PAID = 'Y'
+OR BAYWAY_PASS2_PAID = 'Y';
 
 BEGIN
  
@@ -51,6 +52,26 @@ BEGIN
 
     /*ETL SECTION BEGIN */
 
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_PLAN_INFO_PLAN3_tab.count loop
+	 if DM_PLAN_INFO_PLAN3_tab(i).ACCOUNT_NUMBER is null then
+          DM_PLAN_INFO_PLAN3_tab(i).ACCOUNT_NUMBER:='0';
+         end if;
+	 if DM_PLAN_INFO_PLAN3_tab(i).PLAN_NAME is null then
+          DM_PLAN_INFO_PLAN3_tab(i).PLAN_NAME:='0';
+         end if;
+	 if DM_PLAN_INFO_PLAN3_tab(i).PLAN_STATUS is null then
+          DM_PLAN_INFO_PLAN3_tab(i).PLAN_STATUS:='0';
+         end if;
+	 if DM_PLAN_INFO_PLAN3_tab(i).CREATED is null then
+          DM_PLAN_INFO_PLAN3_tab(i).CREATED:=sysdate;
+         end if;
+	 if DM_PLAN_INFO_PLAN3_tab(i).LAST_UPD is null then
+          DM_PLAN_INFO_PLAN3_tab(i).LAST_UPD:=sysdate;
+         end if;
+    end loop;
+
+	
     /*ETL SECTION END   */
 
     /*Bulk insert */ 

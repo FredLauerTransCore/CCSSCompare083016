@@ -27,8 +27,8 @@ CURSOR C1 IS SELECT
     ,TRANSP_SEQ_NUM DEVICE_NUMBER
     ,TRANSPTYPE_TRANSP_TYPE_CODE DEVICE_MODEL
     ,NULL BOX_NUMBER
-    ,NULL AGENCY
-    ,NULL EXPIRY_DATE
+    ,SUBSTR(TRANSP_SEQ_NUM,9,2) AGENCY
+    ,to_date('12/31/9999','MM/DD/YYYY') EXPIRY_DATE
     ,ISSUE_DATE DOB
     ,VEHCLASS_VEH_CLASS_CODE VEHICLE_CLASS
     ,'0' CLASS_MISMATCH_FLAG
@@ -37,7 +37,7 @@ CURSOR C1 IS SELECT
     ,NULL SWAP_PREV_NUMBER
     ,NULL SWAP_NEXT_NUMBER
     ,NULL SWAP_DATE
-    ,NULL ISSUE_TYPE
+    ,'SOLD' ISSUE_TYPE
     ,SALE_AMT DEVICE_PRICE
     ,NULL DEVICE_DEPOSIT
     ,SALE_DATE ASSIGNED_DATE
@@ -57,7 +57,7 @@ CURSOR C1 IS SELECT
     ,NULL CASE_NUMBER
     ,SALE_DATE MANUF_WARRANTY_DT
     ,SALE_DATE CUST_WARRANTY_DT
-    ,NULL MANUFACTURER
+    ,'TRANSCORE' MANUFACTURER
     ,NULL RETAILER_NAME
     ,NULL DEVICE_INTERNAL_NUMBER
     ,APPRKG_FLAG MCOMMERCE_FLAG
@@ -112,6 +112,74 @@ BEGIN
 
     end loop;
 
+	    /* to default the values NOT NULL columns */
+    FOR i in 1 .. DM_DEVICE_INFO_tab.count loop
+	 if DM_DEVICE_INFO_tab(i).DEVICE_NUMBER is null then
+          DM_DEVICE_INFO_tab(i).DEVICE_NUMBER:='0';
+         end if;
+	 if DM_DEVICE_INFO_tab(i).DEVICE_MODEL is null then
+          DM_DEVICE_INFO_tab(i).DEVICE_MODEL:='0';
+         end if;
+	 if DM_DEVICE_INFO_tab(i).BOX_NUMBER is null then
+          DM_DEVICE_INFO_tab(i).BOX_NUMBER:='0';
+         end if;
+	 if DM_DEVICE_INFO_tab(i).AGENCY is null then
+          DM_DEVICE_INFO_tab(i).AGENCY:='0';
+         end if;
+	 if DM_DEVICE_INFO_tab(i).DOB is null then
+          DM_DEVICE_INFO_tab(i).DOB:=sysdate;
+         end if;
+	 if DM_DEVICE_INFO_tab(i).VEHICLE_CLASS is null then
+          DM_DEVICE_INFO_tab(i).VEHICLE_CLASS:='0';
+         end if;
+	 if DM_DEVICE_INFO_tab(i).STATUS_DATE is null then
+          DM_DEVICE_INFO_tab(i).STATUS_DATE:=sysdate;
+         end if;
+	 if DM_DEVICE_INFO_tab(i).DEVICE_STATUS is null then
+          DM_DEVICE_INFO_tab(i).DEVICE_STATUS:='0';
+         end if;
+	 if DM_DEVICE_INFO_tab(i).DEVICE_PRICE is null then
+          DM_DEVICE_INFO_tab(i).DEVICE_PRICE:='0';
+         end if;
+	 if DM_DEVICE_INFO_tab(i).STORE is null then
+          DM_DEVICE_INFO_tab(i).STORE:='0';
+         end if;
+	 if DM_DEVICE_INFO_tab(i).PO_NUMBER is null then
+          DM_DEVICE_INFO_tab(i).PO_NUMBER:='0';
+         end if;
+	 if DM_DEVICE_INFO_tab(i).CREATED is null then
+          DM_DEVICE_INFO_tab(i).CREATED:=sysdate;
+         end if;
+	 if DM_DEVICE_INFO_tab(i).LAST_UPD is null then
+          DM_DEVICE_INFO_tab(i).LAST_UPD:=sysdate;
+         end if;
+	 if DM_DEVICE_INFO_tab(i).TRAY_NUMBER is null then
+          DM_DEVICE_INFO_tab(i).TRAY_NUMBER:='0';
+         end if;
+	 if DM_DEVICE_INFO_tab(i).CASE_NUMBER is null then
+          DM_DEVICE_INFO_tab(i).CASE_NUMBER:='0';
+         end if;
+	 if DM_DEVICE_INFO_tab(i).MANUF_WARRANTY_DT is null then
+          DM_DEVICE_INFO_tab(i).MANUF_WARRANTY_DT:=sysdate;
+         end if;
+	 if DM_DEVICE_INFO_tab(i).CUST_WARRANTY_DT is null then
+          DM_DEVICE_INFO_tab(i).CUST_WARRANTY_DT:=sysdate;
+         end if;
+	 if DM_DEVICE_INFO_tab(i).RETAILER_NAME is null then
+          DM_DEVICE_INFO_tab(i).RETAILER_NAME:='0';
+         end if;
+	 if DM_DEVICE_INFO_tab(i).DEVICE_INTERNAL_NUMBER is null then
+          DM_DEVICE_INFO_tab(i).DEVICE_INTERNAL_NUMBER:='0';
+         end if;
+	 if DM_DEVICE_INFO_tab(i).IAG_CODE is null then
+          DM_DEVICE_INFO_tab(i).IAG_CODE:='0';
+         end if;
+	 if DM_DEVICE_INFO_tab(i).LOT is null then
+          DM_DEVICE_INFO_tab(i).LOT:='0';
+         end if;
+    end loop;
+
+	
     /*ETL SECTION END   */
 
     /*Bulk insert */ 
