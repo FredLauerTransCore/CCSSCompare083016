@@ -23,24 +23,9 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1 IS SELECT 
-    -- Assign values to AGENCY_ID according provided lookup using rownum
-    CASE rownum 
-      WHEN  101 THEN 'FL CCSS'
-      WHEN  61  THEN 'FTE'
-      WHEN  106 THEN 'Ft. Lauderdale Airport'
-      WHEN  65  THEN 'LCF'
-      WHEN  63  THEN 'MDX'
-      WHEN  104 THEN 'Miami Airport'
-      WHEN  30  THEN 'NCTA'
-      WHEN  62  THEN 'OOCEA'
-      WHEN  105 THEN 'Orlando Airport'
-      WHEN  102 THEN 'Palm Beach Airport'
-      WHEN  34  THEN 'SRTA'
-      WHEN  64  THEN 'THEAS' 
-      WHEN  103 THEN 'Tampa Airport'  
-    END AGENCY_ID
+    AGENCY_ID AGENCY_ID
     ,TITLE AGENCY_NAME
-    ,AGENCY_NAME AGENCY_SHORT_NAME
+    ,substr(AGENCY_NAME,1,4) AGENCY_SHORT_NAME
     ,decode(IAG_HOME,'Y','IAG','FL') CONSORTIUM
     ,'1.51' CURRENT_IAG_VERSION
     ,AGENCY_ID DEVICE_PREFIX
