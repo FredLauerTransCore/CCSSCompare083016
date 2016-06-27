@@ -32,10 +32,10 @@ CURSOR C1
 --(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
     ACCT_NUM ACCOUNT_NUMBER
-    ,nvl((SELECT MAX(ACTIVITY_NUMBER + 1) 
-        FROM DM_NONFIN_ACT_INFO 
-        WHERE ACCT_NUM = NOTE.ACCT_NUM),0) as ACTIVITY_NUMBER
---    ,NULL ACTIVITY_NUMBER
+--    ,nvl((SELECT MAX(ACTIVITY_NUMBER + 1) 
+--        FROM DM_NONFIN_ACT_INFO 
+--        WHERE ACCT_NUM = NOTE.ACCT_NUM),0) as ACTIVITY_NUMBER
+    ,0 ACTIVITY_NUMBER
     ,TYPE_CODE CATEGORY
     ,PROB_CODE SUB_CATEGORY
     ,TYPE_ID ACTIVITY_TYPE
@@ -53,9 +53,10 @@ where EMP_CODE like '99%' or EMP_CODE = '0100'
 
 SQL_STRING  varchar2(500) := 'delete table ';
 
-row_cnt          NUMBER := 0;
-v_trac_rec       dm_tracking%ROWTYPE;
-v_trac_etl_rec   dm_tracking_etl%ROWTYPE;
+v_activity_number DM_NONFIN_ACT_INFO.ACTIVITY_NUMBER%TYPE := 0;
+row_cnt           NUMBER := 0;
+v_trac_rec        dm_tracking%ROWTYPE;
+v_trac_etl_rec    dm_tracking_etl%ROWTYPE;
 
 BEGIN
   SELECT * INTO v_trac_etl_rec
@@ -83,9 +84,35 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-    /*ETL SECTION BEGIN
+--ETL SECTION BEGIN mapping
+-- DBMS_OUTPUT.PUT_LINE('FETCH '||LOAD_TAB||' ETL at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+    begin
+      select max(ACTIVITY_NUMBER) into  v_activity_number
+      from DM_NONFIN_ACT_INFO
+      ;
+    exception 
+      when others then
+        v_activity_number := 0;
+     DBMS_OUTPUT.PUT_LINE('v_activity_number ERROR CODE: '||SQLCODE);
+     DBMS_OUTPUT.PUT_LINE('v_activity_number ERROR MSG: '||SQLERRM);
+    end;
+    
+    FOR i IN 1 .. DM_NONFIN_ACT_INFO_tab.COUNT LOOP
+      IF i=1 then
+        v_trac_etl_rec.BEGIN_VAL := DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER;
+      end if;
+      
+      if v_activity_number is null then 
+        v_activity_number := 0;
+      end if;
+      v_activity_number := nvl(v_activity_number,0)+1;
+      DM_NONFIN_ACT_INFO_tab(i).activity_number := v_activity_number;
+      
+      v_trac_etl_rec.track_last_val := DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER;
+      v_trac_etl_rec.end_val := DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER;
 
-      ETL SECTION END*/
+    END LOOP;
+--      ETL SECTION END
 
     /*Bulk insert */ 
     FORALL i in DM_NONFIN_ACT_INFO_tab.first .. DM_NONFIN_ACT_INFO_tab.last
@@ -94,6 +121,7 @@ BEGIN
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
     update_track_proc(v_trac_etl_rec);
+    COMMIT;
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;

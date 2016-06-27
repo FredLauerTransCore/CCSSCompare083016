@@ -1,10 +1,10 @@
 /********************************************************
 *
-* Name: DM_ADDRESS_INFO_PROC
-* Created by: RH, 5/16/2016
+* Name: DM_PA_PLAZA_PROC
+* Created by: RH, 6/5/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
-*              DM_ADDRESS_INFO
+*              DM_PA_PLAZA
 *
 ********************************************************/
 
@@ -12,52 +12,53 @@ set serveroutput on
 set verify on
 set echo on
 
--- 6/20/2016 RH Added Tracking and acct num parameters
-
-CREATE OR REPLACE PROCEDURE DM_ADDRESS_INFO_PROC 
+--declare
+CREATE OR REPLACE PROCEDURE DM_PA_PLAZA_PROC 
   (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
 IS
 
-TYPE DM_ADDRESS_INFO_TYP IS TABLE OF DM_ADDRESS_INFO%ROWTYPE 
+TYPE DM_PA_PLAZA_TYP IS TABLE OF DM_PA_PLAZA%ROWTYPE 
      INDEX BY BINARY_INTEGER;
-DM_ADDRESS_INFO_tab DM_ADDRESS_INFO_TYP;
-
+DM_PA_PLAZA_tab DM_PA_PLAZA_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
-
-CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
-IS SELECT 
-    paa.ACCT_NUM ACCOUNT_NUMBER
-    ,'MAILING' ADDR_TYPE
-    ,'1' ADDR_TYPE_INT_ID
-    ,paa.ADDR1 STREET_1    -- ADDR_1 mapping
-    ,paa.ADDR2 STREET_2    -- ADDR_2 mapping
-    ,paa.CITY CITY
-    ,paa.STATE_CODE_ABBR STATE    -- STATE_STATE_CODE_ABBR mapping
-    ,paa.ZIP_CODE ZIP_CODE
-    ,SUBSTR(paa.ZIP_CODE,7,10) ZIP_PLUS4
-    ,paa.COUNTRY_CODE COUNTRY   -- COUNTRY_COUNTRY_CODE mapping
-    ,paa.BAD_ADDR_DATE NIXIE
-    ,to_date('02/27/2017', 'MM/DD/YYYY') NIXIE_DATE
-    ,'N' NCOA_FLAG
-    ,'N' ADDRESS_CLEANSED_FLG
-    ,'CSC' ADDRESS_SOURCE
-    ,pa.CREATED_ON CREATED
-    ,'SUNTOLL_CSC_ID' CREATED_BY
-    ,to_date('02/27/2017', 'MM/DD/YYYY') LAST_UPD
-    ,'SUNTOLL_CSC_ID' LAST_UPD_BY
+CURSOR C1 IS SELECT 
+    ADMINTYPE_ADMIN_TYPE_CODE
+    ,AUTHCODE_AUTHORITY_CODE
+    ,AVC_THRESHOLD
+    ,CLASS2_RATE_FLAG
+    ,COUNTY_COUNTY_CODE
+    ,CROSS_READ_PLAZA_ID
+    ,FACCODE_FACILITY_CODE
+    ,FTE_PLAZA
+    ,GEOG_COORD_LAT
+    ,GEOG_COORD_LONG
+    ,IAG_PLAZA_ID
+    ,IN_LANE_DISC_PERCENT
+    ,I_TOLL_PARTICIPATION
+    ,MILE_POST
+    ,MIN_FARE_PLAZA_ID
+    ,N_BOUND_TIME
+    ,PLAZA_ID
+    ,PLAZA_NAME
+    ,PLAZA_SHORT_NAME
+    ,PLAZA_SLAVE_NUM
+--  ,P_TOLL_PARTICIPATION   --  Only in Suntoll
+    ,RAMPTYPE_RAMP_TYPE_CODE
+    ,'NO' REBATE_REBATE_PROGRAM_CODE
+    ,REGCODE_REGION_CODE
+    ,S_BOUND_TIME
+    ,THRESHOLD
+    ,TOLL_INEQUITY_PROGRAM_FLAG
+    ,TRIP_PLAZA
+    ,TRUSTEE_TRUSTEE_ID
+--    ,UTURN_INTERVAL   --  Not in Suntoll -- Required
+    ,0 UTURN_INTERVAL
+    ,VBTOL_EFFECTIVE_DATE
+    ,VR_TOLL_PARTICIPATION
     ,'SUNTOLL' SOURCE_SYSTEM
-    ,NULL ADDRESS_NUMBER  -- DECODE?
---    ,(select csl.COUNTY from COUNTRY_STATE_LOOKUP csl
---        where csl.CITY = pa.CITY) 
-    ,NULL   COUNTY_CODE
-FROM PA_ACCT_ADDR paa
-    ,PA_ACCT pa
-WHERE paa.ACCT_NUM = pa.ACCT_NUM
---AND   paa.ACCT_NUM >= p_begin_acct_num AND   paa.ACCT_NUM <= p_end_acct_num
-;
+FROM PA_PLAZA; /*Change FTE_TABLE to the actual table name*/
 
 row_cnt          NUMBER := 0;
 v_trac_rec       dm_tracking%ROWTYPE;
@@ -85,7 +86,7 @@ BEGIN
   LOOP
 
     /*Bulk select */
-    FETCH C1 BULK COLLECT INTO DM_ADDRESS_INFO_tab
+    FETCH C1 BULK COLLECT INTO DM_PA_PLAZA_tab
     LIMIT P_ARRAY_SIZE;
 
     /*ETL SECTION BEGIN
@@ -93,18 +94,19 @@ BEGIN
       ETL SECTION END*/
 
     /*Bulk insert */ 
-    FORALL i in DM_ADDRESS_INFO_tab.first .. DM_ADDRESS_INFO_tab.last
-           INSERT INTO DM_ADDRESS_INFO VALUES DM_ADDRESS_INFO_tab(i);
+    FORALL i in DM_PA_PLAZA_tab.first .. DM_PA_PLAZA_tab.last
+           INSERT INTO DM_PA_PLAZA VALUES DM_PA_PLAZA_tab(i);              
 
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
     update_track_proc(v_trac_etl_rec);
-    COMMIT;
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
   DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
+
+  COMMIT;
 
   CLOSE C1;
 
@@ -127,5 +129,4 @@ BEGIN
 END;
 /
 SHOW ERRORS
-
 

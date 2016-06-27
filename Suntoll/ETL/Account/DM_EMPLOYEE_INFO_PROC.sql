@@ -32,8 +32,8 @@ CURSOR C1 IS SELECT
     ,nvl(LEGACY_EMP_CODE,'0') EMP_NUM
     ,nvl(USER_TYPE_CODE,0) JOB_TITLE
     ,trim(nvl(M_INITIAL,'0')) MID_NAME
-    ,NULL BIRTH_DT   -- Target is required
---    ,to_date('01-01-1800','MM-DD-YYYY') BIRTH_DT   -- Target is required
+--    ,NULL BIRTH_DT   -- Target is required
+    ,to_date('01-01-1800','MM-DD-YYYY') BIRTH_DT   -- Target is required
     ,nvl(LOCATION_ID,0) STORE_NAME
     ,'SUNTOLL' SOURCE_SYSTEM    
     ,CREATED_ON CREATED
@@ -42,6 +42,7 @@ CURSOR C1 IS SELECT
     ,NULL LAST_UPD_BY   -- N/A
 --    ,NULL EMP_STATUS
 FROM KS_USER
+where LEGACY_EMP_CODE is not null
 ;   -- Source table SUNTOLL
 
 row_cnt          NUMBER := 0;

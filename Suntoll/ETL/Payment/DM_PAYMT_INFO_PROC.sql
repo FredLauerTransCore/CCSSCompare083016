@@ -45,9 +45,12 @@ CURSOR C1 IS SELECT
     ,trim(pay.CHECK_NUM) CHECK_NUMBER
 -- DERIVED  PA_PURCHASE_DETAIL.RODUCT_PUR_PRODUCT_CODE ?
     ,NULL NSF_FEE -- DERIVED  PA_PURCHASE_DETAIL.RODUCT_PUR_PRODUCT_CODE ?
-    ,nvl(pay.PUR_PUR_ID,'NULL') PAYMENT_REFERENCE_NUM   -- unique
+--    ,nvl(pay.PUR_PUR_ID,0) PAYMENT_REFERENCE_NUM   -- unique
+--    ,decode(nvl(pay.PUR_PUR_ID,0),0,'NULL',pay.PUR_PUR_ID) PAYMENT_REFERENCE_NUM   -- unique
+    ,decode(nvl(pp.PUR_ID,0),0,'NULL',pp.PUR_ID) PAYMENT_REFERENCE_NUM   -- unique
     ,trim(pay.EMP_EMP_CODE) EMPLOYEE_NUMBER    
-    ,nvl(pay.PUR_PAY_ID,'NULL') TRANSACTION_ID
+--    ,decode(nvl(pay.PUR_PUR_ID,0),0,'NULL',pay.PUR_PUR_ID) TRANSACTION_ID   -- same source as PAYMENT_REFERENCE_NUM
+    ,decode(nvl(pp.PUR_ID,0),0,'NULL',pp.PUR_ID) TRANSACTION_ID   -- same source as PAYMENT_REFERENCE_NUM
 -- Derived from product code and VES_REF_NUM from PA_PURCHASE_DETAIL table. Default Derived
     ,nvl(pd.VES_REF_NUM,'NULL') ORG_TRANSACTION_ID 
 --    ,(select PROD_ABBRV from PA_PUR_PRODUCT where PUR_PRODUCT_CODE = pd.PRODUCT_PUR_PRODUCT_CODE) REVERSED    
@@ -64,7 +67,8 @@ CURSOR C1 IS SELECT
     ,CASE WHEN rr.REF_APPROVED_DATE IS NOT NULL THEN 
         decode(rr.REFUND_STATUS_ID, 1,'UNAPPROVED', 2,'APPROVED', 3,'PARTIAL', 4,'REJECTED',NULL) 
       END REFUND_STATUS 
-    ,NULL REFUND_CHECK_NUM    ,'N/A' TOD_ID -- N/A
+    ,NULL REFUND_CHECK_NUM    
+    ,'N/A' TOD_ID -- N/A
     ,pp.PUR_TRANS_DATE CREATED -- PA_PURCHASE
     ,pay.EMP_EMP_CODE CREATED_BY
     ,trunc(SYSDATE) LAST_UPD  -- M/A
@@ -120,13 +124,12 @@ BEGIN
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
     update_track_proc(v_trac_etl_rec);
+    COMMIT;
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
   DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
-
-  COMMIT;
 
   CLOSE C1;
 

@@ -24,7 +24,8 @@ DM_INVOICE_ITM_INFO_tab DM_INVOICE_ITM_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
-REG_STOP_THRESHOLD_AMT_IN_CENTS NUMBER := 100000000; -- TODO: Need to get actual threshold from FTE
+-- REG_STOP_THRESHOLD_AMT_IN_CENTS -- too long changed length
+REG_STOP_THRESHOLD_AMT_CENTS NUMBER := 100000000; -- TODO: Need to get actual threshold from FTE
 
 
 CURSOR C1
@@ -98,6 +99,7 @@ IS SELECT
 --          
 --          va.KS_LEDGER_EVENT_TYPE_ID = '89'  and di.DOC_TYPE_ID in ('1','2') 
 --          THEN 'REGSTOP'
+------------------------------------  Missing ST_ACCT_FLAGS table ------------------------------
           WHEN (SELECT 'Y' FROM ST_ACCT_FLAGS saf WHERE saf.ACCT_NUM = di.acct_num and saf.FLAG_TYPE ='9' and END_DATE is null)='Y'
           THEN 'REGHOLDTOLL'
   
@@ -215,22 +217,23 @@ IS SELECT
           WHEN st.TOTAL_AMT_PAID = 0 THEN 'DISPUTED'
           ELSE 'CLOSED' END STATUS
     ,trunc(NVL(di.CREATED_ON,SYSDATE)) INVOICE_DATE
-    ,(select kl.AMOUNT from KS_LEDGER kl
-      where kl.ID = va.LEDGER_ID) PAYABLE -- di.PREV_DUE + di.TOLL_CHARGED + di.FEE_CHARGED + di.PAYMT_ADJS) PAYABLE
+    ,nvl((select kl.AMOUNT from KS_LEDGER kl
+      where kl.ID = va.LEDGER_ID),0) PAYABLE -- di.PREV_DUE + di.TOLL_CHARGED + di.FEE_CHARGED + di.PAYMT_ADJS) PAYABLE
     ,0 INVOICE_ITEM_NUMBER
     ,nvl((select unique kl.PA_LANE_TXN_ID from KS_LEDGER kl
         where kl.ID = va.LEDGER_ID),0) LANE_TX_ID
     ,'Open' LEVEL_INFO
-    ,di.PROMOTION_STATUS REASON_CODE  --PROMOTION_CODE
+    ,nvl(di.PROMOTION_STATUS,'NULL-None') REASON_CODE  --PROMOTION_CODE
     ,'INVOICE-ITEM' INVOICE_TYPE
-    ,st.TOTAL_AMT_PAID PAID_AMOUNT
-    ,(select pa.CREATED_ON from PA_ACCT pa
-      where pa.ACCT_NUM = di.ACCT_NUM) CREATED
+    ,nvl(st.TOTAL_AMT_PAID,0) PAID_AMOUNT
+    ,nvl((select pa.CREATED_ON from PA_ACCT pa
+        where pa.ACCT_NUM = di.ACCT_NUM),SYSDATE) CREATED  -- If NULL Default ?
     ,'SUNTOLL_CSC_ID' CREATED_BY
-    ,(select pa.CREATED_ON from PA_ACCT pa
-      where pa.ACCT_NUM = di.ACCT_NUM) LAST_UPD
+    ,nvl((select pa.CREATED_ON from PA_ACCT pa    -- PA_ACCT_TRANSP  DRived in ICD
+        where pa.ACCT_NUM = di.ACCT_NUM),SYSDATE) LAST_UPD  -- If NULL Default ?
     ,'SUNTOLL_CSC_ID' LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
+    ,NULL DISMISSED_AMT
 FROM ST_DOCUMENT_INFO di
       ,VB_ACTIVITY va
       ,VB_ACTIVITY vac  -- Child
@@ -290,12 +293,15 @@ BEGIN
 --          THEN 'REGSTOP'
 
       begin
---        select max(sc.STATUS_CHG_DATE) into  DM_ACCOUNT_INFO_tab(i).SUB_CATEGORY
+        IF i=1 then
+          v_trac_etl_rec.BEGIN_VAL := DM_INVOICE_ITM_INFO_tab(i).ACCOUNT_NUMBER;
+        end if;
+ --        select max(sc.STATUS_CHG_DATE) into  DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY
 --        from PATRON.PA_ACCT_STATUS_CHANGES sc
---        where sc.ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
+--        where sc.ACCT_NUM = DM_INVOICE_ITM_INFO_tab(i).ACCOUNT_NUMBER
 --        ;
-        if DM_ACCOUNT_INFO_tab(i).SUB_CATEGORY is null then
-          DM_ACCOUNT_INFO_tab(i).SUB_CATEGORY := 'REGSTOP2';
+        if DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY is null then
+          DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY := 'REGSTOP2';
         End if;
 
       exception 
@@ -316,6 +322,8 @@ BEGIN
 --                            and nvl(PAYMENT_PLAN_END, trunc(SYSDATE)) >= trunc(SYSDATE)) THEN 'A' 
 --                        
 --          else 'N'
+      v_trac_etl_rec.track_last_val := DM_INVOICE_ITM_INFO_tab(i).ACCOUNT_NUMBER;
+      v_trac_etl_rec.end_val := DM_INVOICE_ITM_INFO_tab(i).ACCOUNT_NUMBER;
 
     END LOOP;
  

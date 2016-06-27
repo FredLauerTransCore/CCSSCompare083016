@@ -26,19 +26,36 @@ CURSOR C1 IS SELECT
     NULL LANE_ID
     ,LANE_ID EXTERN_LANE_ID
     ,'Y' AVI
-    ,NULL OPERATIONAL_MODE
+    ,CASE WHEN LANE_TYPE = 'A' THEN 100  -- AC Lane
+          WHEN LANE_TYPE = 'E' THEN 101  -- AE Lane
+          WHEN LANE_TYPE = 'M' THEN 102  -- MB Lane
+          WHEN LANE_TYPE = 'D' THEN 103  -- Dedicated
+          WHEN LANE_TYPE = 'C' THEN 104  -- AC-AVI
+          WHEN LANE_TYPE = 'B' THEN 105  -- MB-AVI
+          WHEN LANE_TYPE = 'N' THEN 106  -- ME Lane
+          WHEN LANE_TYPE = 'X' THEN 107  -- MX Lane
+          WHEN LANE_TYPE = 'F' THEN 108  -- Free Lane
+          WHEN LANE_TYPE = 'Y' THEN 109  -- Dedicated Entry
+          WHEN LANE_TYPE = 'Z' THEN 110  -- Dedicated Exit
+          WHEN LANE_TYPE = 'S' THEN 111  -- Express Lane
+          WHEN LANE_TYPE = 'G' THEN 112  -- Magic Lane
+          WHEN LANE_TYPE = 'Q' THEN 113  -- APM Lane
+          WHEN LANE_TYPE = 'T' THEN 114  -- MA Lane
+          ELSE NULL
+     END OPERATIONAL_MODE
     ,'0' STATUS
     ,PLAZA_ID PLAZA_ID
     ,'0' LANE_IDX
     ,ASOF UPDATE_TS
     ,decode(DIRECTION,
-	'NORT',	'N',
-    'SOUT'	,'S',
-    'PRKG'	,'P',
-    'EAST'	,'E',
-    'WEST'	,'W',
-    'EPRK'	,'K','K')
-	DIRECTION
+        'NORT',  'N',
+        'SOUT',  'S',
+        'PRKG',  'P',
+        'EAST',  'E',
+        'WEST',  'W',
+        'EPRK',  'K',
+                 'K' )
+      DIRECTION
     ,'1' LANE_TYPE
     ,'0' LANE_MASK
     ,'00.00.00.00' LANE_IP

@@ -34,6 +34,8 @@ BEGIN
       STATUS = v_etl_rec.etl_name||' '||v_etl_rec.status
   where TRACK_ID = v_etl_rec.track_id;
   COMMIT;
+
+  io_trac_rec := v_etl_rec;
   
   EXCEPTION
   WHEN OTHERS THEN

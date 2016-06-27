@@ -13,7 +13,8 @@ set echo on
 
 CREATE OR REPLACE PROCEDURE PRE_SOURCE_PROC (
     i_c_rec       IN      dm_control%ROWTYPE,
-    io_trac_rec   IN OUT  dm_tracking_etl%ROWTYPE 
+--    io_trac_rec IN OUT  dm_tracking_etl%ROWTYPE 
+    i_trac_id   dm_tracking_etl.track_etl_id%TYPE
     )
 IS
 
@@ -26,7 +27,8 @@ IS
   CURSOR c1(p_control_id NUMBER) IS 
   SELECT * FROM DM_CONTROL_DETAIL 
   WHERE control_id = p_control_id
-  ORDER BY control_detail_id
+  AND disabled IS NULL
+  ORDER BY control_calc_id
 ;  
 
   sql_string    VARCHAR2(500); -- := 'truncate table ';
@@ -37,20 +39,23 @@ IS
   v_where       VARCHAR2(500);
   
 BEGIN
-  DBMS_OUTPUT.PUT_LINE('Start PRE_SOURCE_PROC for '||io_etl_rec.etl_name||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   v_c_rec := i_c_rec;
-  v_etl_rec := io_trac_rec;
---  v_etl_rec := io_trac_rec;
+  calc_rec.calc_type := 'PRE';
+  SELECT * INTO v_etl_rec
+  FROM  dm_tracking_etl
+  WHERE track_etl_id = i_trac_id;
+  
 --  calc_rec.TRACK_ID :=  v_etl_rec.TRACK_ID;
+  DBMS_OUTPUT.PUT_LINE('Start PRE_SOURCE_PROC for '||v_etl_rec.etl_name||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   SELECT * INTO v_trac_rec
   FROM  dm_tracking
-  WHERE track_id = io_trac_rec.track_id
+  WHERE track_id = v_etl_rec.track_id
   ;
-  DBMS_OUTPUT.PUT_LINE('Acct between: '||v_trac_rec.begin_acct||' - '||v_trac_rec.end_acct);
+--  DBMS_OUTPUT.PUT_LINE('Acct between: '||v_trac_rec.begin_acct||' - '||v_trac_rec.end_acct);
   
-  io_trac_rec.status := 'PRE process Started';
+  v_etl_rec.status := calc_rec.calc_type||' process Started';
   update_track_proc(v_etl_rec);
-
+  
   calc_rec.track_etl_id :=  v_etl_rec.track_etl_id;
   
   FOR idx IN c1(v_c_rec.control_id) 
@@ -61,7 +66,7 @@ BEGIN
     calc_rec.calc_field := idx.source_field;
     calc_rec.calc_tab := idx.source_tab;
     calc_rec.calc_value := 0;
-    calc_rec.calc_name := 'PRE '||calc_rec.calc_func||' '||calc_rec.calc_field;
+    calc_rec.calc_name := calc_rec.calc_type||' '||calc_rec.calc_func||' '||calc_rec.calc_field;
 
     v_select :=   'SELECT '||calc_rec.calc_func||'('||calc_rec.calc_field||')';
     v_into :=     ' INTO :val';
@@ -93,25 +98,28 @@ BEGIN
 --      EXECUTE IMMEDIATE sql_string
 --      USING out calc_rec.calc_value
 
-    DBMS_OUTPUT.PUT_LINE('calc_rec.calc_value : '||calc_rec.calc_value);
+    DBMS_OUTPUT.PUT_LINE('calc_value : '||calc_rec.calc_value);
 
     INSERT INTO dm_tracking_calc VALUES calc_rec;      
     COMMIT;
 
   END LOOP;
 
-  v_etl_rec.status := 'PRE process Completed';
-  v_etl_rec.result_code := SQLCODE;
-  v_etl_rec.result_msg := SQLERRM;
+  v_etl_rec.status := calc_rec.calc_type||' process Completed';
+  calc_rec.result_code := SQLCODE;
+  calc_rec.result_msg := SQLERRM;
   update_track_proc(v_etl_rec);
+  update_track_calc_proc(calc_rec);
   
   EXCEPTION
   WHEN OTHERS THEN
-    io_trac_rec.result_code := SQLCODE;
-    io_trac_rec.result_msg := SQLERRM;
-    update_track_proc(io_trac_rec);
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||io_trac_rec.result_code);
-     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||io_trac_rec.result_msg);
+--    v_etl_rec.result_code := SQLCODE;
+--    v_etl_rec.result_msg := SQLERRM;
+    calc_rec.result_code := SQLCODE;
+    calc_rec.result_msg := SQLERRM;
+    update_track_calc_proc(calc_rec);   
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||calc_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||calc_rec.result_msg);
 END;
 /
 SHOW ERRORS

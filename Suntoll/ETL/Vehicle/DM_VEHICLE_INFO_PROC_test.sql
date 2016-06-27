@@ -49,14 +49,14 @@ IS SELECT
     pav.ACCT_ACCT_NUM ACCOUNT_NUMBER
     ,DECODE(pav.VEH_LIC_NUM, 'O', '0', pav.VEH_LIC_NUM) PLATE_NUMBER  -- PATRON.EVENT_LOOKUP_ROV
     ,pav.STATE_STATE_CODE_ABBR PLATE_STATE
-    ,nvl((select substr(trim(cs.COUNTRY),1,4) from  COUNTRY_STATE_LOOKUP cs
+    ,nvl((select nvl(cs.COUNTRY,'USA') from  COUNTRY_STATE_LOOKUP cs
            where cs.STATE_ABBR = pav.STATE_STATE_CODE_ABBR),'USA') PLATE_COUNTRY
---    ,'USA' PLATE_COUNTRY
     ,nvl(pav.VEH_LIC_TYPE,'NULL') PLATE_TYPE    -- Prefix and Suffix for the Country and State.  
     ,'REGULAR' VEHICLE_TYPE     
     ,SUBSCRIPTION_START_DATE EFFECTIVE_START_DATE
     ,SUBSCRIPTION_END_DATE EFFECTIVE_END_DATE
-    ,nvl(pav.VEH_MODEL_YR, 9999) YEAR
+--    ,nvl(pav.VEH_MODEL_YR, 9999) YEAR
+    ,9999 YEAR
     ,nvl(trim(pav.VEH_MAKE), 'OTHER') MAKE
     ,nvl(trim(pav.VEH_MODEL), 'OTHER') MODEL
     ,trim(pav.VEH_COLOR) COLOUR

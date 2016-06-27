@@ -99,7 +99,8 @@ IS SELECT
     ,0 PRICE_SCHEDULE_ID
     ,0 VEHICLE_SPEED
     ,0 RECEIPT_ISSUED
----- JOIN WITH JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN AND 
+
+--- JOIN WITH JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN AND 
 ---- JOIN UFM_TOKEN TO UFM_ID FOR EVENT_ROV       
 --    ,(select HOST_UFM_TOKEN from UFM_LANE_TXN_INFO where TXN_ID=lt.TXN_ID)   HOST_UFM_TOKEN
     ,nvl((select er.TRANSP_ID -- unique 
@@ -107,6 +108,7 @@ IS SELECT
         where er.UFM_ID = ult.HOST_UFM_TOKEN 
         and   ult.TXN_ID = lt.TXN_ID
         and rownum=1),'NULL')   DEVICE_NO
+
     ,(select pa.ACCTTYPE_ACCT_TYPE_CODE from PA_ACCT pa 
         where pa.ACCT_NUM=kl.ACCT_NUM)  ACCOUNT_TYPE -- PA_ACCT
     ,0 DEVICE_CODED_CLASS
@@ -114,14 +116,11 @@ IS SELECT
     ,0 DEVICE_IAG_CLASS
     ,0 DEVICE_AXLES
     ,kl.ACCT_NUM ETC_ACCOUNT_ID  -- KS_LEDGER  ----
---    ,(select kl.ACCT_NUM from KS_LEDGER kl 
---        where pa.ACCT_NUM=kl.ACCT_NUM)  ACCOUNT_TYPE -- PA_ACCT
 
 ------ ACCOUNT_AGENCY_ID - SUBSTR(TRANSP_ID,9,2) 
 ----JOIN ST_INTEROP_AGENCIES ON AGENCY_CODE RETURN AGENCY_ID [XEROX TO LOOKUP INTERNAL ID]
---    ,(select AGENCY_ID from PATRON.ST_INTEROP_AGENCIES 
---        where AGENCY_CODE = SUBSTR(lt.TRANSP_ID,9,2))  ACCOUNT_AGENCY_ID 
-    ,(select AGENCY_ID from ST_INTEROP_AGENCIES where AGENCY_CODE=SUBSTR(lt.TRANSP_ID,9,2)) ACCOUNT_AGENCY_ID  
+    ,(select AGENCY_ID from ST_INTEROP_AGENCIES 
+        where AGENCY_CODE=SUBSTR(lt.TRANSP_ID,9,2)) ACCOUNT_AGENCY_ID  
     ,0 READ_AVI_CLASS
     ,0 READ_AVI_AXLES
     ,'N' DEVICE_PROGRAM_STATUS
@@ -133,12 +132,15 @@ IS SELECT
     ,0 ETC_TX_STATUS
     ,'F' SPEED_VIOL_FLAG
     ,'Y' IMAGE_TAKEN
+
 --LOOKUP PA_STATE_CODE. Xerox - internal lookup in DM_ADDRESS_INFO and assign country correctly. 
-    ,nvl((select nvl(cs.COUNTRY,'USA') from  COUNTRY_STATE_LOOKUP cs
-           where cs.STATE_ABBR = lt.STATE_ID_CODE),'USA') PLATE_COUNTRY
---PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
--- ,(select s.STATE_CODE_ABBR from PA_STATE_CODE s where s.STATE_CODE_NUM=lt.STATE_ID_CODE)  
-    ,lt.STATE_ID_CODE PLATE_STATE 
+    ,nvl((select substr(csl.COUNTRY,1,4) from COUNTRY_STATE_LOOKUP csl, PA_STATE_CODE ps 
+        where csl.STATE_ABBR    = lt.STATE_CODE_ABBR
+        and   ps.STATE_CODE_NUM = lt.STATE_ID_CODE),'USA')  PLATE_COUNTRY
+
+    ,(select ps.STATE_CODE_ABBR from PA_STATE_CODE ps 
+        where ps.STATE_CODE_NUM=lt.STATE_ID_CODE) PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
+
     ,lt.VEH_LIC_NUM PLATE_NUMBER
     ,trunc(lt.EXT_DATE_TIME) REVENUE_DATE
     ,trunc(lt.TXN_PROCESS_DATE) POSTED_DATE
@@ -157,9 +159,14 @@ IS SELECT
     ,'000000000000' DEPOSIT_ID
 
 ---- JOIN FROM PA_LANE_TXN REQUEST_ID to EVENT_LOOKUP_ROV ROV_ID to RETURN REQUEST_DATE
-    ,(select REQUEST_DATE from EVENT_LOOKUP_ROV where EVENT_OAVA_LINK_ID=lt.OAVA_LINK_ID) LOAD_DATE
---    ,(select elr.REQUEST_DATE from EVENT_LOOKUP_ROV elr 
---        where elr.ROV_ID = lt.REQUEST_ID) LOAD_DATE
+--    ,(select REQUEST_DATE from EVENT_LOOKUP_ROV 
+--        where EVENT_OAVA_LINK_ID=lt.OAVA_LINK_ID) LOAD_DATE
+    ,(select elr.REQUEST_DATE from EVENT_LOOKUP_ROV elr 
+        where elr.ROV_ID = lt.REQUEST_ID) LOAD_DATE
+--    ,(select elr.REQUEST_DATE
+--        from EVENT_LOOKUP_ROV elr, EVENT_ROV er
+--        where elr.id = er.LOOKUP_Q_ID
+--        and   elr.EVENT_OAVA_LINK_ID = lt.OAVA_LINK_ID) LOAD_DATE
     
     ,3 VIOL_TYPE
     ,0 REVIEWED_VEHICLE_TYPE
@@ -211,8 +218,7 @@ IS SELECT
                va.COLL_COURT_FLAG = 'CRT' THEN 'COURT'
 --          WHEN va.BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
           ELSE NULL
-      END EVENT_TYPE  -- Derived
---    ,0 EVENT_TYPE  -- Derived
+      END EVENT_TYPE  -- ,0 EVENT_TYPE  -- Derived
 
     ,0 PREV_EVENT_TYPE
     ,0 VIOL_TX_STATUS
@@ -290,6 +296,8 @@ IS SELECT
 ---- substr(a.description,41,8) on KS_LEDGER joining PA_LANE_TXN on pa_lane_txn_id
     ,decode(kl.TRANSACTION_TYPE,253, 
         TO_NUMBER(substr(kl.description,41,8)), 0) DISPUTED_ETC_ACCT_ID  
+    ,NULL EXT_DATE_TIME
+    ,'SUNTOLL' SOURCE_SYSTEM
 FROM PA_LANE_TXN lt
     ,KS_LEDGER kl
     ,VB_ACTIVITY va

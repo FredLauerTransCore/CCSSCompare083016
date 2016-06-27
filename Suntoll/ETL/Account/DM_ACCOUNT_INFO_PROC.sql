@@ -186,13 +186,12 @@ BEGIN
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
     update_track_proc(v_trac_etl_rec);
+    COMMIT;
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
   DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
-
-  COMMIT;
 
   CLOSE C1;
 

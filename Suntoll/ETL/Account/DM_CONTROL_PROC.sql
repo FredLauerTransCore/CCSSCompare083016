@@ -18,7 +18,7 @@ IS
   CURSOR c1(p_source_sys dm_control.source_system%TYPE)
   IS 
   SELECT * FROM DM_CONTROL 
-  WHERE source_system = p_source_sys
+  WHERE UPPER(source_system) = p_source_sys
   AND disabled IS NULL
 --  AND load_order > 0
   ORDER BY load_order
@@ -36,33 +36,24 @@ IS
 BEGIN
   DBMS_OUTPUT.PUT_LINE('Start load process at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));  
 
-  IF i_track_id is NULL THEN 
--- Execute DM_ACCOUNT_INFO first for acct driver. 
-    SELECT * INTO c_acct FROM dm_control 
-    WHERE source_system = v_source_sys
-    AND etl_name = 'DM_ACCOUNT_INFO'
-    ;
-    START_TRACK_PROC(c_acct, trac_rec);  -- For testing
-    START_ETL_TRACK_PROC(c_acct, trac_rec.track_id, trac_etl_rec);    
-    PRE_SOURCE_PROC(c_acct, trac_etl_rec);
-    DM_ACCOUNT_INFO_PROC(trac_etl_rec.track_etl_id); 
-    POST_DM_PROC(c_acct, trac_etl_rec);
---  VALIDATE_DM_PROC(c_rec, trac_etl_rec);
-  END IF;
-  
-  
   UPDATE DM_TRACKING
-  set PROC_START_DATE = SYSDATE 
+  set STATUS = 'Start load process',
+      PROC_START_DATE = SYSDATE
   where TRACK_ID = i_track_id;
+  commit;
   
+  select * into trac_rec
+  from DM_TRACKING
+  where TRACK_ID = i_track_id;  
 
-  FOR c_rec IN c1(v_source_sys)
+  FOR c_rec IN c1(trac_rec.SOURCE_SYSTEM)
   LOOP
     DBMS_OUTPUT.PUT_LINE(c_rec.load_order||' - Start '||c_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+--    DBMS_OUTPUT.PUT_LINE(c_rec.load_order||' - Start '||c_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
 
     START_ETL_TRACK_PROC(c_rec, i_track_id, trac_etl_rec);    
 
-    PRE_SOURCE_PROC(c_rec, trac_etl_rec);
+    PRE_SOURCE_PROC(c_rec, trac_etl_rec.track_etl_id);
 
 --  Dynamic PL/SQL block invokes subprogram:
 --  plsql_block := 'BEGIN create_dept(:a, :b, :c, :d); END;';
@@ -72,15 +63,15 @@ BEGIN
 --  EXECUTE IMMEDIATE plsql_block
 --    USING IN OUT new_deptid, new_dname, new_mgrid, new_locid;
 
-    sql_string := 'BEGIN '||c_rec.etl_name||'_PROC(:id); END;';
+    sql_string := 'BEGIN '||trac_rec.SOURCE_SYSTEM||'_user.'||c_rec.etl_name||'_PROC(:id); END;';
 --    DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
 
     EXECUTE IMMEDIATE sql_string
     USING trac_etl_rec.track_etl_id;
     
-    POST_DM_PROC(c_rec, trac_etl_rec);
+    POST_DM_PROC(c_rec, trac_etl_rec.track_etl_id);
 
---    VALIDATE_DM_PROC(c_rec, trac_etl_rec);
+    VALIDATE_DM_PROC(c_rec, trac_etl_rec.track_etl_id);
 --    END_ETL_TRACK(trac_etl_rec);
 
   END LOOP;
@@ -89,6 +80,13 @@ BEGIN
 
 --  END_TRACK(trac_rec);
   DBMS_OUTPUT.PUT_LINE('End load process at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  UPDATE DM_TRACKING
+  set PROC_END_DATE = SYSDATE
+      ,Status = 'Completed process'
+      ,result_code = trac_etl_rec.result_code
+      ,result_msg = trac_etl_rec.result_msg
+  where TRACK_ID = i_track_id;
+  COMMIT;
 
   EXCEPTION
   WHEN OTHERS THEN

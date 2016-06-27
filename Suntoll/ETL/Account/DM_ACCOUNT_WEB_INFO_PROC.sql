@@ -94,20 +94,37 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 -- ETL SECTION BEGIN
-    FOR j IN 1 .. DM_ACCOUNT_WEB_INFO_tab.COUNT LOOP
-     
-     select max(wi.LOGIN_DATE) into  DM_ACCOUNT_WEB_INFO_tab.LAST_IVR_CALL_DATE(j)
-      from PA_WEB_LOGIN_INFO wl
-      where wl.ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab.ACCOUNT_NUMBER(j)
-      and wl.USER_AGENT = 'IVR'
-      ;
-     select wi.LOGIN_IP, wi.USER_AGENT into  DM_ACCOUNT_WEB_INFO_tab.LOGIN_IP_ADDRESS(j), DM_ACCOUNT_WEB_INFO_tab.USER_AGENT(j)
-      from PA_WEB_LOGIN_INFO wl
-      where wl.ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab.ACCOUNT_NUMBER(j)
-      and wl.LOGIN_DATE = (select max(LOGIN_DATE)
-                            from PA_WEB_LOGIN_INFO wl2
-                            where wl2.ACCT_NUM = wl.ACCT_NUM)
-      ;
+    FOR i IN 1 .. DM_ACCOUNT_WEB_INFO_tab.COUNT LOOP
+      IF i=1 then
+        v_trac_etl_rec.BEGIN_VAL := DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID;
+      end if;
+      begin
+       select max(LOGIN_DATE) into  DM_ACCOUNT_WEB_INFO_tab(i).LAST_IVR_CALL_DATE
+        from PA_WEB_LOGIN_INFO wl
+        where wl.ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID
+        and wl.USER_AGENT = 'IVR'
+        ;
+      exception 
+        when others then null;
+--        DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
+      end;
+      begin
+--       select wi.LOGIN_IP, wi.USER_AGENT 
+       select LOGIN_IP, USER_AGENT 
+       into   DM_ACCOUNT_WEB_INFO_tab(i).LOGIN_IP_ADDRESS, DM_ACCOUNT_WEB_INFO_tab(i).USER_AGENT
+        from  PA_WEB_LOGIN_INFO wl
+        where wl.ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID
+        and wl.LOGIN_DATE = (select max(LOGIN_DATE)
+                              from PA_WEB_LOGIN_INFO wl2
+                              where wl2.ACCT_NUM = wl.ACCT_NUM)
+        ;
+      exception 
+        when others then null;
+--        DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
+      end;
+
+      v_trac_etl_rec.track_last_val := DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID;
+      v_trac_etl_rec.end_val := DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID;
 
     END LOOP;
 -- ETL SECTION END
