@@ -71,95 +71,48 @@ BEGIN
     /*ETL SECTION BEGIN */
 
     for i in 1 .. DM_PAYMT_INFO_tab.count loop
-    /* get PA_PURCHASE_PAYMENT.PAYTYPE_PAYMENT_TYPE_CODE for PAY_TYPE */
-    begin
-      select PAYTYPE_PAYMENT_TYPE_CODE into DM_PAYMT_INFO_tab(i).PAY_TYPE from PA_PURCHASE_PAYMENT where PUR_PUR_ID=DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM;
-      exception when others then null;
-      DM_PAYMT_INFO_tab(i).PAY_TYPE:=null;
-    end;
+ 
     /* get PA_PURCHASE_DETAIL.PRODUCT_PUR_PRODUCT_CODE for TRAN_TYPE */
     begin
-      select PRODUCT_PUR_PRODUCT_CODE into DM_PAYMT_INFO_tab(i).TRAN_TYPE from PA_PURCHASE_DETAIL 
+      select PRODUCT_PUR_PRODUCT_CODE , PRODUCT_PUR_PRODUCT_CODE ,
+	  PRODUCT_PUR_PRODUCT_CODE ,VES_REF_NUM 
+	  into 
+	  DM_PAYMT_INFO_tab(i).TRAN_TYPE ,
+	  DM_PAYMT_INFO_tab(i).REVERSED,
+	  DM_PAYMT_INFO_tab(i).NSF_FEE,
+	  DM_PAYMT_INFO_tab(i).ORG_TRANSACTION_ID
+	  from PA_PURCHASE_DETAIL 
       where PUR_PUR_ID =DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM;
       exception when others then null;
       DM_PAYMT_INFO_tab(i).TRAN_TYPE:='R';
     end;
 
-    /* get PA_PURCHASE_PAYMENT.PUR_PAY_AMT for AMOUNT */
-    begin
-      select PUR_PAY_AMT into DM_PAYMT_INFO_tab(i).AMOUNT from PA_PURCHASE_PAYMENT where PUR_PUR_ID=DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM;
-      exception when others then null;
-      DM_PAYMT_INFO_tab(i).AMOUNT:=null;
-    end;
+  
+  
 
-    /* get PA_PURCHASE_DETAIL.PRODUCT_PUR_PRODUCT_CODE for REVERSED */
-    begin
-      select PRODUCT_PUR_PRODUCT_CODE into DM_PAYMT_INFO_tab(i).REVERSED from PA_PURCHASE_DETAIL 
-      where PUR_PUR_ID =DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM;
-      exception when others then null;
-      DM_PAYMT_INFO_tab(i).REVERSED:='N';
-    end;
-
-    /* get PA_PURCHASE_PAYMENT.PUR_CREDIT_EXP_DATE for EXP_MONTH */
-    begin
-      select to_char(PUR_CREDIT_EXP_DATE,'MM') into DM_PAYMT_INFO_tab(i).EXP_MONTH from PA_PURCHASE_PAYMENT where PUR_PUR_ID=DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM;
-      exception when others then null;
-      DM_PAYMT_INFO_tab(i).EXP_MONTH:=null;
-    end;
-
-    /* get PA_PURCHASE_PAYMENT.PUR_CREDIT_EXP_DATE for EXP_YEAR */
-    begin
-      select to_char(PUR_CREDIT_EXP_DATE,'YYYY') into DM_PAYMT_INFO_tab(i).EXP_YEAR from PA_PURCHASE_PAYMENT where PUR_PUR_ID=DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM;
-      exception when others then null;
-      DM_PAYMT_INFO_tab(i).EXP_YEAR:=null;
-    end;
-
-    /* get PA_PURCHASE_DETAIL.PRODUCT_PUR_PRODUCT_CODE for NSF_FEE */
-    begin
-      select PRODUCT_PUR_PRODUCT_CODE into DM_PAYMT_INFO_tab(i).NSF_FEE from PA_PURCHASE_DETAIL 
-      where PUR_PUR_ID =DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM;
-      exception when others then null;
-      DM_PAYMT_INFO_tab(i).NSF_FEE:=null;
-    end;
-
-
-    /* get PA_PURCHASE_PAYMENT.EMP_EMP_CODE for EMPLOYEE_NUMBER */
-    begin
-      select EMP_EMP_CODE into DM_PAYMT_INFO_tab(i).EMPLOYEE_NUMBER from PA_PURCHASE_PAYMENT where PUR_PUR_ID=DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM;
-      exception when others then null;
-      DM_PAYMT_INFO_tab(i).EMPLOYEE_NUMBER:=null;
-    end;
-
-
-
-    /* get PA_PURCHASE_PAYMENT.EMP_EMP_CODE for CREATED_BY */
-    begin
-      select EMP_EMP_CODE into DM_PAYMT_INFO_tab(i).CREATED_BY from PA_PURCHASE_PAYMENT where PUR_PUR_ID=DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM;
-      exception when others then null;
-      DM_PAYMT_INFO_tab(i).CREATED_BY:=null;
-    end;
+  
     /* get PA_PURCHASE_PAYMENT.CC_GATEWAY_REQ_ID for CC_GATEWAY_REQ_ID */
     begin
-      select CC_GATEWAY_REQ_ID into DM_PAYMT_INFO_tab(i).CC_GATEWAY_REQ_ID from PA_PURCHASE_PAYMENT where PUR_PUR_ID=DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM;
+      select CC_GATEWAY_REQ_ID, CC_TXN_REF_NUM ,
+	  EMP_EMP_CODE, to_char(PUR_CREDIT_EXP_DATE,'YYYY') ,
+	  EMP_EMP_CODE, to_char(PUR_CREDIT_EXP_DATE,'MM') ,
+	  PUR_PAY_AMT  , PAYTYPE_PAYMENT_TYPE_CODE 
+	  into 
+	  DM_PAYMT_INFO_tab(i).CC_GATEWAY_REQ_ID , 
+	  DM_PAYMT_INFO_tab(i).CC_TXN_REF_NUM,
+	  DM_PAYMT_INFO_tab(i).EMPLOYEE_NUMBER,
+	  DM_PAYMT_INFO_tab(i).EXP_YEAR,
+	  DM_PAYMT_INFO_tab(i).CREATED_BY,
+	  DM_PAYMT_INFO_tab(i).EXP_MONTH,
+	  DM_PAYMT_INFO_tab(i).AMOUNT,
+	  DM_PAYMT_INFO_tab(i).PAY_TYPE
+	  from PA_PURCHASE_PAYMENT 
+	  where PUR_PUR_ID=DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM;
       exception when others then null;
       DM_PAYMT_INFO_tab(i).CC_GATEWAY_REQ_ID:=null;
     end;
 
-    /* get PA_PURCHASE_PAYMENT.CC_TXN_REF_NUM for CC_TXN_REF_NUM */
-    begin
-      select CC_TXN_REF_NUM into DM_PAYMT_INFO_tab(i).CC_TXN_REF_NUM from PA_PURCHASE_PAYMENT 
-      where PUR_PUR_ID=DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM;
-      exception when others then null;
-      DM_PAYMT_INFO_tab(i).CC_TXN_REF_NUM:=null;
-    end;
 
-	/* get PA_PURCHASE_DETAIL.VES_REF_NUM for ORG_TRANSACTION_ID */
-    begin
-      select VES_REF_NUM into DM_PAYMT_INFO_tab(i).ORG_TRANSACTION_ID from PA_PURCHASE_DETAIL
-      where PUR_PUR_ID=DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM;
-      exception when others then null;
-      DM_PAYMT_INFO_tab(i).ORG_TRANSACTION_ID:=null;
-	end;
 
     end loop;
 	
