@@ -60,8 +60,8 @@ BEGIN
 
     FOR i in 1 .. DM_PAYMT_ITM_INFO_tab.count loop
 	
-	    /* get PA_PURCHASE.PUR_TRANS_DATE for CREATED */
-    begin
+	
+	 begin
       select PUR_TRANS_DATE, PUR_ID  into 
 	  DM_PAYMT_ITM_INFO_tab(i).CREATED,
 	  DM_PAYMT_ITM_INFO_tab(i).INVOICE_NUM from PA_PURCHASE 
@@ -71,30 +71,23 @@ BEGIN
         when others then null;
         DM_PAYMT_ITM_INFO_tab(i).CREATED:=null;
     end;
-
-
-    /* get PA_PURCHASE_PAYMENT.EMP_EMP_CODE for CREATED_BY */
-    begin
+	
+	begin
       select EMP_EMP_CODE into DM_PAYMT_ITM_INFO_tab(i).CREATED_BY from PA_PURCHASE_PAYMENT       
 	  where PUR_PAY_ID=DM_PAYMT_ITM_INFO_tab(i).PARENT_PAYMENT_ID and rownum<=1;
-      exception when others then null;
-      DM_PAYMT_ITM_INFO_tab(i).CREATED_BY:=null;
+      exception 
+	  when others then null;
+        DM_PAYMT_ITM_INFO_tab(i).CREATED_BY:=null;
     end;
-
-
-
-    /* get PA_PUR_PRODUCT.PUR_PRODUCT_DESC for DESCRIPTION */
-    begin
+	
+	 begin
       select PUR_PRODUCT_DESC into DM_PAYMT_ITM_INFO_tab(i).DESCRIPTION from PA_PUR_PRODUCT 
-      where PUR_PRODUCT_CODE=(select PRODUCT_PUR_PRODUCT_CODE from PA_PURCHASE_DETAIL
-	                          where PUR_PUR_ID=DM_PAYMT_ITM_INFO_tab(i).PARENT_PAYMENT_ID)
+      where PUR_PRODUCT_CODE= DM_PAYMT_ITM_INFO_tab(i).CATEGORY 
             and rownum<=1;
       exception 
         when others then null;
         DM_PAYMT_ITM_INFO_tab(i).DESCRIPTION:=null;
     end;
-
-	
 	
 	 /* to default the values NOT NULL columns */
  	 if DM_PAYMT_ITM_INFO_tab(i).CATEGORY is null then
