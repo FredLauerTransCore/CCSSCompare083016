@@ -28,6 +28,7 @@ CURSOR C1 IS SELECT
     ,'0' EXTERN_FILE_ID
     ,EXT_LANE_ID LANE_ID
     ,EXT_DATE_TIME TX_TIMESTAMP
+    ,TXN_ID LANE_TXN_ID
     ,decode(trans_source,null,0,1) TX_MOD_SEQ
     ,'R' TX_TYPE_IND
     ,'T' TX_SUBTYPE_IND
