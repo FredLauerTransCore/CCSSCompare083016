@@ -32,6 +32,7 @@ IS SELECT
     ,0 EXTERN_FILE_ID
     ,EXT_LANE_ID LANE_ID  -- Xerox - internal lookup for the internal lane ID
     ,EXT_DATE_TIME TX_TIMESTAMP
+    ,TXN_ID LANE_TXN_ID
     ,NVL2(TRANS_SOURCE,1,0) TX_MOD_SEQ  -- Derived IF TRANS_SOURCE IS NULL THEN 0 ELSE 1
     ,'F' TX_TYPE_IND
     ,'Z' TX_SUBTYPE_IND
