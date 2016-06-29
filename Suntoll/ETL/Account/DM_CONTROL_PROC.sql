@@ -53,7 +53,7 @@ BEGIN
 
     START_ETL_TRACK_PROC(c_rec, i_track_id, trac_etl_rec);    
 
-    PRE_SOURCE_PROC(c_rec, trac_etl_rec.track_etl_id);
+--    PRE_SOURCE_PROC(c_rec, trac_etl_rec.track_etl_id);
 
 --  Dynamic PL/SQL block invokes subprogram:
 --  plsql_block := 'BEGIN create_dept(:a, :b, :c, :d); END;';
@@ -64,16 +64,16 @@ BEGIN
 --    USING IN OUT new_deptid, new_dname, new_mgrid, new_locid;
 
     sql_string := 'BEGIN '||trac_rec.SOURCE_SYSTEM||'_user.'||c_rec.etl_name||'_PROC(:id); END;';
---    DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
+    DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
 
     EXECUTE IMMEDIATE sql_string
     USING trac_etl_rec.track_etl_id;
     
-    POST_DM_PROC(c_rec, trac_etl_rec.track_etl_id);
-
-    VALIDATE_DM_PROC(c_rec, trac_etl_rec.track_etl_id);
---    END_ETL_TRACK(trac_etl_rec);
-
+--    POST_DM_PROC(c_rec, trac_etl_rec.track_etl_id);
+--
+--    VALIDATE_DM_PROC(c_rec, trac_etl_rec.track_etl_id);
+----    END_ETL_TRACK(trac_etl_rec);
+--
   END LOOP;
 
   COMMIT;

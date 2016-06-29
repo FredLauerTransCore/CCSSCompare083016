@@ -24,7 +24,8 @@ DM_ACCOUNT_INFO_tab DM_ACCOUNT_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
-CURSOR C1   --(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+CURSOR C1
+--(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
     pa.ACCT_NUM ACCOUNT_NUMBER
     ,pa.ACCTSTAT_ACCT_STATUS_CODE ACCOUNT_STATUS
@@ -98,8 +99,7 @@ FROM PA_ACCT pa
 WHERE  pa.ACCT_NUM = pad.ACCT_NUM (+)
 --AND pa.ACCT_NUM > 0
 --and rownum<3501
---AND   pa.ACCT_NUM >= p_begin_acct_num
---AND   pa.ACCT_NUM <= p_end_acct_num
+--AND   pa.ACCT_NUM >= p_begin_acct_num AND   pa.ACCT_NUM <= p_end_acct_num
 ; 
 
 SQL_STRING  varchar2(500) := 'delete table ';
@@ -123,7 +123,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;  --  -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  OPEN C1; --(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 

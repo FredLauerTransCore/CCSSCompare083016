@@ -34,20 +34,29 @@ P_ARRAY_SIZE NUMBER:=10000;
 CURSOR C1
 --(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
- -- Valid status: (xerox internal values 0100 to 0200) 
- -- FTE:  Unbilled; Invoice One; Invoice Two; Collection; Registration Stop; Court; Write Off; 
- --       Bankruptcy; Deceased; UTC (Uniform Traffic Citation); Paid;  .  
--- Sunny will provide extract rule to determine status once the status is finalized between Xerox and FTE. 
     NULL EVENT_TYPE     
     ,NULL PREV_EVENT_TYPE 
-    ,CASE WHEN va.BANKRUPTCY_FLAG is NOT NULL then 'BANKRUPTCY'
-          WHEN va.COLL_COURT_FLAG = 'COLL' and va.DOCUMENT_ID IS NOT NULL and va.CHILD_DOC_ID IS NOT NULL then 'COLLECTION'
-          WHEN va.COLL_COURT_FLAG = 'CRT' and va.DOCUMENT_ID IS NOT NULL and va.CHILD_DOC_ID IS NOT NULL then 'COURT'
+
+--   VIOL_TX_STATUS mapping:
+--   =======================
+--   DOCUMENT_ID   |  Value
+--   -----------------------
+--   UNBILLED      |  601
+--   INVOICED      |  602
+--   ESCALATED     |  603
+--   UTC           |  604
+--   COLLECTION    |  605
+--   COURT         |  606
+--   BANKRUPTCY    |  607
+--   -----------------------
+    ,CASE WHEN va.BANKRUPTCY_FLAG is NOT NULL then 607  -- 'BANKRUPTCY'
+          WHEN va.COLL_COURT_FLAG = 'COLL' and va.DOCUMENT_ID IS NOT NULL and va.CHILD_DOC_ID IS NOT NULL then 605  -- 'COLLECTION'
+          WHEN va.COLL_COURT_FLAG = 'CRT' and va.DOCUMENT_ID IS NOT NULL and va.CHILD_DOC_ID IS NOT NULL then 606  -- 'COURT'
           WHEN va.COLL_COURT_FLAG is NOT NULL then NULL
-          WHEN va.DOCUMENT_ID IS NULL THEN 'UNBILLED'
-          WHEN va.CHILD_DOC_ID IS NULL THEN 'INVOICED'
-          WHEN va.CHILD_DOC_ID LIKE '%-%' THEN 'UTC'  -- VIOL_TX_STATUS
-          WHEN va.CHILD_DOC_ID IS NOT NULL THEN 'ESCALATED'
+          WHEN va.DOCUMENT_ID IS NULL THEN 601  -- 'UNBILLED'
+          WHEN va.CHILD_DOC_ID IS NULL THEN 602  -- 'INVOICED'
+          WHEN va.CHILD_DOC_ID LIKE '%-%' THEN 604  -- 'UTC'
+          WHEN va.CHILD_DOC_ID IS NOT NULL THEN 603  -- 'ESCALATED'
           ELSE NULL
      END VIOL_TX_STATUS
     ,NULL PREV_VIOL_TX_STATUS
@@ -55,10 +64,12 @@ IS SELECT
 
     ,kl.ACCT_NUM ETC_ACCOUNT_ID   -- Join KS_LEDGER on TXN_ID ** add to internal Xerox Discussion
     ,lt.VEH_LIC_NUM PLATE_NUMBER
---    ,(select STATE_CODE_ABBR from PA_STATE_CODE where STATE_CODE_NUM=lt.STATE_ID_CODE)
---        PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
-    ,NULL PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
-    ,NULL PLATE_COUNTRY -- LOOKUP PA_STATE_CODE. Xerox - internal lookup in DM_ADDRESS_INFO and assign country correctly. visit DM_VEHICLE_INFO and DM_ACCT_INFO
+    ,(select STATE_CODE_ABBR from PA_STATE_CODE where STATE_CODE_NUM=lt.STATE_ID_CODE)
+        PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
+    ,nvl((select nvl(cs.COUNTRY,'USA') 
+            from COUNTRY_STATE_LOOKUP cs, PA_STATE_CODE s
+           where cs.STATE_ABBR = s.STATE_CODE_ABBR
+           and   s.STATE_CODE_NUM = lt.STATE_ID_CODE),'USA') PLATE_COUNTRY
     ,NULL MAKE_ID
     
 --IF BANKRUPTCY_FLAG is not null, then 'BANKRUPTCY'
@@ -142,6 +153,7 @@ IS SELECT
     ,0 IMAGE_BATCH_SEQ_NUMBER
     ,NULL RECON_STATUS_IND  -- XEROX - TO FOLLOW UP
     ,'SUNTOLL' SOURCE_SYSTEM
+    ,lt.txn_id LANE_TX_ID
 FROM PA_LANE_TXN  lt
     ,KS_LEDGER kl
 --    ,ST_DOCUMENT_INFO di

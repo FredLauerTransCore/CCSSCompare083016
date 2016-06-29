@@ -51,8 +51,7 @@ IS SELECT
     ,pav.STATE_STATE_CODE_ABBR PLATE_STATE
     ,nvl((select substr(trim(cs.COUNTRY),1,4) from  COUNTRY_STATE_LOOKUP cs
            where cs.STATE_ABBR = pav.STATE_STATE_CODE_ABBR),'USA') PLATE_COUNTRY
---    ,'USA' PLATE_COUNTRY
-    ,nvl(pav.VEH_LIC_TYPE,'NULL') PLATE_TYPE    -- Prefix and Suffix for the Country and State.  
+    ,nvl(pav.VEH_LIC_TYPE,'NULL-none') PLATE_TYPE    -- Prefix and Suffix for the Country and State.  
     ,'REGULAR' VEHICLE_TYPE     
     ,SUBSCRIPTION_START_DATE EFFECTIVE_START_DATE
     ,SUBSCRIPTION_END_DATE EFFECTIVE_END_DATE
@@ -64,7 +63,7 @@ IS SELECT
     ,srs.REG_STOP_REMOVAL_SENT_ON REG_STOP_END_DATE -- ST_REG_STOP
     ,NULL METAL_OXIDE_WIND_SHIELD
     ,NULL DMV_RETURN_DATE  -- suntoll    --MAX(RESPONSE_DATE)Event lookup ROV
-    ,0 VEHICLE_CLASS  -- Required
+    ,0 VEHICLE_CLASS  -- Required number
     ,NULL AXLE_COUNT
     ,NULL IS_DUAL_TIRE
     ,pav.RENTAL_CAR_FLAG IS_RENTAL

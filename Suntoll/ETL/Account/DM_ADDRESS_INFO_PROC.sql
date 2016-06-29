@@ -31,32 +31,37 @@ CURSOR C1
 IS SELECT 
     paa.ACCT_NUM ACCOUNT_NUMBER
     ,'MAILING' ADDR_TYPE
-    ,'1' ADDR_TYPE_INT_ID
+    ,1 ADDR_TYPE_INT_ID
     ,paa.ADDR1 STREET_1    -- ADDR_1 mapping
     ,paa.ADDR2 STREET_2    -- ADDR_2 mapping
     ,paa.CITY CITY
-    ,paa.STATE_CODE_ABBR STATE    -- STATE_STATE_CODE_ABBR mapping
-    ,paa.ZIP_CODE ZIP_CODE
-    ,SUBSTR(paa.ZIP_CODE,7,10) ZIP_PLUS4
-    ,paa.COUNTRY_CODE COUNTRY   -- COUNTRY_COUNTRY_CODE mapping
-    ,paa.BAD_ADDR_DATE NIXIE
+--    ,paa.STATE_CODE_ABBR STATE    -- STATE_STATE_CODE_ABBR mapping
+    ,NULL STATE    -- STATE_STATE_CODE_ABBR mapping
+--    ,paa.ZIP_CODE ZIP_CODE
+    ,NULL ZIP_CODE
+--    ,SUBSTR(paa.ZIP_CODE,7,10) ZIP_PLUS4
+    ,NULL ZIP_PLUS4
+--    ,to_char(paa.COUNTRY_CODE) COUNTRY   -- COUNTRY_COUNTRY_CODE mapping
+    ,1 COUNTRY   -- COUNTRY_COUNTRY_CODE mapping
+    ,nvl2(paa.BAD_ADDR_DATE,'Y','N') NIXIE
     ,to_date('02/27/2017', 'MM/DD/YYYY') NIXIE_DATE
     ,'N' NCOA_FLAG
     ,'N' ADDRESS_CLEANSED_FLG
     ,'CSC' ADDRESS_SOURCE
-    ,pa.CREATED_ON CREATED
+--    ,(select pa.CREATED_ON from PA_ACCT pa
+--          WHERE pa.ACCT_NUM = paa.ACCT_NUM)  CREATED
+    ,NULL  CREATED
     ,'SUNTOLL_CSC_ID' CREATED_BY
     ,to_date('02/27/2017', 'MM/DD/YYYY') LAST_UPD
     ,'SUNTOLL_CSC_ID' LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
     ,NULL ADDRESS_NUMBER  -- DECODE?
---    ,(select csl.COUNTY from COUNTRY_STATE_LOOKUP csl
---        where csl.CITY = pa.CITY) 
-    ,NULL   COUNTY_CODE
+-- ICD - ,(select csl.COUNTY from COUNTY_STATE_LOOKUP csl where csl.CITY = paa.CITY) COUNTY_CODE
+--    ,paa.COUNTY_CODE   COUNTY_CODE  --  (Need table)
+    ,NULL   COUNTY_CODE  --  (Need table)
 FROM PA_ACCT_ADDR paa
-    ,PA_ACCT pa
-WHERE paa.ACCT_NUM = pa.ACCT_NUM
---AND   paa.ACCT_NUM >= p_begin_acct_num AND   paa.ACCT_NUM <= p_end_acct_num
+where paa.acct_num<50000000
+--where    paa.ACCT_NUM >= p_begin_acct_num   AND   paa.ACCT_NUM <= p_end_acct_num
 ;
 
 row_cnt          NUMBER := 0;
@@ -78,7 +83,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  OPEN C1; --(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 

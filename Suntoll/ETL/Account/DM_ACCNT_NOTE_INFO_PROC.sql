@@ -24,8 +24,8 @@ DM_ACCNT_NOTE_INFO_tab DM_ACCNT_NOTE_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
-CURSOR C1 --(p_begin_acct_num  pa_acct.acct_num%TYPE, 
-          --p_end_acct_num    pa_acct.acct_num%TYPE)
+CURSOR C1 
+--(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
     ACCT_NUM ACCOUNT_NUMBER
     ,PROB_CODE NOTE_TYPE 
@@ -38,8 +38,8 @@ IS SELECT
     ,EMP_CODE LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM NOTE
---WHERE ACCT_NUM >= p_begin_acct_num
---AND   ACCT_NUM <= p_end_acct_num
+where ACCT_NUM is not null
+--WHERE ACCT_NUM >= p_begin_acct_num  AND   ACCT_NUM <= p_end_acct_num
 ;   -- Source
 
 sql_string  VARCHAR2(500);
@@ -63,7 +63,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  OPEN C1;  --(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.begin_val := v_trac_rec.begin_acct;
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);

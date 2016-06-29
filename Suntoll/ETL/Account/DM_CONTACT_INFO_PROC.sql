@@ -63,7 +63,7 @@ IS SELECT
     ,'SUNTOLL_CSC_ID' LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM PA_ACCT
---AND   ACCT_NUM >= p_begin_acct_num AND   ACCT_NUM <= p_end_acct_num
+--WHERE   ACCT_NUM >= p_begin_acct_num AND   ACCT_NUM <= p_end_acct_num
 ; -- Source
 
 row_cnt          NUMBER := 0;
@@ -85,7 +85,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  OPEN C1;  --(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 

@@ -12,9 +12,9 @@ set serveroutput on
 set verify on
 set echo on
 
-declare
---CREATE OR REPLACE PROCEDURE DM_INVOICE_HST_INFO_PROC IS
-
+CREATE OR REPLACE PROCEDURE DM_INVOICE_HST_INFO_PROC  
+  (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
+IS
 P_BEGIN_DATE  DATE;
 P_END_DATE    DATE;
 
@@ -25,7 +25,9 @@ DM_INVOICE_HST_INFO_tab DM_INVOICE_HST_INFO_TYP;
 P_ARRAY_SIZE NUMBER:=10000;
 
 
-CURSOR C1 IS SELECT 
+CURSOR C1
+--(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+IS SELECT
     sdi.ACCT_NUM ACCOUNT_NUMBER
     ,sdi.DOCUMENT_ID INVOICE_NUMBER
     ,trunc(sdi.CREATED_ON) INVOICE_DATE  -- date only
@@ -147,15 +149,32 @@ CURSOR C1 IS SELECT
       ,PATRON.VB_ACTIVITY va
       ,PATRON.ST_ACTIVITY_PAID sap
   WHERE sdi.DOCUMENT_ID = va.DOCUMENT_ID (+)  
-    AND sdi.DOCUMENT_ID = sap.DOCUMENT_ID (+)   ; -- Source
+    AND sdi.DOCUMENT_ID = sap.DOCUMENT_ID (+)
+--AND   di.ACCT_NUM >= p_begin_acct_num AND   di.ACCT_NUM <= p_end_acct_num
+; -- Source
 
-SQL_STRING  varchar2(500) := 'truncate table ';
-LOAD_TAB    varchar2(50)  := 'DM_INVOICE_HST_INFO';
-ROW_CNT NUMBER := 0;
+row_cnt          NUMBER := 0;
+v_trac_rec       dm_tracking%ROWTYPE;
+v_trac_etl_rec   dm_tracking_etl%ROWTYPE;
 
 BEGIN
+  SELECT * INTO v_trac_etl_rec
+  FROM  dm_tracking_etl
+  WHERE track_etl_id = i_trac_id;
+  DBMS_OUTPUT.PUT_LINE('Start '||v_trac_etl_rec.etl_name||' ETL load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+
+  v_trac_etl_rec.status := 'ETL Start ';
+  v_trac_etl_rec.proc_start_date := SYSDATE;  
+  update_track_proc(v_trac_etl_rec);
  
-  OPEN C1;  
+  SELECT * INTO   v_trac_rec
+  FROM   dm_tracking
+  WHERE  track_id = v_trac_etl_rec.track_id
+  ;
+
+  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  v_trac_etl_rec.status := 'ETL Processing ';
+  update_track_proc(v_trac_etl_rec);
 
   LOOP
 
@@ -171,21 +190,35 @@ BEGIN
     FORALL i in DM_INVOICE_HST_INFO_tab.first .. DM_INVOICE_HST_INFO_tab.last
            INSERT INTO DM_INVOICE_HST_INFO VALUES DM_INVOICE_HST_INFO_tab(i);
                        
+    row_cnt := row_cnt +  SQL%ROWCOUNT;
+    v_trac_etl_rec.dm_load_cnt := row_cnt;
+    update_track_proc(v_trac_etl_rec);
+                       
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
+  DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
 
   COMMIT;
 
   CLOSE C1;
 
   COMMIT;
-
+  v_trac_etl_rec.status := 'ETL Completed';
+  v_trac_etl_rec.result_code := SQLCODE;
+  v_trac_etl_rec.result_msg := SQLERRM;
+  v_trac_etl_rec.end_val := v_trac_rec.end_acct;
+  v_trac_etl_rec.proc_end_date := SYSDATE;
+  update_track_proc(v_trac_etl_rec);
+  
   EXCEPTION
   WHEN OTHERS THEN
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
-     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
+    v_trac_etl_rec.result_code := SQLCODE;
+    v_trac_etl_rec.result_msg := SQLERRM;
+    v_trac_etl_rec.proc_end_date := SYSDATE;
+    update_track_proc(v_trac_etl_rec);
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
 END;
 /
 SHOW ERRORS
-
-

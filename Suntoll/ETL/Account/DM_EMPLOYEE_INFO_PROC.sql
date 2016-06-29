@@ -33,7 +33,7 @@ CURSOR C1 IS SELECT
     ,nvl(USER_TYPE_CODE,0) JOB_TITLE
     ,trim(nvl(M_INITIAL,'0')) MID_NAME
 --    ,NULL BIRTH_DT   -- Target is required
-    ,to_date('01-01-1800','MM-DD-YYYY') BIRTH_DT   -- Target is required
+    ,to_date('11/17/1858','MM/DD/YYYY') BIRTH_DT   -- Target is required
     ,nvl(LOCATION_ID,0) STORE_NAME
     ,'SUNTOLL' SOURCE_SYSTEM    
     ,CREATED_ON CREATED

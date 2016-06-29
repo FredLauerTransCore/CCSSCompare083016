@@ -33,7 +33,7 @@ IS SELECT
 --    UFM_LANE_TXN_INFO.HOST_UFM_TOKEN TX_EXTERN_REF_NO -- JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN
     nvl((select HOST_UFM_TOKEN from UFM_LANE_TXN_INFO where TXN_ID = lt.TXN_ID),0)
         TX_EXTERN_REF_NO   -- Required added default to 0 
-    ,nvl(lt.EXT_MSG_SEQ_NUM,0) TX_SEQ_NUMBER  -- Required added default to 0 ?
+    ,to_number(nvl(lt.EXT_MSG_SEQ_NUM,'0')) TX_SEQ_NUMBER  -- Required added default to 0 ?
     ,nvl(lt.TOUR_TOUR_SEQ,0) EXTERN_FILE_ID -- Required added default to 0 ?
 --    ,NVL(lt.EXT_LANE_ID,1) LANE_ID
     ,1 LANE_ID
@@ -45,28 +45,28 @@ IS SELECT
     ,'I' TX_SUBTYPE_IND
     ,DECODE(substr(pp.PLAZA_ID,1,3),'004', 'C', 'B')
         TOLL_SYSTEM_TYPE -- IF PLAZA_ID STARTS WITH '004' THEN 'C' ELSE 'B'
---    ,nvl(lt.EXT_LANE_TYPE_CODE,0) LANE_MODE  -- Required added default to 0 
-    ,0 LANE_MODE  -- Required added default to 0 Chsr
+--    ,to_number(nvl(lt.EXT_LANE_TYPE_CODE,'0')) LANE_MODE  Source is char, target is number
+    ,0 LANE_MODE  -- Required added default to 0 
     ,1 LANE_TYPE
     ,0 LANE_STATE
     ,0 LANE_HEALTH
 --    AGENCY_ID.PLAZA_AGENCY_ID -- Join ST_INTEROP_AGENCIES and PA_PLAZA on ENT_PLAZA_ID to PLAZA_ID
-    ,nvl((select AGENCY_ID from ST_INTEROP_AGENCIES where ENT_PLAZA_ID = pp.PLAZA_ID),0)  
+    ,to_number(nvl((select AGENCY_ID from ST_INTEROP_AGENCIES where ENT_PLAZA_ID = pp.PLAZA_ID),'0'))
         PLAZA_AGENCY_ID  -- Required added default to 0 
-    ,nvl(lt.EXT_PLAZA_ID,0) PLAZA_ID -- Required added default to 0 
+    ,to_number(nvl(lt.EXT_PLAZA_ID,'0')) PLAZA_ID -- Required added default to 0 
     ,0 COLLECTOR_ID
     ,0 TOUR_SEGMENT_ID
     ,0 ENTRY_DATA_SOURCE
-    ,nvl(lt.ENT_LANE_ID,0) ENTRY_LANE_ID
-    ,nvl(lt.ENT_PLAZA_ID,0) ENTRY_PLAZA_ID
-    ,lt.ENT_DATE_TIME ENTRY_TIMESTAMP
-    ,nvl(lt.TXN_ENTRY_NUMBER,0) ENTRY_TX_SEQ_NUMBER
+    ,to_number(nvl(lt.ENT_LANE_ID,'0')) ENTRY_LANE_ID  -- Required added default to 0 
+    ,to_number(nvl(lt.ENT_PLAZA_ID,'0')) ENTRY_PLAZA_ID  -- Required added default to 0 
+    ,nvl(lt.ENT_DATE_TIME,SYSDATE) ENTRY_TIMESTAMP   -- Required added default to SYSDATE
+    ,nvl(lt.TXN_ENTRY_NUMBER,0) ENTRY_TX_SEQ_NUMBER  -- Required added default to 0 
     ,0 ENTRY_VEHICLE_SPEED
     ,0 LANE_TX_STATUS
     ,0 LANE_TX_TYPE
     ,0 TOLL_REVENUE_TYPE
-    ,lt.AVC_CLASS ACTUAL_CLASS
-    ,lt.AVC_CLASS ACTUAL_AXLES
+    ,to_number(nvl(lt.AVC_CLASS,'0')) ACTUAL_CLASS  -- Required added default to 0 
+    ,to_number(nvl(lt.AVC_CLASS,'0')) ACTUAL_AXLES  -- Required added default to 0 
     ,0 ACTUAL_EXTRA_AXLES
     ,0 COLLECTOR_CLASS
     ,0 COLLECTOR_AXLES
@@ -76,9 +76,9 @@ IS SELECT
     ,0 POSTCLASS_AXLES
     ,0 FORWARD_AXLES
     ,0 REVERSE_AXLES
-    ,lt.TOLL_AMT_FULL FULL_FARE_AMOUNT
-    ,lt.TOLL_AMT_CHARGED DISCOUNTED_AMOUNT
-    ,lt.TOLL_AMT_COLLECTED COLLECTED_AMOUNT
+    ,nvl(lt.TOLL_AMT_FULL,0) FULL_FARE_AMOUNT  -- Required added default to 0
+    ,nvl(lt.TOLL_AMT_CHARGED,0) DISCOUNTED_AMOUNT  -- Required added default to 0
+    ,nvl(lt.TOLL_AMT_COLLECTED,0) COLLECTED_AMOUNT  -- Required added default to 0
     ,0 UNREALIZED_AMOUNT
     ,'N' IS_DISCOUNTABLE
     ,'N' IS_MEDIAN_FARE
@@ -87,29 +87,36 @@ IS SELECT
     ,0 VEHICLE_SPEED
     ,0 RECEIPT_ISSUED
     ,lt.TRANSP_ID DEVICE_NO
-    ,(select pa.ACCTTYPE_ACCT_TYPE_CODE from PA_ACCT pa where pa.ACCT_NUM=kl.ACCT_NUM)
+    ,(select to_number(pa.ACCTTYPE_ACCT_TYPE_CODE) from PA_ACCT pa where pa.ACCT_NUM=kl.ACCT_NUM)
         ACCOUNT_TYPE -- PA_ACCT
-    ,to_number(nvl(lt.TRANSP_CLASS,'0')) DEVICE_CODED_CLASS  -- Convert to Number from varchar
+    ,to_number(nvl(lt.TRANSP_CLASS,'0')) DEVICE_CODED_CLASS  -- Required added default to 0/Convert to Number from varchar
     ,0 DEVICE_AGENCY_CLASS
     ,0 DEVICE_IAG_CLASS
     ,0 DEVICE_AXLES
     ,kl.ACCT_NUM ETC_ACCOUNT_ID  -- KS_LEDGER - Join KS_LEDGER on TXN_ID
     ,0 ACCOUNT_AGENCY_ID
-    ,'N' READ_AVI_CLASS
-    ,'N' READ_AVI_AXLES
-    ,0 DEVICE_PROGRAM_STATUS
-    ,0 BUFFERED_READ_FLAG
-    ,NVL(MSG_INVALID,0) LANE_DEVICE_STATUS
+    ,to_number(nvl(lt.TRANSP_CLASS,'0'))  READ_AVI_CLASS  -- Required added default to 0
+    ,0 READ_AVI_AXLES
+    ,'N' DEVICE_PROGRAM_STATUS
+    ,'N' BUFFERED_READ_FLAG
+    ,to_number(NVL(MSG_INVALID,'0')) LANE_DEVICE_STATUS -- Required added default to 0
     ,0 POST_DEVICE_STATUS
     ,(nvl(kl.BALANCE,0)-nvl(kl.AMOUNT,0)) PRE_TXN_BALANCE -- Derived - KS_LEDGER current balance minus amount 
 
 ------ PLAN_TYPE_ID - IF ITOL_AGENCY_CODE IN (9,10,11,12,13,14,15) 
------- THEN RENTAL ELSE POSTPAID, Xerox will provide numbers for  rental vs postpaid
+------ THEN RENTAL ELSE POSTPAID, 
+--  Xerox will provide numbers for  rental vs postpaid  ---------------------
 --    ,CASE WHEN ITOL_AGENCY_CODE IN (9,10,11,12,13,14,15) 
---          THEN 'RENTAL' ELSE 'POSTPAID'
+--          THEN 9  --'RENTAL' 
+--          ELSE 10 --'POSTPAID'
 --      END PLAN_TYPE_ID
-    ,0 PLAN_TYPE_ID   -- ?? Required
-    ,0 ETC_TX_STATUS -- IF RENTAL THEN 9 of POSTPAID THEN 10 (From Above)  ?? Required
+      ,0 PLAN_TYPE_ID
+ -- IF RENTAL THEN 9 of POSTPAID THEN 10 (From Above)  ?? Required
+--    ,CASE WHEN ITOL_AGENCY_CODE IN (9,10,11,12,13,14,15) 
+--          THEN 9  --'RENTAL' 
+--          ELSE 10 --'POSTPAID'
+--      END ETC_TX_STATUS  --   
+      ,0 ETC_TX_STATUS  --   
 
     ,'F' SPEED_VIOL_FLAG
     ,'Y' IMAGE_TAKEN
@@ -120,19 +127,20 @@ IS SELECT
         where csl.STATE_ABBR = lt.STATE_ID_CODE),'USA')
         PLATE_COUNTRY
 
-    ,(select STATE_CODE_ABBR from PA_STATE_CODE where STATE_CODE_NUM=lt.STATE_ID_CODE)
-        PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
-    ,VEH_LIC_NUM PLATE_NUMBER
-    ,trunc(EXT_DATE_TIME) REVENUE_DATE -- Date only
+--    ,(select STATE_CODE_ABBR from PA_STATE_CODE where STATE_CODE_NUM=lt.STATE_ID_CODE)
+--        PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
+    ,nvl(lt.STATE_ID_CODE,'n') PLATE_STATE  -- Required
+    ,nvl(lt.VEH_LIC_NUM,'NULL-none') PLATE_NUMBER
+    ,trunc(EXT_DATE_TIME) REVENUE_DATE -- Date only 
     ,trunc(TXN_PROCESS_DATE) POSTED_DATE -- Date only
     ,0 ATP_FILE_ID
     ,TXN_PROCESS_DATE UPDATE_TS -- Date and Time
     ,'N' IS_REVERSED
     ,0 CORR_REASON_ID
     ,trunc(TXN_PROCESS_DATE) RECON_DATE -- Date only
-    ,NULL RECON_STATUS_IND  -- XEROX - TO FOLLOW UP
-    ,NULL RECON_SUB_CODE_IND  -- XEROX - TO FOLLOW UP
-    ,nvl((select pt.COLLECTION_DATE from PA_TOUR pt where pt.TOUR_SEQ = lt.TOUR_TOUR_SEQ),(SYSDATE-(352*100)))
+    ,0 RECON_STATUS_IND  -- XEROX - TO FOLLOW UP
+    ,0 RECON_SUB_CODE_IND  -- XEROX - TO FOLLOW UP
+    ,nvl((select pt.COLLECTION_DATE from PA_TOUR pt where pt.TOUR_SEQ = lt.TOUR_TOUR_SEQ),SYSDATE)  -- (SYSDATE-(352*100)
         EXTERN_FILE_DATE  -- JOIN TO PA_TOUR ON TOUR_SEQ=TOUR_TOUR_SEQ RETURN COLLECTION_DATE
     ,0 MILEAGE
     ,0 DEVICE_READ_COUNT
@@ -141,13 +149,13 @@ IS SELECT
     ,0 ENTRY_DEVICE_WRITE_COUNT
     ,'000000000000' DEPOSIT_ID
     ,trunc(EXT_DATE_TIME) TX_DATE -- Date only
-    ,nvl(pp.PLAZA_NAME,'NULL') LOCATION  -- JOIN PA_PLAZA ON PLAZA_ID=EXT_PLAZA_ID RETURN PLAZA_NAME
-    ,nvl(pp.FACCODE_FACILITY_CODE,'NULL') FACILITY_ID -- JOIN PA_PLAZA ON PLAZA_ID=EXT_PLAZA_ID RETURN FACCODE_FACILITY_CODE
+    ,nvl(substr(trim(pp.PLAZA_NAME),1,15),'NULL-none') LOCATION  -- JOIN PA_PLAZA ON PLAZA_ID=EXT_PLAZA_ID RETURN PLAZA_NAME
+    ,nvl(pp.FACCODE_FACILITY_CODE,'NULL-none') FACILITY_ID -- JOIN PA_PLAZA ON PLAZA_ID=EXT_PLAZA_ID RETURN FACCODE_FACILITY_CODE
     ,0 FARE_TBL_ID
     ,0 TRAN_CODE
     ,'SUNTOLL' SOURCE_SYSTEM
-    ,TXN_ID LANE_TX_ID
-    ,NULL DEVICE_INTERNAL_NUMBER
+    ,lt.TXN_ID LANE_TX_ID
+    ,lt.TRANSP_INTERNAL_NUM DEVICE_INTERNAL_NUMBER
 FROM PA_LANE_TXN lt
     ,KS_LEDGER kl
     ,PA_PLAZA pp

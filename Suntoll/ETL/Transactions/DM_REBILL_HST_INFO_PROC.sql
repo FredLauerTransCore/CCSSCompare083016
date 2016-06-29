@@ -61,8 +61,8 @@ IS SELECT
     ,NULL REBILL_PAY_TYPE_INTEGRATION_ID
     ,NULL STATUS
     ,NULL TYPE
-FROM PATRON.PA_ACCT_WALLET aw
-    ,PATRON.PA_CREDIT_CARD cc
+FROM PA_ACCT_WALLET aw
+    ,PA_CREDIT_CARD cc
 WHERE aw.CARD_SEQ = cc.CARD_SEQ
 --AND   paa.ACCT_NUM >= p_begin_acct_num AND   paa.ACCT_NUM <= p_end_acct_num
     ; -- Source

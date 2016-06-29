@@ -41,9 +41,10 @@ IS SELECT
     ,'1' SEQUENCE_NUMBER -- DEFAULT to 1 ; FTE - We need the value possibilities, and what the sequence numbers are
     ,cc.CREATED_DATE CREATED
     ,aw.CREATED_BY CREATED_BY 
-    ,NULL LAST_UPD
+--    ,NULL LAST_UPD    -- ICD N/A
+    ,SYSDATE LAST_UPD  -- Required need default
     ,NULL LAST_UPD_BY
-    ,aw.LAST_USED_DATE LAST_USED_DATE  -- PA_ACCT_WALLET
+    ,nvl(aw.LAST_USED_DATE,cc.CREATED_DATE LAST_USED_DATE  -- PA_ACCT_WALLET
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM PA_ACCT_WALLET aw
     ,PA_CREDIT_CARD cc
