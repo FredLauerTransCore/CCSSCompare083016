@@ -44,7 +44,7 @@ CURSOR C1 IS SELECT
     ,'SUNPASS_CSC_ID' LAST_UPD_BY
     ,'SUNPASS' SOURCE_SYSTEM
     ,NULL ADDRESS_NUMBER
-    ,'..' COUNTY_CODE
+    ,COUNTY_COUNTY_CODE COUNTY_CODE
 FROM PA_ACCT;
 
 BEGIN
@@ -61,7 +61,7 @@ BEGIN
     /*ETL SECTION BEGIN */
 
 
-    FOR i in DM_ADDRESS_INFO_tab.first .. DM_address_info_tab.last loop
+    FOR i in 1 .. DM_address_info_tab.count loop
 
     /* get PA_ACCT_FLAGS.MAIL_RETURNED for NIXIE */
     begin

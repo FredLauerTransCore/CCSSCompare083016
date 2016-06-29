@@ -61,7 +61,7 @@ BEGIN
     /* get EXEMPTIONS.EXEMPT_TYPE for PLAN_NAME */
     begin
       select EXEPMT_TYPE into DM_EXEMPT_PLAN_tab(i).PLAN_NAME from EXEMPTIONS 
-      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).ACCOUNT_NUMBER
+      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).DEVICE_NUMBER
             and rownum<=1;
       exception 
         when others then null;
@@ -71,7 +71,7 @@ BEGIN
     /* get EXEMPTIONS.TRANSPONDER_ID for DEVICE_NUMBER */
     begin
       select TRANSPONDER_ID into DM_EXEMPT_PLAN_tab(i).DEVICE_NUMBER from EXEMPTIONS 
-      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).ACCOUNT_NUMBER
+      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).DEVICE_NUMBER
             and rownum<=1;
       exception 
         when others then null;
@@ -81,7 +81,7 @@ BEGIN
     /* get EXEMPTIONS.FROMDATE for START_DATE */
     begin
       select FROMDATE into DM_EXEMPT_PLAN_tab(i).START_DATE from EXEMPTIONS 
-      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).ACCOUNT_NUMBER
+      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).DEVICE_NUMBER
             and rownum<=1;
       exception 
         when others then null;
@@ -91,7 +91,7 @@ BEGIN
     /* get EXEMPTIONS.TODATE for END_DATE */
     begin
       select TODATE into DM_EXEMPT_PLAN_tab(i).END_DATE from EXEMPTIONS 
-      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).ACCOUNT_NUMBER
+      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).DEVICE_NUMBER
             and rownum<=1;
       exception 
         when others then null;
@@ -101,7 +101,7 @@ BEGIN
     /* get EXEMPTIONS.FROMDATE for CREATED */
     begin
       select FROMDATE into DM_EXEMPT_PLAN_tab(i).CREATED from EXEMPTIONS 
-      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).ACCOUNT_NUMBER
+      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).DEVICE_NUMBER
             and rownum<=1;
       exception 
         when others then null;
@@ -111,7 +111,7 @@ BEGIN
     /* get EXEMPTIONS.FROMDATE for LAST_UPD */
     begin
       select FROMDATE into DM_EXEMPT_PLAN_tab(i).LAST_UPD from EXEMPTIONS 
-      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).ACCOUNT_NUMBER
+      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).DEVICE_NUMBER
             and rownum<=1;
       exception 
         when others then null;
@@ -121,17 +121,27 @@ BEGIN
     /* get EXEMPTIONS.JURISDICTION for PLATE_STATE */
     begin
       select JURISDICTION into DM_EXEMPT_PLAN_tab(i).PLATE_STATE from EXEMPTIONS 
-      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).ACCOUNT_NUMBER
+      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).DEVICE_NUMBER
             and rownum<=1;
       exception 
         when others then null;
         DM_EXEMPT_PLAN_tab(i).PLATE_STATE:=null;
     end;
 
+	    /* get COUNTRY_STATE_LOOKUP.COUNTRY for PLATE_COUNTRY */
+    begin
+      select COUNTRY into DM_EXEMPT_PLAN_tab(i).PLATE_COUNTRY from COUNTRY_STATE_LOOKUP 
+      where STATE_ABBR=DM_EXEMPT_PLAN_tab(i).PLATE_STATE
+            and rownum<=1;
+      exception 
+        when others then null;
+        DM_EXEMPT_PLAN_tab(i).PLATE_COUNTRY:='0';
+    end;
+	
     /* get EXEMPTIONS.PLATE for PLATE_NUMBER */
     begin
       select PLATE into DM_EXEMPT_PLAN_tab(i).PLATE_NUMBER from EXEMPTIONS 
-      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).ACCOUNT_NUMBER
+      where TRANSPONDER_ID=DM_EXEMPT_PLAN_tab(i).DEVICE_NUMBER
             and rownum<=1;
       exception 
         when others then null;
