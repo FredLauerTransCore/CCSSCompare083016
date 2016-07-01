@@ -32,17 +32,14 @@ IS SELECT
     ACCT_NUM  ACCOUNT_NUMBER
     ,'MAILING' ADDR_TYPE
     ,1 ADDR_TYPE_INT_ID
-    ,ADDR1 STREET_1 
-    ,ADDR2 STREET_2
-    ,CITY CITY
+    ,substr(trim(paa.ADDR1),1,40) STREET_1    -- ADDR_1 mapping
+    ,trim(paa.ADDR2) STREET_2    -- ADDR_2 mapping
+    ,substr(trim(paa.CITY),1,25) CITY
     ,STATE_CODE_ABBR STATE 
     ,ZIP_CODE ZIP_CODE
     ,SUBSTR(ZIP_CODE,7,10) ZIP_PLUS4
     ,COUNTRY_CODE COUNTRY 
---    ,(select nvl(paf.MAIL_RETURNED,'N') from PA_ACCT_FLAGS paf
---        where paf.ACCT_ACCT_NUM = paa.ACCT_NUM) 
---        NIXIE -- PA_ACCT_FLAGS.RETURNED_MAIL_FLAG
-    ,nvl2(paa.BAD_ADDR_DATE,'Y','N') NIXIE
+    ,nvl2(paa.BAD_ADDR_DATE,'Y','N') NIXIE --If BAD_ADDR_DATE is not null then 'Y' else 'N' 
     ,to_date('02/27/2017', 'MM/DD/YYYY') NIXIE_DATE
     ,'N' NCOA_FLAG
     ,'N' ADDRESS_CLEANSED_FLG
@@ -61,7 +58,9 @@ IS SELECT
     ,NULL EMP_NUM
     ,NULL STATUS
 FROM PA_ACCT_ADDR paa
---where  paa.ACCT_NUM >= p_begin_acct_num AND   paa.ACCT_NUM <= p_end_acct_num
+WHERE DEFAULT_ADDR_FLAG = 'Y'
+and paa.acct_num<50000000
+--and  paa.ACCT_NUM >= p_begin_acct_num AND   paa.ACCT_NUM <= p_end_acct_num
 ; -- Source
 /*Change FTE_TABLE to the actual table name*/
 

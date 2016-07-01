@@ -27,9 +27,9 @@ P_ARRAY_SIZE NUMBER:=1000;
 CURSOR C1 IS SELECT 
     ANI
     ,CALL_ID
-    ,DISPOSITION
-    ,END_TIME
-    ,FAX_NUM
+    ,nvl(DISPOSITION,0) DISPOSITION -- Required -- Default to 0?
+    ,nvl(END_TIME,SYSDATE) END_TIME   -- Required -- Default?
+    ,nvl(FAX_NUM,'NULL-none') FAX_NUM  -- Required -- Default?
     ,START_TIME
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM IVR_CALL

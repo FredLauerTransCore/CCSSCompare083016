@@ -36,6 +36,7 @@ IS SELECT
     ,EMP_CODE LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM NOTE
+where ACCT_NUM is not null
 --WHERE ACCT_NUM >= p_begin_acct_num  AND   ACCT_NUM <= p_end_acct_num
 ;   -- Source
 

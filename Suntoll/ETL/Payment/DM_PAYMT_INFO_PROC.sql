@@ -23,7 +23,7 @@ TYPE DM_PAYMT_INFO_TYP IS TABLE OF DM_PAYMT_INFO%ROWTYPE
 DM_PAYMT_INFO_tab DM_PAYMT_INFO_TYP;
 
 
-P_ARRAY_SIZE NUMBER:=1000;
+P_ARRAY_SIZE NUMBER:=100;
 
 -- 6/14/16 JL Updated REVERSED and NSF_FEE mapping to NULL based on 6/10 discussion with FTE and Xerox.
 
@@ -34,7 +34,6 @@ CURSOR C1 IS SELECT
     ,trim(nvl(pd.PRODUCT_PUR_PRODUCT_CODE,'R')) TRAN_TYPE
 --    ,(select PROD_ABBRV from PA_PUR_PRODUCT where PUR_PRODUCT_CODE = pd.PRODUCT_PUR_PRODUCT_CODE) TRAN_TYPE    ?
     ,nvl(pay.PUR_PAY_AMT,0) AMOUNT
---    ,NULL REVERSED  -- PA_PURCHASE_DETAIL.PRODUCT_PUR_PRODUCT_CODE 
     ,NULL REVERSED  -- PA_PURCHASE_DETAIL.PRODUCT_PUR_PRODUCT_CODE 
 ----    ,(select PROD_ABBRV from PA_PUR_PRODUCT where PUR_PRODUCT_CODE = pd.PRODUCT_PUR_PRODUCT_CODE) REVERSED    ?
     ,to_char(to_date(pay.PUR_CREDIT_EXP_DATE,'MM/YY'),'MM') EXP_MONTH
@@ -64,9 +63,15 @@ CURSOR C1 IS SELECT
     ,NULL DESCRIPTION  -- No mapping
 -- If REF_APPROVED_DATE is populated, then the refund status will be populated. REF_DECLINE_REASON_ID will get the status of the refund.
 -- 1=UNAPPROVED, 2=APPROVED, 3=PARTIAL, 4=REJECTED.
-    ,CASE WHEN rr.REF_APPROVED_DATE IS NOT NULL THEN 
-        decode(rr.REFUND_STATUS_ID, 1,'UNAPPROVED', 2,'APPROVED', 3,'PARTIAL', 4,'REJECTED',NULL) 
-      END REFUND_STATUS 
+    ,(select CASE WHEN rr.REF_APPROVED_DATE IS NOT NULL THEN 
+            decode(rr.REFUND_STATUS_ID, 
+              1,'UNAPPROVED', 
+              2,'APPROVED', 
+              3,'PARTIAL', 
+              4,'REJECTED',NULL) 
+            END 
+      from PA_REFUND_REQUEST rr
+      where rr.PUR_PUR_ID = pp.PUR_ID)  REFUND_STATUS 
     ,NULL REFUND_CHECK_NUM    
     ,'N/A' TOD_ID -- N/A
     ,pp.PUR_TRANS_DATE CREATED -- PA_PURCHASE
@@ -79,10 +84,11 @@ CURSOR C1 IS SELECT
 FROM PA_PURCHASE pp
     ,PA_PURCHASE_PAYMENT pay
     ,PA_PURCHASE_DETAIL pd
-    ,PA_REFUND_REQUEST rr
+--    ,PA_REFUND_REQUEST rr
 WHERE pp.PUR_ID = pay.PUR_PUR_ID (+)
 AND   pp.PUR_ID = pd.PUR_PUR_ID (+)
-AND   pp.PUR_ID = rr.PUR_PUR_ID (+); -- source
+--AND   pp.PUR_ID = rr.PUR_PUR_ID (+)
+; -- source
 
 row_cnt          NUMBER := 0;
 v_trac_rec       dm_tracking%ROWTYPE;

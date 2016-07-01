@@ -24,18 +24,17 @@ DM_VIOL_TX_EVENT_INFO_tab DM_VIOL_TX_EVENT_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
- /** Internal Xerox lookup;  
- -- Valid status: (xerox internal values 0100 to 0200) 
- -- FTE:  Unbilled; Invoice One; Invoice Two; Collection; Registration Stop; Court; Write Off; 
- --       Bankruptcy; Deceased; UTC (Uniform Traffic Citation); Paid;  .  
- -- Sunny will provide extract rule to determine status once the status is finalized between Xerox and FTE. 
- **/
-
 CURSOR C1
 --(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
-    NULL EVENT_TYPE     
-    ,NULL PREV_EVENT_TYPE 
+ /** Internal Xerox lookup;  
+ -- Valid status: (xerox internal values 0100 to 0200) 
+ -- FTE:  Unbilled; Invoice One; Invoice Two; Collection; Registration Stop; Court; 
+          Write Off; Bankruptcy; Deceased; UTC (Uniform Traffic Citation); Paid;  .  
+ -- Sunny will provide extract rule to determine status once the status is finalized between Xerox and FTE. 
+ **/
+    0 EVENT_TYPE  -- Translation?. Required default to 0?
+    ,0 PREV_EVENT_TYPE -- no mapping. Required default to 0?
 
 --   VIOL_TX_STATUS mapping:
 --   =======================
@@ -49,7 +48,7 @@ IS SELECT
 --   COURT         |  606
 --   BANKRUPTCY    |  607
 --   -----------------------
-    ,CASE WHEN va.BANKRUPTCY_FLAG is NOT NULL then 607  -- 'BANKRUPTCY'
+    ,nvl(CASE WHEN va.BANKRUPTCY_FLAG is NOT NULL then 607  -- 'BANKRUPTCY'
           WHEN va.COLL_COURT_FLAG = 'COLL' and va.DOCUMENT_ID IS NOT NULL and va.CHILD_DOC_ID IS NOT NULL then 605  -- 'COLLECTION'
           WHEN va.COLL_COURT_FLAG = 'CRT' and va.DOCUMENT_ID IS NOT NULL and va.CHILD_DOC_ID IS NOT NULL then 606  -- 'COURT'
           WHEN va.COLL_COURT_FLAG is NOT NULL then NULL
@@ -57,23 +56,51 @@ IS SELECT
           WHEN va.CHILD_DOC_ID IS NULL THEN 602  -- 'INVOICED'
           WHEN va.CHILD_DOC_ID LIKE '%-%' THEN 604  -- 'UTC'
           WHEN va.CHILD_DOC_ID IS NOT NULL THEN 603  -- 'ESCALATED'
-          ELSE NULL
-     END VIOL_TX_STATUS
-    ,NULL PREV_VIOL_TX_STATUS
-    ,NULL EVENT_TIMESTAMP -- ** Discussion 
+          ELSE 0    -- NULL  Required Default 0?
+     END,0) VIOL_TX_STATUS
+
+/** Internal Xerox lookup;  
+    Valid status: (xerox internal values 0100 to 0200) 
+    FTE:  Unbilled; Invoice One; Invoice Two; Collection; Registration Stop; Court; 
+          Write Off; Bankruptcy; Deceased; UTC (Uniform Traffic Citation); Paid;  .  
+    Sunny will provide extract rule to determine status once the status is finalized between Xerox and FTE. 
+***/
+    ,0 PREV_VIOL_TX_STATUS  -- Translation?. Required default to 0?
+    ,sysdate EVENT_TIMESTAMP -- ** Discussion in ICD.  Required defaulted to SYSDATE?
 
     ,kl.ACCT_NUM ETC_ACCOUNT_ID   -- Join KS_LEDGER on TXN_ID ** add to internal Xerox Discussion
     ,lt.VEH_LIC_NUM PLATE_NUMBER
-    ,(select STATE_CODE_ABBR from PA_STATE_CODE where STATE_CODE_NUM=lt.STATE_ID_CODE)
-        PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
-    ,nvl((select nvl(cs.COUNTRY,'USA') 
-            from COUNTRY_STATE_LOOKUP cs, PA_STATE_CODE s
-           where cs.STATE_ABBR = s.STATE_CODE_ABBR
-           and   s.STATE_CODE_NUM = lt.STATE_ID_CODE),'USA') PLATE_COUNTRY
-    ,NULL MAKE_ID
-    
+    ,lt.STATE_ID_CODE  PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
+--    ,nvl((select nvl(cs.COUNTRY,'USA') 
+--            from COUNTRY_STATE_LOOKUP cs, PA_STATE_CODE s
+--           where cs.STATE_ABBR = s.STATE_CODE_ABBR
+--           and   s.STATE_CODE_NUM = lt.STATE_ID_CODE),'USA') PLATE_COUNTRY
+    ,nvl((select substr(trim(cs.COUNTRY),1,4) 
+            from COUNTRY_STATE_LOOKUP cs
+           where cs.STATE_ABBR = lt.STATE_ID_CODE),'USA') PLATE_COUNTRY
+    ,0 MAKE_ID  -- No mapping.  Required - defaulted to 0?
+/**
+
+VB_ACTIVITY table 
+FOR BANKRUPTCY_FLAG NULL and COLL_COURT_FLAG NULL
+IF DOCUMENT_ID is null, then 'UNBILLED'
+IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NULL, then 'INVOICED'
+IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NOT NULL, then 'ESCALATED'
+IF DOCUMENT_ID is not null and CHILD_DOC_ID like '%-%', then 'UTC'
+FOR BANKRUPTCY_FLAG NULL and COLL_COURT_FLAG NOT NULL
+IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NOT NULL  and COLL_COURT_FLAG is 'COLL' THEN 'COLLECTION'
+IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NOT NULL  and COLL_COURT_FLAG is 'CRT' THEN 'COURT'
+
+FOR BANKRUPTCY _FLAG NOT NULL
+IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
+JOIN ID of KS_LEDGER to LEDGER_ID of VB_ACTVITY for KS_LEDGER.TRANSACTION_TYPE in ('38','42') and JOIN PA_LANE_TXN_ID of KS_LEDGER to TXN_ID of PA_LANE_LANE_TXN and JOIN PLAZA_ID of PA_PLAZA to EXT_PLAZA_ID for PA_Lane_txn
+  IF SUM (VB_ACTIVITY.AMT_CHARGED – VB_ACTIVITY.TOTAL_AMT_PAID) < :REG_STOP_THRESHOLD_AMT_IN_CENTS grouped by KS_LEDGER.ACCT_NUM
+  FOR PA_PLAZA.FTE_PLAZA = 'Y',VB_ACTIVITY.COLL_COURT_FLAG is NULL, VB_ACTIVITY.CHILD_DOC_ID not null,VB_ACTIVITY.CHILD_DOC_ID NOT LIKE '%-%' and VB_ACTIVITY.BANKRUPTCY_flag is null
+  THEN 'REG STOP'
+*/
 --IF BANKRUPTCY_FLAG is not null, then 'BANKRUPTCY'
---  JOIN KS_LEDGER.ID = VB_ACTVITY.LEDGER_ID  -- for KS_LEDGER.TRANSACTION_TYPE in ('38','42') and 
+--  JOIN KS_LEDGER.ID = VB_ACTVITY.LEDGER_ID  
+-- for KS_LEDGER.TRANSACTION_TYPE in ('38','42') and 
 --  JOIN KS_LEDGER.PA_LANE_TXN_ID = PA_LANE_TXN.TXN_ID
 --  JOIN PA_PLAZA.PLAZA_ID = PA_Lane_txn.EXT_PLAZA_ID for
 --  IF SUM (VB_ACTIVITY.AMT_CHARGED – VB_ACTIVITY.TOTAL_AMT_PAID) < :REG_STOP_THRESHOLD_AMT_IN_CENTS 
@@ -84,29 +111,28 @@ IS SELECT
 --      VB_ACTIVITY.CHILD_DOC_ID NOT LIKE '%-%' and 
 --      VB_ACTIVITY.BANKRUPTCY_flag is null
 --  THEN 'REG STOP'
---    ,CASE WHEN va.BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is null THEN 'UNBILLED'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is null THEN 'INVOICED'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is NOT null THEN 'ESCALATED'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID like '%-%' THEN 'UTC'
---          WHEN va.COLL_COURT_FLAG is NOT null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is NOT null and
---               va.COLL_COURT_FLAG = 'COLL' THEN 'COLLECTION'
---          WHEN va.COLL_COURT_FLAG is NOT null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is NOT null and
---               va.COLL_COURT_FLAG = 'CRT' THEN 'COURT'
---          ELSE NULL
---      END DMV_PLATE_TYPE  -- Derived
-    ,NULL DMV_PLATE_TYPE  -- Derived
+    ,nvl(CASE WHEN va.BANKRUPTCY_FLAG is NOT null THEN 607 -- 'BANKRUPTCY'
+          WHEN va.COLL_COURT_FLAG is null and
+               va.DOCUMENT_ID is null THEN 601 -- 'UNBILLED'
+          WHEN va.COLL_COURT_FLAG is null and
+               va.DOCUMENT_ID is NOT null and
+               va.CHILD_DOC_ID is null THEN 602 -- 'INVOICED'
+          WHEN va.COLL_COURT_FLAG is null and
+               va.DOCUMENT_ID is NOT null and
+               va.CHILD_DOC_ID is NOT null THEN 603 -- 'ESCALATED'
+          WHEN va.COLL_COURT_FLAG is null and
+               va.DOCUMENT_ID is NOT null and
+               va.CHILD_DOC_ID like '%-%' THEN 604 -- 'UTC'
+          WHEN va.COLL_COURT_FLAG is NOT null and
+               va.DOCUMENT_ID is NOT null and
+               va.CHILD_DOC_ID is NOT null and
+               va.COLL_COURT_FLAG = 'COLL' THEN 605 -- 'COLLECTION'
+          WHEN va.COLL_COURT_FLAG is NOT null and
+               va.DOCUMENT_ID is NOT null and
+               va.CHILD_DOC_ID is NOT null and
+               va.COLL_COURT_FLAG = 'CRT' THEN 606 -- 'COURT'
+          ELSE 0  --   -- NULL  Required Default 0?
+      END,0) DMV_PLATE_TYPE  -- Derived
     
     ,0 REVIEWED_VEHICLE_TYPE
     ,0 REVIEWED_CLASS
@@ -151,7 +177,7 @@ IS SELECT
     ,lt.TOLL_AMT_CHARGED DISCOUNTED_AMOUNT
     ,0 IMAGE_BATCH_ID
     ,0 IMAGE_BATCH_SEQ_NUMBER
-    ,NULL RECON_STATUS_IND  -- XEROX - TO FOLLOW UP
+    ,0 RECON_STATUS_IND  -- XEROX - TO FOLLOW UP  Required, default 0?
     ,'SUNTOLL' SOURCE_SYSTEM
     ,lt.txn_id LANE_TX_ID
 FROM PA_LANE_TXN  lt
