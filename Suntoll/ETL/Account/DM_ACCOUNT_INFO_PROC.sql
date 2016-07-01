@@ -143,9 +143,9 @@ BEGIN
       end if;
       
       begin
-        select max(sc.STATUS_CHG_DATE) into  DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME
-        from PA_ACCT_STATUS_CHANGES sc
-        where sc.ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
+        select sh.STAT_POST_DATE into DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME
+        from PA_ACCT_STATUS_HISTORY sh
+        where sh.ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
         ;
       exception 
         when others then null;
