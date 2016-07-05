@@ -153,7 +153,7 @@ IS SELECT
     ,0 IMAGE_BATCH_SEQ_NUMBER
     ,NULL RECON_STATUS_IND  -- XEROX - TO FOLLOW UP
     ,'SUNTOLL' SOURCE_SYSTEM
-    ,NULL LANE_TX_ID
+    ,lt.txn_id LANE_TX_ID
 FROM PA_LANE_TXN  lt
     ,KS_LEDGER kl
 --    ,ST_DOCUMENT_INFO di
@@ -203,9 +203,8 @@ BEGIN
       /* get PA_LANE_TXN_REJECT.TXN_ID for LANE_TX_ID */
       begin
         select tr.TXN_ID into DM_VIOL_TX_EVENT_INFO_tab(i).LANE_TX_ID
-        from PA_LANE_TXN_REJECT tr,
-             PA_LANE_TXN lt
-        where tr.TXN_ID=lt.TXN_ID
+        from PA_LANE_TXN_REJECT tr 
+        where tr.TXN_ID=DM_VIOL_TX_EVENT_INFO_tab(i).LANE_TX_ID
               and rownum<=1;
         exception 
           when others then null;
