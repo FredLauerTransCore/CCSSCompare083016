@@ -30,7 +30,7 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1 IS SELECT 
-    DM_PLAZA_INFO_PLAZA_ID_SEQ.NEXTVAL PLAZA_ID
+    PA.PLAZA_ID PLAZA_ID
     ,IAG_PLAZA_ID EXTERN_PLAZA_ID
     ,PLAZA_NAME NAME
     ,'0' ADDRESS_ID
@@ -92,8 +92,20 @@ BEGIN
 
     /*ETL SECTION BEGIN */
 
-	    /* to default the values NOT NULL columns */
     FOR i in 1 .. DM_PLAZA_INFO_tab.count loop
+    
+      /* get PLAZA_LANE_TYPE_DIRECTION.PLAZA_ID for PLAZA_ID */
+      begin
+        select td.PLAZA_ID into DM_PLAZA_INFO_tab(i).PLAZA_ID
+        from PLAZA_LANE_TYPE_DIRECTION td 
+        where td.PLAZA_ID=DM_PLAZA_INFO_tab(i).PLAZA_ID
+              and rownum<=1;
+        exception 
+          when others then null;
+          DM_PLAZA_INFO_tab(i).PLAZA_ID:=null;
+      end;    
+    
+	    /* to default the values NOT NULL columns */
 	 if DM_PLAZA_INFO_tab(i).HOST_PLAZA_ID is null then
           DM_PLAZA_INFO_tab(i).HOST_PLAZA_ID:='0';
          end if;
