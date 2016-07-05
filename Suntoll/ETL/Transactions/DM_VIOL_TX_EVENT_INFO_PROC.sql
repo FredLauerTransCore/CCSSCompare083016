@@ -223,6 +223,22 @@ BEGIN
 
 
     /*ETL SECTION BEGIN */
+    
+    FOR i in 1 .. DM_VIOL_TX_EVENT_INFO_tab.count loop
+
+      /* get PA_LANE_TXN_REJECT.TXN_ID for LANE_TX_ID */
+      begin
+        select tr.TXN_ID into DM_VIOL_TX_EVENT_INFO_tab(i).LANE_TX_ID
+        from PA_LANE_TXN_REJECT tr 
+        where tr.TXN_ID=DM_VIOL_TX_EVENT_INFO_tab(i).LANE_TX_ID
+              and rownum<=1;
+        exception 
+          when others then null;
+          DM_VIOL_TX_EVENT_INFO_tab(i).LANE_TX_ID:=null;
+      end;
+
+    end loop;
+    
     /*ETL SECTION END*/
 
     /*Bulk insert */ 

@@ -77,8 +77,18 @@ BEGIN
 
     /*ETL SECTION BEGIN */
 	
-	    /* to default the values NOT NULL columns */
     FOR i in 1 .. DM_VEHICLE_HST_INFO_tab.count loop
+
+      begin
+        select COUNTRY into DM_VEHICLE_HST_INFO_tab(i).PLATE_COUNTRY from COUNTRY_STATE_LOOKUP 
+        where STATE_ABBR = DM_VEHICLE_HST_INFO_tab(i).PLATE_STATE
+        and rownum<=1;
+      exception
+        when others then null;
+        DM_VEHICLE_HST_INFO_tab(i).PLATE_COUNTRY:=null;
+      end;
+      
+	    /* to default the values NOT NULL columns */
 	 if DM_VEHICLE_HST_INFO_tab(i).ACCOUNT_NUMBER is null then
           DM_VEHICLE_HST_INFO_tab(i).ACCOUNT_NUMBER:='0';
          end if;
