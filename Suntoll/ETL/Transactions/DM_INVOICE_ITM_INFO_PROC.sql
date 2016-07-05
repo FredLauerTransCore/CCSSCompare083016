@@ -30,7 +30,7 @@ REG_STOP_THRESHOLD_AMT_CENTS NUMBER := 100000000; -- TODO: Need to get actual th
 
 CURSOR C1
 --(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
-IS SELECT 
+IS SELECT distinct
     di.ACCT_NUM ACCOUNT_NUMBER -- ST_DOCUMENT_MAILING_EXCEPTION
     ,di.DOCUMENT_ID INVOICE_NUMBER
     ,'POSTPAID' CATEGORY  -- DEFAULT to 'Postpaid'

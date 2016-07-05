@@ -25,7 +25,7 @@ TYPE DM_NONFIN_ACT_INFO_TYP IS TABLE OF DM_NONFIN_ACT_INFO%ROWTYPE
 DM_NONFIN_ACT_INFO_tab DM_NONFIN_ACT_INFO_TYP;
 
 
-P_ARRAY_SIZE NUMBER:=10000;
+P_ARRAY_SIZE NUMBER:=1000;
 
 
 CURSOR C1
@@ -39,7 +39,7 @@ IS SELECT
     ,TYPE_CODE CATEGORY
     ,PROB_CODE SUB_CATEGORY
     ,TYPE_ID ACTIVITY_TYPE
-    ,NOTE DESCRIPTION
+    ,trim(NOTE) DESCRIPTION
     ,CREATED CREATED
     ,EMP_CODE CREATED_BY
     ,CREATED LAST_UPD
@@ -84,30 +84,27 @@ BEGIN
     FETCH C1 BULK COLLECT INTO DM_NONFIN_ACT_INFO_tab
     LIMIT P_ARRAY_SIZE;
 
-
 --ETL SECTION BEGIN mapping
--- DBMS_OUTPUT.PUT_LINE('FETCH '||LOAD_TAB||' ETL at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-    begin
-      select max(ACTIVITY_NUMBER) into  v_activity_number
-      from DM_NONFIN_ACT_INFO
-      ;
-    exception 
-      when others then
-        v_activity_number := 0;
-     DBMS_OUTPUT.PUT_LINE('v_activity_number ERROR CODE: '||SQLCODE);
-     DBMS_OUTPUT.PUT_LINE('v_activity_number ERROR MSG: '||SQLERRM);
-    end;
+--DBMS_OUTPUT.PUT_LINE(' - max activity_number: '||v_activity_number);
     
     FOR i IN 1 .. DM_NONFIN_ACT_INFO_tab.COUNT LOOP
       IF i=1 then
         v_trac_etl_rec.BEGIN_VAL := DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER;
+        
+        begin
+--          select nvl(max(ACTIVITY_NUMBER),0) into  v_activity_number
+          select nvl(max(ACTIVITY_NUMBER),0)+1 into  DM_NONFIN_ACT_INFO_tab(i).activity_number
+          from DM_NONFIN_ACT_INFO
+          ;
+        exception 
+          when others then --null;
+         DBMS_OUTPUT.PUT_LINE('activity_number ERROR CODE: '||SQLCODE);
+         DBMS_OUTPUT.PUT_LINE('activity_number ERROR MSG: '||SQLERRM);
+        end;
+    
       end if;
-      
-      if v_activity_number is null then 
-        v_activity_number := 0;
-      end if;
-      v_activity_number := nvl(v_activity_number,0)+1;
-      DM_NONFIN_ACT_INFO_tab(i).activity_number := v_activity_number;
+
+      DM_NONFIN_ACT_INFO_tab(i).activity_number :=  DM_NONFIN_ACT_INFO_tab(i).activity_number+1;
       
       v_trac_etl_rec.track_last_val := DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER;
       v_trac_etl_rec.end_val := DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER;

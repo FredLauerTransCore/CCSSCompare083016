@@ -165,9 +165,9 @@ IS SELECT
     ,'000000000000' DEPOSIT_ID
 
 ---- JOIN FROM PA_LANE_TXN REQUEST_ID to EVENT_LOOKUP_ROV ROV_ID to RETURN REQUEST_DATE
-    ,(select REQUEST_DATE from EVENT_LOOKUP_ROV 
+    ,nvl((select REQUEST_DATE from EVENT_LOOKUP_ROV 
         where EVENT_OAVA_LINK_ID=lt.OAVA_LINK_ID
-        and   rownum=1) LOAD_DATE
+        and   rownum=1),SYSDATE) LOAD_DATE
 --    ,(select elr.REQUEST_DATE from EVENT_LOOKUP_ROV elr 
 --        where elr.ROV_ID = lt.REQUEST_ID) LOAD_DATE
 --    ,(select elr.REQUEST_DATE
@@ -181,7 +181,10 @@ IS SELECT
     ,0 IMAGE_RVW_CLERK_ID
     ,0 IMAGE_BATCH_ID
     ,0 IMAGE_BATCH_SEQ_NUMBER
-    ,to_number(nvl(lt.VPS_EVENT_ID,'0')) IMAGE_INDEX
+    
+--    ,to_number(nvl(lt.VPS_EVENT_ID,'0')) IMAGE_INDEX  -- Source is Vrachar(20 and target is NUMBER(5)
+    ,to_number(substr(nvl(lt.VPS_EVENT_ID,'0'),1,5)) IMAGE_INDEX  
+
     ,0 ADJUSTED_AMOUNT
 -- AMT_CHARGED - TOTAL_AMT_PAID JOIN WITH KS_LEDGER ON LEDGER_ID 
 --  AND KS_LEDGER TO PA_LANE_TXN on PA_LANE_TXN_ID
@@ -197,39 +200,67 @@ IS SELECT
     ,0 MAKE_ID
     ,lt.EXT_DATE_TIME EVENT_TIMESTAMP -- EXT_DATE_TIME Default PA_LANE_TXN
 
-------JOIN ID of KS_LEDGER to LEDGER_ID of VB_ACTVITY for KS_LEDGER.TRANSACTION_TYPE in ('38','42') and 
-----  JOIN PA_LANE_TXN_ID of KS_LEDGER to TXN_ID of PA_LANE_LANE_TXN and 
-----  JOIN PLAZA_ID of PA_PLAZA to EXT_PLAZA_ID for PA_Lane_txn
-------  IF SUM (VB_ACTIVITY.AMT_CHARGED – VB_ACTIVITY.TOTAL_AMT_PAID) < :REG_STOP_THRESHOLD_AMT_IN_CENTS grouped by KS_LEDGER.ACCT_NUM
-------  FOR PA_PLAZA.FTE_PLAZA = 'Y',
-----  VB_ACTIVITY.COLL_COURT_FLAG is NULL, 
-----  VB_ACTIVITY.CHILD_DOC_ID not null,
-----  VB_ACTIVITY.CHILD_DOC_ID NOT LIKE '%-%' 
-----  and VB_ACTIVITY.BANKRUPTCY_flag is null
-------  THEN 'REG STOP'    
-    ,CASE WHEN va.BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
-          WHEN va.COLL_COURT_FLAG is null and
-               va.DOCUMENT_ID is null THEN 'UNBILLED'
-          WHEN va.COLL_COURT_FLAG is null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID is null THEN 'INVOICED'
-          WHEN va.COLL_COURT_FLAG is null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID like '%-%' THEN 'UTC'
-          WHEN va.COLL_COURT_FLAG is null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID is NOT null THEN 'ESCALATED'
-          WHEN va.COLL_COURT_FLAG is NOT null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID is NOT null and
-               va.COLL_COURT_FLAG = 'COLL' THEN 'COLLECTION'
-          WHEN va.COLL_COURT_FLAG is NOT null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID is NOT null and
-               va.COLL_COURT_FLAG = 'CRT' THEN 'COURT'
---          WHEN va.BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
-          ELSE 'NULL-none'
-      END EVENT_TYPE  -- ,0 EVENT_TYPE  -- Derived
+--------JOIN ID of KS_LEDGER to LEDGER_ID of VB_ACTVITY for KS_LEDGER.TRANSACTION_TYPE in ('38','42') and 
+------  JOIN PA_LANE_TXN_ID of KS_LEDGER to TXN_ID of PA_LANE_LANE_TXN and 
+------  JOIN PLAZA_ID of PA_PLAZA to EXT_PLAZA_ID for PA_Lane_txn
+--------  IF SUM (VB_ACTIVITY.AMT_CHARGED – VB_ACTIVITY.TOTAL_AMT_PAID) < :REG_STOP_THRESHOLD_AMT_IN_CENTS grouped by KS_LEDGER.ACCT_NUM
+--------  FOR PA_PLAZA.FTE_PLAZA = 'Y',
+------  VB_ACTIVITY.COLL_COURT_FLAG is NULL, 
+------  VB_ACTIVITY.CHILD_DOC_ID not null,
+------  VB_ACTIVITY.CHILD_DOC_ID NOT LIKE '%-%' 
+------  and VB_ACTIVITY.BANKRUPTCY_flag is null
+--------  THEN 'REG STOP'    
+--    ,nvl((select 
+--      CASE WHEN va.BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
+--          WHEN va.COLL_COURT_FLAG is null and
+--               va.DOCUMENT_ID is null THEN 'UNBILLED'
+--          WHEN va.COLL_COURT_FLAG is null and
+--               va.DOCUMENT_ID is NOT null and
+--               va.CHILD_DOC_ID is null THEN 'INVOICED'
+--          WHEN va.COLL_COURT_FLAG is null and
+--               va.DOCUMENT_ID is NOT null and
+--               va.CHILD_DOC_ID like '%-%' THEN 'UTC'
+--          WHEN va.COLL_COURT_FLAG is null and
+--               va.DOCUMENT_ID is NOT null and
+--               va.CHILD_DOC_ID is NOT null THEN 'ESCALATED'
+--          WHEN va.COLL_COURT_FLAG is NOT null and
+--               va.DOCUMENT_ID is NOT null and
+--               va.CHILD_DOC_ID is NOT null and
+--               va.COLL_COURT_FLAG = 'COLL' THEN 'COLLECTION'
+--          WHEN va.COLL_COURT_FLAG is NOT null and
+--               va.DOCUMENT_ID is NOT null and
+--               va.CHILD_DOC_ID is NOT null and
+--               va.COLL_COURT_FLAG = 'CRT' THEN 'COURT'
+----          WHEN va.BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
+--          ELSE 'NULL-none'
+--      END 
+--      from  VB_ACTIVITY va
+--      WHERE va.LEDGER_ID = kl.ID),'NULL-none')  EVENT_TYPE 
+
+--    ,CASE WHEN va.BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
+--          WHEN va.COLL_COURT_FLAG is null and
+--               va.DOCUMENT_ID is null THEN 'UNBILLED'
+--          WHEN va.COLL_COURT_FLAG is null and
+--               va.DOCUMENT_ID is NOT null and
+--               va.CHILD_DOC_ID is null THEN 'INVOICED'
+--          WHEN va.COLL_COURT_FLAG is null and
+--               va.DOCUMENT_ID is NOT null and
+--               va.CHILD_DOC_ID like '%-%' THEN 'UTC'
+--          WHEN va.COLL_COURT_FLAG is null and
+--               va.DOCUMENT_ID is NOT null and
+--               va.CHILD_DOC_ID is NOT null THEN 'ESCALATED'
+--          WHEN va.COLL_COURT_FLAG is NOT null and
+--               va.DOCUMENT_ID is NOT null and
+--               va.CHILD_DOC_ID is NOT null and
+--               va.COLL_COURT_FLAG = 'COLL' THEN 'COLLECTION'
+--          WHEN va.COLL_COURT_FLAG is NOT null and
+--               va.DOCUMENT_ID is NOT null and
+--               va.CHILD_DOC_ID is NOT null and
+--               va.COLL_COURT_FLAG = 'CRT' THEN 'COURT'
+----          WHEN va.BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
+--          ELSE 'NULL-none'
+--      END EVENT_TYPE  -- ,0 EVENT_TYPE  -- Derived
+    ,'NULL-none' EVENT_TYPE -- Derived   -- VB_ACTIVITY (IN ETL)
 
     ,0 PREV_EVENT_TYPE
     ,0 VIOL_TX_STATUS
@@ -250,13 +281,19 @@ IS SELECT
 --TOTAL_AMT_PAID JOIN WITH KS_LEDGER ON LEDGER_ID AND 
  -- KS_LEDGER TO PA_LANE_TXN on PA_LANE_TXN_ID
     ,nvl(lt.TOLL_AMT_COLLECTED,0) AMOUNT_PAID
- -- IF VIOL_TX_STATUS = 'UTC' then $25 ELSE 0 
-    ,CASE WHEN va.COLL_COURT_FLAG is null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID like '%-%' 
-          THEN 25
-          ELSE 0
-      END NOTICE_FEE_AMOUNT  -- Derived  
+    
+-- -- IF VIOL_TX_STATUS = 'UTC' then $25 ELSE 0 
+--    ,select 
+--      CASE WHEN va.COLL_COURT_FLAG is null and
+--               va.DOCUMENT_ID is NOT null and
+--               va.CHILD_DOC_ID like '%-%' 
+--          THEN 25
+--          ELSE 0
+--      END 
+--      from  VB_ACTIVITY va
+--      WHERE va.LEDGER_ID = kl.ID) NOTICE_FEE_AMOUNT  -- Derived  
+    ,0 NOTICE_FEE_AMOUNT  -- Derived   -- VB_ACTIVITY (IN ETL)
+      
 ---- {IF AMT_CHARGED = TOTAL_AMT_PAID } THEN 'Y' ELSE 
 ---- JOIN EXT_ACTIVITY_PAID JOIN WITH KS_LEDGER ON LEDGER_ID 
 ---- AND KS_LEDGER TO PA_LANE_TXN on PA_LANE_TXN_ID -- (IF NOT EXISTS, THEN 'N')
@@ -273,19 +310,27 @@ IS SELECT
         from EVENT_OWNER_ADDR_VEHICLE_ACCT eo
         where eo.ID = lt.OAVA_LINK_ID
         and   rownum=1),sysdate) DMV_RETURN_DATE
+        
 ----  IF VB_ACTIVITY.COLL_COURT_FLAG = 'COLL' THEN 'SEND_TO_COLLECTION' 
 ----  IF ST_ACTIVITY_PAID.COLL_COURT_FLAG = 'COLL'  AND AMT_CHARGED <> 0 THEN PAID_ON_COLLECTIONS    
-    ,CASE WHEN va.COLL_COURT_FLAG = 'COLL' THEN 1 -- 'SEND_TO_COLLECTION' 
-          WHEN ap.COLL_COURT_FLAG = 'COLL' AND ap.AMT_CHARGED <> 0 THEN 2  -- 'PAID_ON_COLLECTIONS'         
-        ELSE 0
-      END COLL_STATUS
+--    ,select
+--        CASE WHEN va.COLL_COURT_FLAG = 'COLL' THEN 1 -- 'SEND_TO_COLLECTION' 
+----             WHEN ap.COLL_COURT_FLAG = 'COLL' AND ap.AMT_CHARGED <> 0 THEN 2  -- 'PAID_ON_COLLECTIONS'         
+--             ELSE 0
+--         END 
+--      from  VB_ACTIVITY va
+----           ,ST_ACTIVITY_PAID ap
+--      WHERE va.LEDGER_ID = kl.ID ) COLL_STATUS
+    ,0 COLL_STATUS  -- ST_ACTIVITY_PAID and VB_ACTIVITY (IN ETL)
+    
     ,0 LIMOUSINE
     ,0 TAXI
     ,0 TAXI_LIMO 
     
 ----    ,lt.ACCT_NUM in (select ra.ACCT_NUM from PATRON.PA_RENTAL_AGENCY)
 ----    ,CASE WHEN lt.ACCT_NUM IN (select ra.ACCT_NUM from PATRON.PA_RENTAL_AGENCY) THEN 
-    ,decode(nvl((select ra.ACCT_NUM from PA_RENTAL_AGENCY  ra
+    ,decode(nvl((select ra.ACCT_NUM 
+        from PA_RENTAL_AGENCY  ra
         where ra.ACCT_NUM = kl.ACCT_NUM
         and   rownum=1),0),0,'NULL') RENTAL_COMPANY_ID -- PA_RENTAL_AGNCY -- NULLs
         
@@ -294,43 +339,48 @@ IS SELECT
     ,'0' IMG_FILE_INDEX
     ,'**' BASEFILENAME -- ** Vector assigns internally **NOTE** 
 -- JOIN PA_PLAZA ON PLAZA_ID RETURN PLAZA_NAME
-    ,nvl((select substr(trim(pp.PLAZA_NAME),1,15) from PA_PLAZA pp
+    ,nvl((select substr(trim(pp.PLAZA_NAME),1,15) 
+        from PA_PLAZA pp
         where pp.PLAZA_ID = lt.EXT_PLAZA_ID
         and   rownum=1),'NULL') LOCATION  --    ,lt.EXT_PLAZA_ID LOCATION
  -- EVENT_VEHICLE - REFER TO EXTRACT RULE ABOVE (#2)
-    ,nvl((select ev.MAKE from EVENT_VEHICLE ev, EVENT_OWNER_ADDR_VEHICLE_ACCT eo
+    ,nvl((select ev.MAKE 
+        from EVENT_VEHICLE ev, EVENT_OWNER_ADDR_VEHICLE_ACCT eo
         where eo.ID = lt.OAVA_LINK_ID
         and   eo.VEHICLE_ID = ev.ID 
         and   rownum=1),'NULL') DMV_MAKE_ID 
     ,0 PAR_LANE_TX_ID 
 -- JOIN PA_PLAZA ON PLAZA_ID RETURN FACCODE_FACILITY_CODE
-    ,nvl((select pp.FACCODE_FACILITY_CODE from PA_PLAZA pp
+    ,nvl((select pp.FACCODE_FACILITY_CODE 
+        from PA_PLAZA pp
         where pp.PLAZA_ID = lt.EXT_PLAZA_ID
         and   rownum=1),'NULL') FACILITY_ID 
     ,0 FARE_TBL_ID
     ,lt.EXT_MSG_SEQ_NUM LANE_SEQ_NO
 -- IF TXN_TYPE = 253 THEN 1 ELSE 0 (only for iTolls)
-    ,decode(kl.TRANSACTION_TYPE,253,1,0)  TXN_DISPUTED
----- substr(a.description,41,8) on KS_LEDGER joining PA_LANE_TXN on pa_lane_txn_id
-    ,decode(kl.TRANSACTION_TYPE,253, 
-        TO_NUMBER(substr(kl.description,41,8)), 0) DISPUTED_ETC_ACCT_ID  
-    ,NULL EXT_DATE_TIME
+--    ,decode(kl.TRANSACTION_TYPE,253,1,0)  TXN_DISPUTED
+    ,0  TXN_DISPUTED -- KS_LEDGER (IN ETL)
+------ substr(a.description,41,8) on KS_LEDGER joining PA_LANE_TXN on pa_lane_txn_id
+--    ,decode(kl.TRANSACTION_TYPE,253, 
+--        TO_NUMBER(substr(kl.description,41,8)), 0) DISPUTED_ETC_ACCT_ID  
+    ,0 DISPUTED_ETC_ACCT_ID  -- KS_LEDGER (IN ETL)
+    ,EXT_DATE_TIME EXT_DATE_TIME
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM PA_LANE_TXN lt
-    ,KS_LEDGER kl
-    ,VB_ACTIVITY va
-    ,ST_ACTIVITY_PAID ap
-WHERE lt.txn_id = kl.PA_LANE_TXN_ID
-  AND kl.ID = va.LEDGER_ID (+)
-  AND kl.ID = ap.LEDGER_ID (+)
-AND lt.TRANSP_ID like '%2010'  --WHERE TRANSPONDER_ID ENDS WITH '2010'  
+--    ,KS_LEDGER kl
+--    ,VB_ACTIVITY va
+--    ,ST_ACTIVITY_PAID ap
+WHERE lt.TRANSP_ID like '%2010'  --WHERE TRANSPONDER_ID ENDS WITH '2010'  
+--  AND lt.txn_id = kl.PA_LANE_TXN_ID
+--  AND kl.ID = va.LEDGER_ID (+)
+--  AND kl.ID = ap.LEDGER_ID (+)
 --AND  k1.ACCT_NUM >= p_begin_acct_num AND   k1.ACCT_NUM <= p_end_acct_num
 ;
 
-
-row_cnt          NUMBER := 0;
-v_trac_rec       dm_tracking%ROWTYPE;
-v_trac_etl_rec   dm_tracking_etl%ROWTYPE;
+v_ks_ledger_id    KS_LEGER.ID%TYPE:= 0;
+row_cnt           NUMBER := 0;
+v_trac_rec        dm_tracking%ROWTYPE;
+v_trac_etl_rec    dm_tracking_etl%ROWTYPE;
 
 BEGIN
   SELECT * INTO v_trac_etl_rec
@@ -357,10 +407,50 @@ BEGIN
     FETCH C1 BULK COLLECT INTO DM_VIOL_TX_MTCH1_INFO_tab
     LIMIT P_ARRAY_SIZE;
 
+    /*ETL SECTION BEGIN*/
+    FOR i IN 1 .. DM_VIOL_TX_MTCH1_INFO_tab.COUNT LOOP
+      IF i=1 then
+        v_trac_etl_rec.BEGIN_VAL := DM_VIOL_TX_MTCH1_INFO_tab(i).ACCOUNT_NUMBER;
+      end if;
+            
+--      if v_PUR_DET_ID != 0 then
+        begin
+          select  ID
+                 ,TRANSACTION_TYPE
+                 ,decode(kl.TRANSACTION_TYPE,253, TO_NUMBER(substr(kl.description,41,8)), 0)
+          into    v_ks_ledger_id
+                 ,DM_VIOL_TX_MTCH1_INFO_tab(i).TXN_DISPUTED
+                 ,DM_VIOL_TX_MTCH1_INFO_tab(i).DISPUTED_ETC_ACCT_ID
+          from    KS_LEDGER
+          where   PA_LANE_TXN_ID=DM_VIOL_TX_MTCH1_INFO_tab(i).TXN_ID
+          and     
+          ;
+        exception 
+          when others then null;
+          DM_VIOL_TX_MTCH1_INFO_tab(i).XREF_TRANSACTION_ID := 'NULL';
+        end;
+--      end if;
 
-    /*ETL SECTION BEGIN
+--      begin
+--        select PUR_DET_ID
+--              ,nvl(PRODUCT_PUR_PRODUCT_CODE,'NULL')
+--              ,nvl(VES_REF_NUM,'NULL')
+--        into   v_PUR_DET_ID
+--              ,DM_VIOL_TX_MTCH1_INFO_tab(i).TRAN_TYPE
+--              ,DM_VIOL_TX_MTCH1_INFO_tab(i).ORG_TRANSACTION_ID
+--        from  PA_PURCHASE_DETAIL
+--        where PUR_PUR_ID = DM_VIOL_TX_MTCH1_INFO_tab(i).PAYMENT_REFERENCE_NUM
+--        AND   ITEM_ORDER = 1
+--        ;
+--      exception 
+--        when others then null;
+--      end;
 
-      ETL SECTION END*/
+      v_trac_etl_rec.track_last_val := DM_VIOL_TX_MTCH1_INFO_tab(i).ACCOUNT_NUMBER;
+      v_trac_etl_rec.end_val := DM_VIOL_TX_MTCH1_INFO_tab(i).ACCOUNT_NUMBER;
+
+    END LOOP;
+    /*  ETL SECTION END*/
 
     /*Bulk insert */ 
     FORALL i in DM_VIOL_TX_MTCH1_INFO_tab.first .. DM_VIOL_TX_MTCH1_INFO_tab.last

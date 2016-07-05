@@ -23,7 +23,7 @@ TYPE DM_ACCOUNT_WEB_INFO_TYP IS TABLE OF DM_ACCOUNT_WEB_INFO%ROWTYPE
 DM_ACCOUNT_WEB_INFO_tab DM_ACCOUNT_WEB_INFO_TYP;
 
 
-P_ARRAY_SIZE NUMBER:=10000;
+P_ARRAY_SIZE NUMBER:=100;
 
 -- EXTRACT RULE 
 -- Join id of KS_USER to user_id of KS_USER_PA_ACCT_ASSOC to get external user acct_num
@@ -35,31 +35,31 @@ IS SELECT
     ua.PA_ACCT_NUM ETC_ACCOUNT_ID
     ,u.USERNAME USER_NAME
     ,u.PASSWORD PASSWORD  -- (Encrypted) How?
-    ,u.LAST_LOGIN_DATE LAST_LOGIN_DATETIME
-    ,u.ACCT_LOCKED_UNTIL_DATE INVALID_LOGIN_DATETIME
+    ,nvl(u.LAST_LOGIN_DATE,SYSDATE) LAST_LOGIN_DATETIME
+    ,nvl(u.ACCT_LOCKED_UNTIL_DATE,SYSDATE) INVALID_LOGIN_DATETIME
     ,u.LOGIN_ATTEMPT_COUNT INVALID_LOGIN_COUNT
-    ,decode(u.ACCT_LOCKED_UNTIL_DATE,'Y','N') PASSWORD_RESET  --Derived- IF INVALID LOGIN DATETIME IS NOT NULL THEN YES ELSE NO
+--    ,nvl(decode(u.ACCT_LOCKED_UNTIL_DATE,'Y','N'),'N') PASSWORD_RESET  --Derived- IF INVALID LOGIN DATETIME IS NOT NULL THEN YES ELSE NO
+    ,nvl2(u.ACCT_LOCKED_UNTIL_DATE,'Y','N') PASSWORD_RESET  --Derived- IF INVALID LOGIN DATETIME IS NOT NULL THEN YES ELSE NO
     ,NULL UPDATE_TS
-    ,NULL LAST_LOGOUT_DATETIME
+    ,sysdate LAST_LOGOUT_DATETIME
     ,NULL LOGIN_IP_ADDRESS  -- LOGIN_IP ADDRESS of MAX(LOGIN_DATE) from PA_WEB_LOGIN_INFO
     ,NULL USER_AGENT  -- PA_WEB_LOGIN_INFO
-    ,ic.ANI ANI  -- IVR_CALL
-    ,ic.START_TIME IVR_CALL_START_TIME  -- IVR_CALL
-    ,ic.END_TIME IVR_CALL_END_TIME  -- IVR_CALL
+    ,NULL ANI  -- IVR_CALL
+    ,NULL IVR_CALL_START_TIME  -- IVR_CALL ic.START_TIME
+    ,NULL IVR_CALL_END_TIME  -- IVR_CALL ic.END_TIME
     ,NULL LAST_IVR_CALL_DATE  -- SELECT MAX(LAST_LOGIN_DATE) from PA_WEB_LOGIN_INFO WHERE USER AGENT = 'IVR'
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM KS_USER_PA_ACCT_ASSOC ua
     ,KS_USER u
 --    ,PA_WEB_LOGIN_INFO wl
-    ,IVR_CALL ic
-    ,IVR_CALL_DETAIL icd
+--    ,IVR_CALL ic
+--    ,IVR_CALL_DETAIL icd
 WHERE ua.USER_ID = u.ID
-AND ua.PA_ACCT_NUM = icd.ACCT_NUM -- (+) ?
-AND icd.CALL_ID = ic.CALL_ID
+--AND ua.PA_ACCT_NUM = icd.ACCT_NUM -- (+) ?
+--AND icd.CALL_ID = ic.CALL_ID
 --AND ACTIVE_FLAG = 'Y'
 --AND   ua.PA_ACCT_NUM = wi.ACCT_NUM (+)
 --AND   ua.ACCT_NUM >= p_begin_acct_num AND   ua.ACCT_NUM <= p_end_acct_num
-
 ; -- Source SunToll
 
 --PA_WEB_LOGIN_INFO
@@ -98,6 +98,7 @@ BEGIN
       IF i=1 then
         v_trac_etl_rec.BEGIN_VAL := DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID;
       end if;
+      
       begin
        select max(LOGIN_DATE) into  DM_ACCOUNT_WEB_INFO_tab(i).LAST_IVR_CALL_DATE
         from PA_WEB_LOGIN_INFO wl
@@ -105,8 +106,16 @@ BEGIN
         and wl.USER_AGENT = 'IVR'
         ;
       exception 
-        when others then null;
---        DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
+--        when others then null;
+        when others then
+          DBMS_OUTPUT.PUT_LINE('1) ETC_ACCOUNT_ID: '||DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID);
+          DM_ACCOUNT_WEB_INFO_tab(i).LAST_IVR_CALL_DATE := sysdate;
+          v_trac_etl_rec.result_code := SQLCODE;
+          v_trac_etl_rec.result_msg := SQLERRM;
+          v_trac_etl_rec.proc_end_date := SYSDATE;
+          update_track_proc(v_trac_etl_rec);
+           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
       end;
       begin
 --       select wi.LOGIN_IP, wi.USER_AGENT 
@@ -119,8 +128,43 @@ BEGIN
                               where wl2.ACCT_NUM = wl.ACCT_NUM)
         ;
       exception 
-        when others then null;
---        DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
+        when no_data_found THEN
+          DM_ACCOUNT_WEB_INFO_tab(i).LOGIN_IP_ADDRESS := 'none';
+          DM_ACCOUNT_WEB_INFO_tab(i).USER_AGENT := 'none';        
+        when others then
+          DBMS_OUTPUT.PUT_LINE('2) ETC_ACCOUNT_ID: '||DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID);
+          v_trac_etl_rec.result_code := SQLCODE;
+          v_trac_etl_rec.result_msg := SQLERRM;
+          v_trac_etl_rec.proc_end_date := SYSDATE;
+          update_track_proc(v_trac_etl_rec);
+           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+      end;
+
+      begin
+       select --distinct 
+              ic.ANI, ic.START_TIME, ic.END_TIME 
+       into   DM_ACCOUNT_WEB_INFO_tab(i).ANI
+              ,DM_ACCOUNT_WEB_INFO_tab(i).IVR_CALL_START_TIME
+              ,DM_ACCOUNT_WEB_INFO_tab(i).IVR_CALL_END_TIME
+        from  IVR_CALL ic,IVR_CALL_DETAIL icd
+        WHERE icd.CALL_ID = ic.CALL_ID
+        and   icd.ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID
+        and   icd.CALL_ID = (select max(icd.CALL_ID) from IVR_CALL_DETAIL icd2
+                            where icd2.ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID)
+--        and   rownum=1
+        ;
+
+      exception 
+        when no_data_found THEN null;
+        when others then
+          DBMS_OUTPUT.PUT_LINE('3) ETC_ACCOUNT_ID: '||DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID);
+          v_trac_etl_rec.result_code := SQLCODE;
+          v_trac_etl_rec.result_msg := SQLERRM;
+          v_trac_etl_rec.proc_end_date := SYSDATE;
+          update_track_proc(v_trac_etl_rec);
+           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
       end;
 
       v_trac_etl_rec.track_last_val := DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID;
