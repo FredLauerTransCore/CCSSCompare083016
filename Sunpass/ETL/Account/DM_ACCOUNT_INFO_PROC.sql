@@ -54,9 +54,9 @@ CURSOR C1 IS SELECT
     ACCTTYPE_ACCT_TYPE_CODE||'NO-MAPPING'
     )  ACCOUNT_TYPE
     ,ACCT_OPEN_DATE ACCOUNT_OPEN_DATE
-    ,F_NAME||' '||L_NAME ACCOUNT_NAME
-    ,CASE WHEN TRIM(ORG) IS NULL THEN F_NAME||' '||L_NAME
-          ELSE ORG
+    ,ltrim(rtrim(F_NAME))||' '||ltrim(rtrim(L_NAME)) ACCOUNT_NAME
+    ,CASE WHEN ORG IS NULL THEN ltrim(rtrim(F_NAME))||' '||ltrim(rtrim(L_NAME))
+          ELSE ltrim(rtrim(ORG))
      END COMPANY_NAME
     ,NULL DBA
     ,E_MAIL_ADDR EMAIL_ADDRESS
@@ -176,8 +176,13 @@ BEGIN
         DM_ACCOUNT_INFO_tab(i).TAX_EXEMPTION_ID:=null;
     end;
 
-    null;
-
+    if trim(DM_ACCOUNT_INFO_tab(i).ACCOUNT_NAME) is null then
+	   DM_ACCOUNT_INFO_tab(i).ACCOUNT_NAME:='Undefined';
+	end if;
+    if trim(DM_ACCOUNT_INFO_tab(i).COMPANY_NAME) is null and  DM_ACCOUNT_INFO_tab(i).ACCOUNT_TYPE = 'BUSINESS' then
+	   DM_ACCOUNT_INFO_tab(i).COMPANY_NAME:=DM_ACCOUNT_INFO_tab(i).ACCOUNT_NAME;
+	end if;
+	
     end loop;
 
 
