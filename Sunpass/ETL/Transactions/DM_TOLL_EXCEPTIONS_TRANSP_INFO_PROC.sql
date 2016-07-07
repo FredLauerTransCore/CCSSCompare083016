@@ -237,10 +237,10 @@ BEGIN
           DM_TOLL_EXCEPTIONS_TRAN_tab(i).IMAGE_TAKEN:='0';
          end if;
 	 if DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLATE_COUNTRY is null then
-          DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLATE_COUNTRY:='0';
+          DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLATE_COUNTRY:='USA';
          end if;
 	 if DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLATE_STATE is null then
-          DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLATE_STATE:='0';
+          DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLATE_STATE:='FL';
          end if;
 	 if DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLATE_NUMBER is null then
           DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLATE_NUMBER:='0';

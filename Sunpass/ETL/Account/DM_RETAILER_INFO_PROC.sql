@@ -36,7 +36,7 @@ CURSOR C1 IS SELECT
     ,NULL CLOSURE_REASON
     ,ACCT_CLOSE_DATE CLOSE_DATE
     ,NULL COMENTS
-    ,E_MAIL_ADDR EMAIL_ADDRESS
+    ,nvl(E_MAIL_ADDR,'donotreply@xerox.com') EMAIL_ADDRESS
     ,substr(ORG,1,30) STORE_NAME
     ,NULL LOGIN_NAME
     ,NULL COMPANY_URL
@@ -80,7 +80,7 @@ BEGIN
           DM_RETAILER_INFO_tab(i).COMM_PER_DEVICE:='0';
          end if;
 	 if DM_RETAILER_INFO_tab(i).EMAIL_ADDRESS is null then
-          DM_RETAILER_INFO_tab(i).EMAIL_ADDRESS:='0';
+          DM_RETAILER_INFO_tab(i).EMAIL_ADDRESS:='donotreply@xerox.com';
          end if;
 	 if DM_RETAILER_INFO_tab(i).LOGIN_NAME is null then
           DM_RETAILER_INFO_tab(i).LOGIN_NAME:='0';

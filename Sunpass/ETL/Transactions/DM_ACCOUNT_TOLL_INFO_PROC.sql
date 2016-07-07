@@ -167,19 +167,19 @@ BEGIN
 
 
     /* get PA_PLAZA.AGENCY_ID for PLAZA_AGENCY_ID */
-BEGIN
-  SELECT io.AGENCY_ID
-  INTO DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID
-  FROM PA_PLAZA pl,
-    ST_INTEROP_AGENCIES io
-  WHERE DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID = pl.plaza_id
-  AND pl.AUTHCODE_AUTHORITY_CODE             = io.AUTHORITY_CODE
-  AND rownum                                <=1;
-EXCEPTION
-WHEN OTHERS THEN
-  NULL;
-  DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID:=NULL;
-END;
+    BEGIN
+      SELECT io.AGENCY_ID
+      INTO DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID
+      FROM PA_PLAZA pl,
+        ST_INTEROP_AGENCIES io
+      WHERE DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID = pl.plaza_id
+      AND pl.AUTHCODE_AUTHORITY_CODE             = io.AUTHORITY_CODE
+      AND rownum                                <=1;
+    EXCEPTION
+    WHEN OTHERS THEN
+      NULL;
+      DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID:=NULL;
+    END;
 
     /* get PA_STATE_CODE.STATE_CODE_ABB for PLATE_STATE */
     begin
@@ -201,19 +201,15 @@ END;
         DM_ACCOUNT_TOLL_INFO_tab(i).EXTERN_FILE_DATE:=null;
     end;
 
-    /* get PA_PLAZA.PLAZA_NAME for LOCATION */
-    begin
-      select PLAZA_NAME into DM_ACCOUNT_TOLL_INFO_tab(i).LOCATION from PA_PLAZA 
-      where PLAZA_ID=DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID
-            and rownum<=1;
-      exception 
-        when others then null;
-        DM_ACCOUNT_TOLL_INFO_tab(i).LOCATION:=null;
-    end;
 
     /* get PA_PLAZA.FACCODE_FACILITY_CODE for FACILITY_ID */
     begin
-      select FACCODE_FACILITY_CODE into DM_ACCOUNT_TOLL_INFO_tab(i).FACILITY_ID from PA_PLAZA 
+      select FACCODE_FACILITY_CODE, PLAZA_NAME ,decode(FTE_PLAZA,'N','I')
+	  into 
+	  DM_ACCOUNT_TOLL_INFO_tab(i).FACILITY_ID ,
+	  DM_ACCOUNT_TOLL_INFO_tab(i).LOCATION,
+	  DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND
+	  from PA_PLAZA 
       where PLAZA_ID=DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID
             and rownum<=1;
       exception 
@@ -221,30 +217,19 @@ END;
         DM_ACCOUNT_TOLL_INFO_tab(i).FACILITY_ID:=null;
     end;
 
-    /* get PA_PLAZA.decode(FTE_PLAZA,'N','I',decode(MSG_ID,'ITOL','V','E')) for TX_TYPE_IND */
-    begin
-      select decode(FTE_PLAZA,'N','I') into DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND from PA_PLAZA 
-      where PLAZA_ID=DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID
-            and rownum<=1;
-      exception 
-        when others then null;
-        DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND:=null;
-    end;
 
-    end loop;
-
-   /* this is for the TX_SUBTYPE_IND
-   IF TX_TYPE_IND = 'E' THEN 'Z' 
-   ELSE IF TX_TYPE_IND = 'V' THEN 
+    /* this is for the TX_SUBTYPE_IND
+    IF TX_TYPE_IND = 'E' THEN 'Z' 
+    ELSE IF TX_TYPE_IND = 'V' THEN 
      IF  TRANSP_ID ENDS WITH '0210' THEN 'I' 
          ELSE 'T' ELSE IF TX_TYPE_IND = 'I' THEN 
          IF MSG_ID = 'TTOL' THEN 'C' 
          ELSE 'I'
 
-   */
+    */
 
        /* to default the values NOT NULL columns */
-    FOR i in 1 .. DM_ACCOUNT_TOLL_INFO_tab.count loop
+
 	 if DM_ACCOUNT_TOLL_INFO_tab(i).FULL_FARE_AMOUNT is null then
           DM_ACCOUNT_TOLL_INFO_tab(i).FULL_FARE_AMOUNT:='0';
          end if;
@@ -312,10 +297,10 @@ END;
           DM_ACCOUNT_TOLL_INFO_tab(i).IMAGE_TAKEN:='0';
          end if;
 	 if DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_COUNTRY is null then
-          DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_COUNTRY:='0';
+          DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_COUNTRY:='USA';
          end if;
 	 if DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_STATE is null then
-          DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_STATE:='0';
+          DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_STATE:='FL';
          end if;
 	 if DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_NUMBER is null then
           DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_NUMBER:='0';

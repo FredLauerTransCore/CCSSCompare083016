@@ -85,7 +85,7 @@ BEGIN
         and rownum<=1;
       exception
         when others then null;
-        DM_VEHICLE_HST_INFO_tab(i).PLATE_COUNTRY:=null;
+        DM_VEHICLE_HST_INFO_tab(i).PLATE_COUNTRY:='USA';
       end;
       
 	    /* to default the values NOT NULL columns */
@@ -96,7 +96,7 @@ BEGIN
           DM_VEHICLE_HST_INFO_tab(i).PLATE_NUMBER:='0';
          end if;
 	 if DM_VEHICLE_HST_INFO_tab(i).PLATE_STATE is null then
-          DM_VEHICLE_HST_INFO_tab(i).PLATE_STATE:='0';
+          DM_VEHICLE_HST_INFO_tab(i).PLATE_STATE:='FL';
          end if;
 	 if DM_VEHICLE_HST_INFO_tab(i).PLATE_TYPE is null then
           DM_VEHICLE_HST_INFO_tab(i).PLATE_TYPE:='0';

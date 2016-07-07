@@ -24,13 +24,12 @@ CURSOR C1 IS SELECT
     ACCT_ACCT_NUM ACCOUNT_NUMBER
     ,DECODE(VEH_LIC_NUM, 'O', '0', VEH_LIC_NUM) PLATE_NUMBER
     ,STATE_STATE_CODE_ABBR PLATE_STATE
-   ,NULL PLATE_COUNTRY 
-    --,'USA' PLATE_COUNTRY      -- Derive from State	PLATE_COUNTRY	USA (Default), CAN, MEX
+    ,NULL PLATE_COUNTRY  -- Derive from State	PLATE_COUNTRY	USA (Default), CAN, MEX
     ,VEH_LIC_TYPE PLATE_TYPE  
     ,'REGULAR' VEHICLE_TYPE   --	"REGULAR (Default), AUTO / SUV ?
     ,START_DATE EFFECTIVE_START_DATE  --MAX(RESPONSE_DATE)Event lookup ROV
     ,END_DATE EFFECTIVE_END_DATE
-    ,nvl(VEH_MODEL_YR, '9999') YEAR
+   ,nvl(decode(translate(lpad(VEH_MODEL_YR,4,'9'),'0123456789','9999999999'),'9999',VEH_MODEL_YR,null),'9999') YEAR
     ,nvl(VEH_MAKE, 'OTHER') MAKE
     ,nvl(VEH_MODEL, 'OTHER') MODEL
     ,VEH_COLOR COLOUR
@@ -54,7 +53,6 @@ CURSOR C1 IS SELECT
     ,NULL PLATE_EXPIRY_DATE
     ,NULL PLATE_RENEWAL_DATE
     ,NULL ALT_VEHICLE_ID
---  ,VEH_LIC_NUM SRC_LIC_VEH_NUM  -- Missing in Target DM table
 FROM PA_ACCT_VEHICLE; 
 
 BEGIN
@@ -79,9 +77,8 @@ BEGIN
             and rownum<=1;
       exception 
         when others then null;
-        DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY:='0';
+        DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY:='USA';
     end;
-	
 	
 	 if DM_VEHICLE_INFO_tab(i).ACCOUNT_NUMBER is null then
           DM_VEHICLE_INFO_tab(i).ACCOUNT_NUMBER:='0';
@@ -90,10 +87,10 @@ BEGIN
           DM_VEHICLE_INFO_tab(i).PLATE_NUMBER:='0';
          end if;
 	 if DM_VEHICLE_INFO_tab(i).PLATE_STATE is null then
-          DM_VEHICLE_INFO_tab(i).PLATE_STATE:='0';
+          DM_VEHICLE_INFO_tab(i).PLATE_STATE:='FL';
          end if;
 	 if DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY is null then
-          DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY:='0';
+          DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY:='USA';
          end if;
 	 if DM_VEHICLE_INFO_tab(i).PLATE_TYPE is null then
           DM_VEHICLE_INFO_tab(i).PLATE_TYPE:='0';
