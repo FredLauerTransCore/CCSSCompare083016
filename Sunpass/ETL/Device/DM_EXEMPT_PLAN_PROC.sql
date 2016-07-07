@@ -125,7 +125,7 @@ BEGIN
             and rownum<=1;
       exception 
         when others then null;
-        DM_EXEMPT_PLAN_tab(i).PLATE_STATE:=null;
+        DM_EXEMPT_PLAN_tab(i).PLATE_STATE:='FL';
     end;
 
 	    /* get COUNTRY_STATE_LOOKUP.COUNTRY for PLATE_COUNTRY */
@@ -135,7 +135,7 @@ BEGIN
             and rownum<=1;
       exception 
         when others then null;
-        DM_EXEMPT_PLAN_tab(i).PLATE_COUNTRY:='0';
+        DM_EXEMPT_PLAN_tab(i).PLATE_COUNTRY:='USA';
     end;
 	
     /* get EXEMPTIONS.PLATE for PLATE_NUMBER */
