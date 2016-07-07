@@ -81,9 +81,12 @@ BEGIN
             and rownum<=1;
       exception 
         when others then null;
-        DM_ADDRESS_INFO_tab(i).COUNTRY:=null;
+        DM_ADDRESS_INFO_tab(i).COUNTRY:='USA';
+		if DM_ADDRESS_INFO_tab(i).STATE is null then
+	       DM_ADDRESS_INFO_tab(i).STATE:='FL';
+	    end if;
     end;
-	
+
     end loop;
 
 
