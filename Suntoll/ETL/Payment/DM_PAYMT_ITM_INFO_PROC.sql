@@ -55,6 +55,7 @@ FROM PA_PURCHASE pp
 --    ,PA_PURCHASE_PAYMENT pay
 WHERE pp.PUR_ID = pd.PUR_PUR_ID (+)
 --AND   pp.PUR_ID = pay.PUR_PUR_ID (+)
+--AND   pp.ACCT_ACCT_NUM >= p_begin_acct_num AND   pp.ACCT_ACCT_NUM <= p_end_acct_num
 ; -- source
 
 row_cnt          NUMBER := 0;

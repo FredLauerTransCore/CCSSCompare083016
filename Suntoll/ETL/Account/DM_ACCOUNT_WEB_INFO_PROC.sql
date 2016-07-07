@@ -33,8 +33,8 @@ CURSOR C1
 IS SELECT 
 --    ETC_ACCOUNT_ID ETC_ACCOUNT_ID
     ua.PA_ACCT_NUM ETC_ACCOUNT_ID
-    ,u.USERNAME USER_NAME
-    ,u.PASSWORD PASSWORD  -- (Encrypted) How?
+    ,nvl(u.USERNAME,'NULL-none') USER_NAME
+    ,nvl(u.PASSWORD,'NULL-none') PASSWORD  -- (Encrypted) How?
     ,nvl(u.LAST_LOGIN_DATE,SYSDATE) LAST_LOGIN_DATETIME
     ,nvl(u.ACCT_LOCKED_UNTIL_DATE,SYSDATE) INVALID_LOGIN_DATETIME
     ,u.LOGIN_ATTEMPT_COUNT INVALID_LOGIN_COUNT
@@ -117,6 +117,7 @@ BEGIN
            DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
            DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
       end;
+      
       begin
 --       select wi.LOGIN_IP, wi.USER_AGENT 
        select LOGIN_IP, USER_AGENT 
@@ -126,6 +127,7 @@ BEGIN
         and wl.LOGIN_DATE = (select max(LOGIN_DATE)
                               from PA_WEB_LOGIN_INFO wl2
                               where wl2.ACCT_NUM = wl.ACCT_NUM)
+        and   rownum=1
         ;
       exception 
         when no_data_found THEN
@@ -152,7 +154,7 @@ BEGIN
         and   icd.ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID
         and   icd.CALL_ID = (select max(icd.CALL_ID) from IVR_CALL_DETAIL icd2
                             where icd2.ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID)
---        and   rownum=1
+        and   rownum=1
         ;
 
       exception 

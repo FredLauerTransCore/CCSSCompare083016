@@ -22,47 +22,43 @@ TYPE DM_PAYMT_INFO_TYP IS TABLE OF DM_PAYMT_INFO%ROWTYPE
      INDEX BY BINARY_INTEGER;
 DM_PAYMT_INFO_tab DM_PAYMT_INFO_TYP;
 
-
-P_ARRAY_SIZE NUMBER:=100;
+P_ARRAY_SIZE NUMBER:=1000;
 
 -- 6/14/16 JL Updated REVERSED and NSF_FEE mapping to NULL based on 6/10 discussion with FTE and Xerox.
 
-CURSOR C1 IS SELECT 
+CURSOR C1
+--(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+IS SELECT 
     pp.ACCT_ACCT_NUM ACCOUNT_NUMBER
     ,pp.PUR_TRANS_DATE TX_DT  -- PA_PURCHASE
     ,trim(nvl(pay.PAYTYPE_PAYMENT_TYPE_CODE,'NULL')) PAY_TYPE
-    ,trim(nvl(pd.PRODUCT_PUR_PRODUCT_CODE,'R')) TRAN_TYPE
---    ,(select PROD_ABBRV from PA_PUR_PRODUCT where PUR_PRODUCT_CODE = pd.PRODUCT_PUR_PRODUCT_CODE) TRAN_TYPE    ?
+--    ,trim(nvl(pd.PRODUCT_PUR_PRODUCT_CODE,'R')) TRAN_TYPE  -- DETAIL  (IN ETL)
+    ,'R' TRAN_TYPE  -- DETAIL  (IN ETL)
     ,nvl(pay.PUR_PAY_AMT,0) AMOUNT
-    ,NULL REVERSED  -- PA_PURCHASE_DETAIL.PRODUCT_PUR_PRODUCT_CODE 
-----    ,(select PROD_ABBRV from PA_PUR_PRODUCT where PUR_PRODUCT_CODE = pd.PRODUCT_PUR_PRODUCT_CODE) REVERSED    ?
+    ,NULL REVERSED  -- PA_PURCHASE_DETAIL.PRODUCT_PUR_PRODUCT_CODE -- DETAIL  (IN ETL)
     ,to_char(to_date(pay.PUR_CREDIT_EXP_DATE,'MM/YY'),'MM') EXP_MONTH
     ,to_char(to_date(pay.PUR_CREDIT_EXP_DATE,'MM/YY'),'YYYY') EXP_YEAR
     ,trim(pay.PUR_CREDIT_ACCT_NUM) CREDIT_CARD_NUMBER
     ,trim(pay.CHK_ACCT_NUM) BANK_ACCOUNT_NUMBER
     ,trim(pay.ABA_NUMBER) BANK_ROUTING_NUMBER
     ,trim(pay.CHECK_NUM) CHECK_NUMBER
--- DERIVED  PA_PURCHASE_DETAIL.RODUCT_PUR_PRODUCT_CODE ?
-    ,NULL NSF_FEE -- DERIVED  PA_PURCHASE_DETAIL.RODUCT_PUR_PRODUCT_CODE ?
---    ,nvl(pay.PUR_PUR_ID,0) PAYMENT_REFERENCE_NUM   -- unique
---    ,decode(nvl(pay.PUR_PUR_ID,0),0,'NULL',pay.PUR_PUR_ID) PAYMENT_REFERENCE_NUM   -- unique
-    ,decode(nvl(pp.PUR_ID,0),0,'NULL',pp.PUR_ID) PAYMENT_REFERENCE_NUM   -- unique
+    ,NULL NSF_FEE -- Default
+    ,decode(nvl(pay.PUR_PUR_ID,0),0,'NULL',pay.PUR_PUR_ID) PAYMENT_REFERENCE_NUM   -- unique    
     ,trim(pay.EMP_EMP_CODE) EMPLOYEE_NUMBER    
---    ,decode(nvl(pay.PUR_PUR_ID,0),0,'NULL',pay.PUR_PUR_ID) TRANSACTION_ID   -- same source as PAYMENT_REFERENCE_NUM
-    ,decode(nvl(pp.PUR_ID,0),0,'NULL',pp.PUR_ID) TRANSACTION_ID   -- same source as PAYMENT_REFERENCE_NUM
--- Derived from product code and VES_REF_NUM from PA_PURCHASE_DETAIL table. Default Derived
-    ,nvl(pd.VES_REF_NUM,'NULL') ORG_TRANSACTION_ID 
---    ,(select PROD_ABBRV from PA_PUR_PRODUCT where PUR_PRODUCT_CODE = pd.PRODUCT_PUR_PRODUCT_CODE) REVERSED    
-    ,(select CHARGE_LEDGER_ID
-      from VB_ACTIVITY_RECOVERY_REF varr
-      join KS_LEDGER on PAID_CUST_LEDGER_ID=ID
-      where PA_PUR_DET_ID=pd.PUR_DET_ID) XREF_TRANSACTION_ID
+    ,nvl(pay.PUR_PAY_ID,0) TRANSACTION_ID  
+--    ,nvl(pd.VES_REF_NUM,'NULL') ORG_TRANSACTION_ID 
+    ,'NULL' ORG_TRANSACTION_ID -- DETAIL  (IN ETL)
+--    ,(select CHARGE_LEDGER_ID
+--      from VB_ACTIVITY_RECOVERY_REF varr
+--      join KS_LEDGER on PAID_CUST_LEDGER_ID=ID
+--      where PA_PUR_DET_ID=pd.PUR_DET_ID) XREF_TRANSACTION_ID      
+    ,'NULL' XREF_TRANSACTION_ID -- DETAIL  (IN ETL)
     ,pay.PUR_CREDIT_AUTH_NUM CC_RESPONSE_CODE
     ,pay.CC_GATEWAY_REF_ID EXTERNAL_REFERENCE_NUM
     ,NULL MISS_APPLIED
     ,NULL DESCRIPTION  -- No mapping
--- If REF_APPROVED_DATE is populated, then the refund status will be populated. REF_DECLINE_REASON_ID will get the status of the refund.
--- 1=UNAPPROVED, 2=APPROVED, 3=PARTIAL, 4=REJECTED.
+-- If REF_APPROVED_DATE is populated, then the refund status will be populated. 
+-- REF_DECLINE_REASON_ID will get the status of the refund.
     ,(select CASE WHEN rr.REF_APPROVED_DATE IS NOT NULL THEN 
             decode(rr.REFUND_STATUS_ID, 
               1,'UNAPPROVED', 
@@ -71,25 +67,25 @@ CURSOR C1 IS SELECT
               4,'REJECTED',NULL) 
             END 
       from PA_REFUND_REQUEST rr
-      where rr.PUR_PUR_ID = pp.PUR_ID)  REFUND_STATUS 
+      where rr.PUR_PUR_ID = pay.PUR_PUR_ID)  REFUND_STATUS 
     ,NULL REFUND_CHECK_NUM    
-    ,'N/A' TOD_ID -- N/A
+    ,'N/A' TOD_ID -- N/A Required
     ,pp.PUR_TRANS_DATE CREATED -- PA_PURCHASE
     ,pay.EMP_EMP_CODE CREATED_BY
-    ,trunc(SYSDATE) LAST_UPD  -- M/A
+    ,trunc(SYSDATE) LAST_UPD  -- N/A
     ,NULL LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
     ,pay.CC_GATEWAY_REQ_ID CC_GATEWAY_REQ_ID
     ,pay.CC_TXN_REF_NUM CC_TXN_REF_NUM
 FROM PA_PURCHASE pp
     ,PA_PURCHASE_PAYMENT pay
-    ,PA_PURCHASE_DETAIL pd
---    ,PA_REFUND_REQUEST rr
-WHERE pp.PUR_ID = pay.PUR_PUR_ID (+)
-AND   pp.PUR_ID = pd.PUR_PUR_ID (+)
---AND   pp.PUR_ID = rr.PUR_PUR_ID (+)
+--    ,PA_PURCHASE_DETAIL pd
+WHERE pp.PUR_ID = pay.PUR_PUR_ID
+--AND   pp.PUR_ID = pd.PUR_PUR_ID (+) -- AND   pd.ITEM_ORDER = 1 ?
+--AND   pp.ACCT_ACCT_NUM >= p_begin_acct_num AND   pp.ACCT_ACCT_NUM <= p_end_acct_num
 ; -- source
 
+v_PUR_DET_ID     PA_PURCHASE_DETAIL.PUR_DET_ID%TYPE := 0;
 row_cnt          NUMBER := 0;
 v_trac_rec       dm_tracking%ROWTYPE;
 v_trac_etl_rec   dm_tracking_etl%ROWTYPE;
@@ -119,10 +115,56 @@ BEGIN
     FETCH C1 BULK COLLECT INTO DM_PAYMT_INFO_tab
     LIMIT P_ARRAY_SIZE;
 
+    /*ETL SECTION BEGIN */
+    FOR i IN 1 .. DM_PAYMT_INFO_tab.COUNT LOOP
+      IF i=1 then
+        v_trac_etl_rec.BEGIN_VAL := DM_PAYMT_INFO_tab(i).ACCOUNT_NUMBER;
+      end if;
+      
+      begin
+        select PUR_DET_ID
+              ,nvl(PRODUCT_PUR_PRODUCT_CODE,'NULL')
+              ,nvl(VES_REF_NUM,'NULL')
+        into   v_PUR_DET_ID
+              ,DM_PAYMT_INFO_tab(i).TRAN_TYPE
+              ,DM_PAYMT_INFO_tab(i).ORG_TRANSACTION_ID
+        from  PA_PURCHASE_DETAIL
+        where PUR_PUR_ID = DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM
+        AND   ITEM_ORDER = 1
+        ;
+      exception 
+        when others then null;
+        v_PUR_DET_ID := 0;
+        DM_PAYMT_INFO_tab(i).TRAN_TYPE := 'NULL';
+        DM_PAYMT_INFO_tab(i).ORG_TRANSACTION_ID := 'NULL';
+      end;
+      
+      if v_PUR_DET_ID != 0 then
+--        select CHARGE_LEDGER_ID
+--        into   DM_PAYMT_INFO_tab(i).XREF_TRANSACTION_ID
+--        from  VB_ACTIVITY_RECOVERY_REF -- varr
+--        join  KS_LEDGER on PAID_CUST_LEDGER_ID=ID
+--        where PA_PUR_DET_ID=v_PUR_DET_ID
+--        ;
+        begin
+          select  varr.CHARGE_LEDGER_ID
+          into    DM_PAYMT_INFO_tab(i).XREF_TRANSACTION_ID
+          from    VB_ACTIVITY_RECOVERY_REF varr,  KS_LEDGER ks
+          where   varr.PAID_CUST_LEDGER_ID=ks.ID
+          and     ks.PA_PUR_DET_ID=v_PUR_DET_ID
+          ;
+        exception 
+          when others then null;
+          DM_PAYMT_INFO_tab(i).XREF_TRANSACTION_ID := 'NULL';
+        end;
+      end if;
 
-    /*ETL SECTION BEGIN
+      v_trac_etl_rec.track_last_val := DM_PAYMT_INFO_tab(i).ACCOUNT_NUMBER;
+      v_trac_etl_rec.end_val := DM_PAYMT_INFO_tab(i).ACCOUNT_NUMBER;
 
-      ETL SECTION END*/
+    END LOOP;
+
+     /* ETL SECTION END*/
 
     /*Bulk insert */ 
     FORALL i in DM_PAYMT_INFO_tab.first .. DM_PAYMT_INFO_tab.last
