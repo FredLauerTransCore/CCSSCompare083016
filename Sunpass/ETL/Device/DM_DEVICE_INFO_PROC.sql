@@ -104,7 +104,7 @@ BEGIN
             and rownum<=1;
       exception 
         when others then null;
-        DM_DEVICE_INFO_tab(i).MANUFACTURER:=null;
+        DM_DEVICE_INFO_tab(i).MANUFACTURER:='TRANSCORE';
         DM_DEVICE_INFO_tab(i).BOX_NUMBER:=null;
         DM_DEVICE_INFO_tab(i).TRAY_NUMBER:=null;
         DM_DEVICE_INFO_tab(i).CASE_NUMBER:=null;
