@@ -313,7 +313,7 @@ BEGIN
         and   va.DOCUMENT_ID = vac.CHILD_DOC_ID (+)
         and   rownum=1  -- Verify what record to get ??
         ;
-  DBMS_OUTPUT.PUT_LINE('2) DM_INVOICE_ITM_INFO_tab('||i||').SUB_CATEGORY: '||DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY);
+--  DBMS_OUTPUT.PUT_LINE('2) DM_INVOICE_ITM_INFO_tab('||i||').SUB_CATEGORY: '||DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY);
         exception 
           when no_data_found then
           DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY := 'NoData';
@@ -462,8 +462,7 @@ BEGIN
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
-  DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-  DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
+  DBMS_OUTPUT.PUT_LINE('Total load count : '||ROW_CNT);
 
   COMMIT;
 
@@ -476,6 +475,7 @@ BEGIN
   v_trac_etl_rec.end_val := v_trac_rec.end_acct;
   v_trac_etl_rec.proc_end_date := SYSDATE;
   update_track_proc(v_trac_etl_rec);
+  DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   
   EXCEPTION
   WHEN OTHERS THEN
@@ -489,6 +489,8 @@ END;
 /
 SHOW ERRORS
 
+grant execute on DM_INVOICE_ITM_INFO_PROC to public;
+commit;
 
 
 

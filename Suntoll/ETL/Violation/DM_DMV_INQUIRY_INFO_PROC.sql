@@ -45,7 +45,7 @@ IS SELECT
           ELSE 'N'
       END X_DMV_STATUS
       
-    ,eo.FIRST_NAME X_FST_NAME
+    ,nvl(eo.FIRST_NAME,'NULL-none') X_FST_NAME 
     ,eo.LAST_ORG_NAME X_LAST_NAME
     ,ev.PLATE X_PLATE_NUM
     ,CASE WHEN REG_STOP_SENT_ON IS NOT NULL 
@@ -71,6 +71,7 @@ WHERE e.OWNER_ID = eo.ID (+)
 AND e.ADDRESS_ID = ea.ID (+)
 AND e.VEHICLE_ID = ev.ID (+)
 AND e.ACCT_NUM = srs.ACCT_NUM (+)
+and e.ACCT_NUM is not null
 --AND   e.ACCT_NUM >= p_begin_acct_num AND   e.ACCT_NUM <= p_end_acct_num
 ; 
 -- Source
@@ -127,8 +128,7 @@ BEGIN
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
-  DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-  DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
+  DBMS_OUTPUT.PUT_LINE('Total load count : '||ROW_CNT);
 
   COMMIT;
 
@@ -141,6 +141,7 @@ BEGIN
   v_trac_etl_rec.end_val := v_trac_rec.end_acct;
   v_trac_etl_rec.proc_end_date := SYSDATE;
   update_track_proc(v_trac_etl_rec);
+  DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   
   EXCEPTION
   WHEN OTHERS THEN
@@ -153,5 +154,8 @@ BEGIN
 END;
 /
 SHOW ERRORS
+
+grant execute on DM_DMV_INQUIRY_INFO_PROC to public;
+commit;
 
 

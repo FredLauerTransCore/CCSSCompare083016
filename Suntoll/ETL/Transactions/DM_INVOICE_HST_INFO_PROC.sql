@@ -12,11 +12,9 @@ set serveroutput on
 set verify on
 set echo on
 
-CREATE OR REPLACE PROCEDURE DM_INVOICE_HST_INFO_PROC  
+CREATE OR REPLACE PROCEDURE DM_INVOICE_HST_INFO_PROC
   (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
 IS
-P_BEGIN_DATE  DATE;
-P_END_DATE    DATE;
 
 TYPE DM_INVOICE_HST_INFO_TYP IS TABLE OF DM_INVOICE_HST_INFO%ROWTYPE 
      INDEX BY BINARY_INTEGER;
@@ -28,129 +26,46 @@ P_ARRAY_SIZE NUMBER:=10000;
 CURSOR C1
 --(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT
-    sdi.ACCT_NUM ACCOUNT_NUMBER
-    ,sdi.DOCUMENT_ID INVOICE_NUMBER
-    ,trunc(sdi.CREATED_ON) INVOICE_DATE  -- date only
-
---JOIN LEDGER_ID OF ST_ACTIVITY_PAID to ID OF KS_LEDGER 
---  returns ORIGINAL_AMT from KS_LEDGER AND DISPUTED_AMT FROM ST_ACTIVITY_PAID; 
---Use dfference to determine if dismissed or not (IF 0 THEN 'DISPUTED' ELSE 'CLOSED') 
--- DISPUTED_AMT ??
-
---------------------------------------------------------------------------------
---JOIN DOCUMENT_INFO_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of VB_ACTIVITY 
---  returns UNPAID_TXN_DETAILS  (AMT_CHARGED, TOTAL_AMT_PAID)
---UNION ALL 
---JOIN DOCUMENT_ID      from ST_DOCUMENT_INFO to DOCUMENT_ID of ST_ACTIVITY_PAID 
---  returns PAID_TXN_DETAILS  
---IF UNPAID_AMT > 0 THEN 'OPEN' ELSE 'CLOSED'  (Need PAID_TXN_DETAILS definition from FTE); 
---
---JOIN LEDGER_ID OF ST_ACTIVITY_PAID to ID OF KS_LEDGER 
---  returns ORIGINAL_AMT from KS_LEDGER AND DISPUTED_AMT FROM ST_ACTIVITY_PAID; 
---  Use idfference to determine if dismissed or not (IF 0 THEN 'DISPUTED' ELSE 'CLOSED') 
-
-    ,CASE WHEN (nvl(va.AMT_CHARGED,0) - nvl(va.TOTAL_AMT_PAID,0)) > 0 THEN 'OPEN'
-          WHEN (nvl(sap.AMT_CHARGED,0) - nvl(sap.TOTAL_AMT_PAID,0)) > 0 THEN 'OPEN'
-          WHEN (select nvl(kl.AMOUNT,0) from KS_LEDGER kl where kl.id = sap.LEDGER_ID)
-                - (nvl(sap.AMT_CHARGED,0) - nvl(sap.TOTAL_AMT_PAID,0)) >0  THEN 'DISPUTED'
-          ELSE 'CLOSED'
-      END STATUS  -- Derived
-   
---VB_ACTIVITY table 
---FOR BANKRUPTCY_FLAG NULL and COLL_COURT_FLAG NULL
---IF DOCUMENT_ID is null, then 'UNBILLED'
---IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NULL, then 'INVOICED'
---IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NOT NULL, then 'ESCALATED'
---IF DOCUMENT_ID is not null and CHILD_DOC_ID like '%-%', then 'UTC'
---FOR BANKRUPTCY_FLAG NULL and COLL_COURT_FLAG NOT NULL
---IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NOT NULL  and COLL_COURT_FLAG is 'COLL' THEN 'COLLECTION'
---IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NOT NULL  and COLL_COURT_FLAG is 'CRT' THEN 'COURT'
---FOR BANKRUPTCY _FLAG NOT NULL
---IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
-    ,CASE WHEN va.BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
-          WHEN va.COLL_COURT_FLAG is null and
-               va.DOCUMENT_ID is null THEN 'UNBILLED'
-          WHEN va.COLL_COURT_FLAG is null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID is null THEN 'INVOICED'
-          WHEN va.COLL_COURT_FLAG is null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID is NOT null THEN 'ESCALATED'
-          WHEN va.COLL_COURT_FLAG is null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID like '%-%' THEN 'UTC'
-          WHEN va.COLL_COURT_FLAG is NOT null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID is NOT null and
-               va.COLL_COURT_FLAG = 'COLL' THEN 'COLLECTION'
-          WHEN va.COLL_COURT_FLAG is NOT null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID is NOT null and
-               va.COLL_COURT_FLAG = 'CRT' THEN 'COURT'
-          ELSE NULL
-      END ESCALATION_LEVEL  -- Derived
-    ,sdi.DOCUMENT_START START_DATE
-    ,sdi.DOCUMENT_END END_DATE
-    ,sdi.PREV_DUE OPENING_BALANCE
-    ,(nvl(sdi.PREV_DUE,0) + nvl(sdi.TOLL_CHARGED,0)
-        + nvl(sdi.FEE_CHARGED,0) + nvl(sdi.PAYMT_ADJS,0)) CLOSING_BALANCE
-
---JOIN DOCUMENT_INFO_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of VB_ACTIVITY 
---  returns PAID_TXN_DETAILS
---UNION ALL 
---JOIN DOCUMENT_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of ST_ACTIVITY_PAID 
---  returns PAID_TXN_DETAILS PAID_AMT + DISMISSED_AMT  ??
--- What is  DISMISSED_AMT ??
-    ,(va.TOTAL_AMT_PAID + sap.TOTAL_AMT_PAID) 
-        + (sap.AMT_CHARGED - sap.TOTAL_AMT_PAID) 
-        + (va.AMT_CHARGED - va.TOTAL_AMT_PAID) CREDITS  -- Derived
-        
---SUM(TOLL_CHARGED + FEE_CHARGED)
-    ,(nvl(sdi.TOLL_CHARGED,0) + nvl(sdi.FEE_CHARGED,0)) PAYABALE
-    
---  SUM OF (PREV_DUE
---    TOLL_CHARGED
---    FEE_CHARGED
---    PAYMT_ADJS)
-    ,(nvl(sdi.PREV_DUE,0) + nvl(sdi.TOLL_CHARGED,0) 
-        + nvl(sdi.FEE_CHARGED,0) + nvl(sdi.PAYMT_ADJS,0)) INVOICE_AMT
-        
---JOIN DOCUMENT_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of VB_ACTIVITY 
---  returns UNPAID_TXN_DETAILS
---UNION ALL JOIN DOCUMENT_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of ST_ACTIVITY_PAID 
---  returns PAID_TXN_DETAILS TOTAL_AMT_PAID 
-    ,(nvl(va.TOTAL_AMT_PAID,0) + nvl(sap.TOTAL_AMT_PAID,0)) PAYMENTS 
-    ,sdi.PAYMT_ADJS ADJUSTMENTS
+    ACCT_NUM ACCOUNT_NUMBER
+    ,DOCUMENT_ID INVOICE_NUMBER
+    ,trunc(CREATED_ON) INVOICE_DATE  -- date only   
+    ,'CLOSED' STATUS  -- Derived (IN ETL)
+    ,'NULL-none' ESCALATION_LEVEL  -- Derived (IN ETL)
+      
+    ,DOCUMENT_START START_DATE
+    ,DOCUMENT_END END_DATE
+    ,nvl(PREV_DUE,0) OPENING_BALANCE
+    ,(nvl(PREV_DUE,0)
+        + nvl(TOLL_CHARGED,0)
+        + nvl(FEE_CHARGED,0) 
+        + nvl(PAYMT_ADJS,0)) CLOSING_BALANCE  
+    ,0 CREDITS  -- Derived (IN ETL)   
+    ,(nvl(TOLL_CHARGED,0) + nvl(FEE_CHARGED,0)) PAYABALE
+    ,(nvl(PREV_DUE,0) 
+        + nvl(TOLL_CHARGED,0) 
+        + nvl(FEE_CHARGED,0) 
+        + nvl(PAYMT_ADJS,0)) INVOICE_AMT
+    ,0 PAYMENTS -- Derived (IN ETL)  
+    ,nvl(PAYMT_ADJS,0) ADJUSTMENTS
     ,'N' IS_ESCALATION_EXMPT
-    ,trunc(MAILED_ON)+25 PAYMENT_DUE_DT
+    ,trunc(nvl(MAILED_ON,SYSDATE))+25 PAYMENT_DUE_DT  -- Default if NULL ?
     ,NULL DISCOUNT_ELIGIBLE_CHARGES
     ,0 DISCOUNTS
     ,0 MILEGE
-    ,NVL(sdi.DOC_TYPE_ID,'INVOICE') INVOICE_TYPE
-    ,sdi.CREATED_ON CREATED
-    ,'9986' CREATED_BY -- SYSTEM_EMP_CODE
-    ,sdi.CREATED_ON LAST_UPD
-    ,NULL LAST_UPD_BY -- SYSTEM_EMP_CODE
-    ,'SUNTOLL' SOURCE_SYSTEM
---    ,sdi.COVER_IMAGE_VIO_EVENT_ID COVER_IMAGE_VIO_EVENT_ID 
---    ,sdi.ADDRESS_ID ADDRESS_ID  -- PA_ACCT_ADDR.ADDRESS_ID
---    ,sdi.REG_STOP_FLAG REGISTRATION_STOP_FLAG   -- ST_ACCOUNT_FLAGS.REGISTRATION_STOP_FLAG
---    ,sdi.RED_ENVELOPE_FLAG RED_ENVELOPE_FLAG   -- ST_ACCOUNT_FLAGS.RED_ENVELOPE_FLAG
---    ,sdi.VEH_LIC_NUM LICENSE_PLATE_NUM   -- PA_LANE_TXN.VEH_LIC_NUM
---    ,sdi.MAILED_ON MAILED_ON 
-
---JOIN DOCUMENT_INFO_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of VB_ACTIVITY 
---  returns PAID_TXN_DETAILS
---UNION ALL 
---JOIN DOCUMENT_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of ST_ACTIVITY_PAID 
---  returns PAID_TXN_DETAILS DISMISSED_AMT
---    ,NULL DISMISSED   -- DISMISSED_AMT
-  FROM PATRON.ST_DOCUMENT_INFO sdi
-      ,PATRON.VB_ACTIVITY va
-      ,PATRON.ST_ACTIVITY_PAID sap
-  WHERE sdi.DOCUMENT_ID = va.DOCUMENT_ID (+)  
-    AND sdi.DOCUMENT_ID = sap.DOCUMENT_ID (+)
---AND   di.ACCT_NUM >= p_begin_acct_num AND   di.ACCT_NUM <= p_end_acct_num
+    ,decode(NVL(DOC_TYPE_ID,0),0,'INVOICE',DOC_TYPE_ID) INVOICE_TYPE
+    ,CREATED_ON CREATED
+    ,'9986' CREATED_BY
+    ,CREATED_ON LAST_UPD
+    ,NULL LAST_UPD_BY
+    ,COVER_IMAGE_VIO_EVENT_ID COVER_IMAGE_VIO_EVENT_ID 
+    ,ADDRESS_ID ADDRESS_ID  -- PA_ACCT_ADDR.ADDRESS_ID
+    ,REG_STOP_FLAG REGISTRATION_STOP_FLAG   -- ST_ACCOUNT_FLAGS.REGISTRATION_STOP_FLAG
+    ,RED_ENVELOPE_FLAG RED_ENVELOPE_FLAG   -- ST_ACCOUNT_FLAGS.RED_ENVELOPE_FLAG  
+    ,VEH_LIC_NUM LICENSE_PLATE_NUM   -- PA_LANE_TXN.VEH_LIC_NUM
+    ,MAILED_ON MAILED_ON 
+    ,NULL DISMISSED   -- DISMISSED_AMT
+    ,'SUNTOLL' SOURCE_SYSTEM  FROM ST_DOCUMENT_INFO
+--WHERE   ACCT_NUM >= p_begin_acct_num AND   ACCT_NUM <= p_end_acct_num
 ; -- Source
 
 row_cnt          NUMBER := 0;
@@ -183,6 +98,164 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 -- ETL SECTION BEGIN
+    FOR i IN 1 .. DM_INVOICE_HST_INFO_tab.COUNT LOOP
+      IF i=1 then
+        v_trac_etl_rec.BEGIN_VAL := DM_INVOICE_HST_INFO_tab(i).ACCOUNT_NUMBER;
+      end if;
+
+----VB_ACTIVITY table 
+----FOR BANKRUPTCY_FLAG NULL and COLL_COURT_FLAG NULL
+----IF DOCUMENT_ID is null, then 'UNBILLED'
+----IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NULL, then 'INVOICED'
+----IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NOT NULL, then 'ESCALATED'
+----IF DOCUMENT_ID is not null and CHILD_DOC_ID like '%-%', then 'UTC'
+----FOR BANKRUPTCY_FLAG NULL and COLL_COURT_FLAG NOT NULL
+----IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NOT NULL  and COLL_COURT_FLAG is 'COLL' THEN 'COLLECTION'
+----IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NOT NULL  and COLL_COURT_FLAG is 'CRT' THEN 'COURT'
+----FOR BANKRUPTCY _FLAG NOT NULL
+----IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'     
+      begin
+        select distinct
+        CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
+          WHEN COLL_COURT_FLAG is null and
+               DOCUMENT_ID is null THEN 'UNBILLED'
+          WHEN COLL_COURT_FLAG is null and
+               DOCUMENT_ID is NOT null and
+               CHILD_DOC_ID is null THEN 'INVOICED'
+          WHEN COLL_COURT_FLAG is null and
+               DOCUMENT_ID is NOT null and
+               CHILD_DOC_ID like '%-%' THEN 'UTC'
+          WHEN COLL_COURT_FLAG is null and
+               DOCUMENT_ID is NOT null and
+               CHILD_DOC_ID is NOT null THEN 'ESCALATED'
+          WHEN COLL_COURT_FLAG is NOT null and
+               DOCUMENT_ID is NOT null and
+               CHILD_DOC_ID is NOT null and
+               COLL_COURT_FLAG = 'COLL' THEN 'COLLECTION'
+          WHEN COLL_COURT_FLAG is NOT null and
+               DOCUMENT_ID is NOT null and
+               CHILD_DOC_ID is NOT null and
+               COLL_COURT_FLAG = 'CRT' THEN 'COURT'
+--          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
+          ELSE 'NULL-none'
+         END    
+        into  DM_INVOICE_HST_INFO_tab(i).ESCALATION_LEVEL
+        from  VB_ACTIVITY
+        where DOCUMENT_ID = DM_INVOICE_HST_INFO_tab(i).INVOICE_NUMBER
+        and rownum=1  -- Verify what record to get ??
+        ;
+        
+      exception 
+        when no_data_found then --null;
+          DM_INVOICE_HST_INFO_tab(i).ESCALATION_LEVEL := 'NULL-none';
+        when others then --null;
+          DBMS_OUTPUT.PUT_LINE('1) INVOICE_NUMBER: '||DM_INVOICE_HST_INFO_tab(i).INVOICE_NUMBER);
+          DM_INVOICE_HST_INFO_tab(i).ESCALATION_LEVEL := 'NULL-none';
+          v_trac_etl_rec.result_code := SQLCODE;
+          v_trac_etl_rec.result_msg := SQLERRM;
+          v_trac_etl_rec.proc_end_date := SYSDATE;
+          update_track_proc(v_trac_etl_rec);
+           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+      end;
+
+----    ,CASE WHEN (nvl(AMT_CHARGED,0) - nvl(TOTAL_AMT_PAID,0)) > 0 THEN 'OPEN'
+----          WHEN (select nvl(AMOUNT,0) from KS_LEDGER where id = ap.LEDGER_ID)
+----                - (nvl(ap.AMT_CHARGED,0) - nvl(ap.TOTAL_AMT_PAID,0)) >0  THEN 'DISPUTED'
+----          ELSE 'CLOSED'
+----      END STATUS  -- Derived
+
+---- PAID_AMT + DISMISSED_AMT  -- What is  DISMISSED_AMT ??
+--    ,(nvl(va.TOTAL_AMT_PAID,0) + nvl(ap.TOTAL_AMT_PAID,0))
+--        + (nvl(ap.AMT_CHARGED,0) - nvl(ap.TOTAL_AMT_PAID,0)) 
+--        + (nvl(va.AMT_CHARGED,0) - nvl(va.TOTAL_AMT_PAID,0)) CREDITS  -- Derived
+
+------ PAID_AMT + DISMISSED_AMT  -- What is  DISMISSED_AMT ??
+--    --    ,(nvl(va.TOTAL_AMT_PAID,0) + nvl(ap.TOTAL_AMT_PAID,0)) PAYMENTS 
+
+        begin
+          select --distinct
+                  CASE WHEN sum(nvl(AMT_CHARGED,0) - nvl(TOTAL_AMT_PAID,0)) > 0 
+                      THEN 'OPEN'
+--                    WHEN (select nvl(AMOUNT,0) from KS_LEDGER where id = ap.LEDGER_ID)
+--                - (nvl(ap.AMT_CHARGED,0) - nvl(ap.TOTAL_AMT_PAID,0)) >0  THEN 'DISPUTED'
+                      ELSE 'CLOSED'
+                  END
+                ,sum(nvl(AMT_CHARGED,0) - nvl(TOTAL_AMT_PAID,0)) 
+                ,sum(nvl(TOTAL_AMT_PAID,0))
+          into  DM_INVOICE_HST_INFO_tab(i).STATUS
+                ,DM_INVOICE_HST_INFO_tab(i).CREDITS
+                ,DM_INVOICE_HST_INFO_tab(i).PAYMENTS
+          from  
+          ((select 
+--          COLL_COURT_FLAG
+--                  ,DOCUMENT_ID
+--                  ,CHILD_DOC_ID
+--                  ,
+                  AMT_CHARGED 
+                  ,TOTAL_AMT_PAID
+          from  VB_ACTIVITY
+          where DOCUMENT_ID = DM_INVOICE_HST_INFO_tab(i).INVOICE_NUMBER)
+          union all
+          (select 
+--          COLL_COURT_FLAG
+--                  ,DOCUMENT_ID
+--                  ,CHILD_DOC_ID
+                  AMT_CHARGED 
+                  ,TOTAL_AMT_PAID
+          from  ST_ACTIVITY_PAID
+          where DOCUMENT_ID = DM_INVOICE_HST_INFO_tab(i).INVOICE_NUMBER))
+          ;
+        exception 
+          when others then null;
+          DBMS_OUTPUT.PUT_LINE('2) INVOICE_NUMBER: '||DM_INVOICE_HST_INFO_tab(i).INVOICE_NUMBER);
+          DM_INVOICE_HST_INFO_tab(i).STATUS := 'CLOSED';
+          DM_INVOICE_HST_INFO_tab(i).CREDITS := 0;
+          DM_INVOICE_HST_INFO_tab(i).PAYMENTS := 0;
+          v_trac_etl_rec.result_code := SQLCODE;
+          v_trac_etl_rec.result_msg := SQLERRM;
+          v_trac_etl_rec.proc_end_date := SYSDATE;
+          update_track_proc(v_trac_etl_rec);
+           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+        end;
+
+
+----JOIN LEDGER_ID OF ST_ACTIVITY_PAID to ID OF KS_LEDGER 
+----  returns ORIGINAL_AMT from KS_LEDGER AND DISPUTED_AMT FROM ST_ACTIVITY_PAID; 
+----Use dfference to determine if dismissed or not (IF 0 THEN 'DISPUTED' ELSE 'CLOSED') 
+---- DISPUTED_AMT ??
+----          WHEN (select nvl(AMOUNT,0) from KS_LEDGER where id = ap.LEDGER_ID)
+----                - (nvl(ap.AMT_CHARGED,0) - nvl(ap.TOTAL_AMT_PAID,0)) >0  THEN 'DISPUTED'
+
+      if DM_INVOICE_HST_INFO_tab(i).STATUS != 'OPEN' then
+        begin
+          select CASE WHEN sum(nvl(kl.AMOUNT,0) - (nvl(sap.AMT_CHARGED,0) - nvl(sap.TOTAL_AMT_PAID,0))) > 0
+                      THEN 'DISPUTED'         
+                      ELSE 'CLOSED'
+                  END 
+          into  DM_INVOICE_HST_INFO_tab(i).STATUS
+          from  ST_ACTIVITY_PAID sap,
+                KS_LEDGER kl
+          where sap.DOCUMENT_ID = DM_INVOICE_HST_INFO_tab(i).INVOICE_NUMBER
+          and   sap.LEDGER_ID = kl.id
+          ;
+        exception 
+          when others then null;
+          DM_INVOICE_HST_INFO_tab(i).STATUS := 'CLOSED';
+        end;
+      end if;
+      IF DM_INVOICE_HST_INFO_tab(i).CREDITS is null then
+        DM_INVOICE_HST_INFO_tab(i).CREDITS := 0;
+      end if;
+      IF DM_INVOICE_HST_INFO_tab(i).PAYMENTS is null then
+        DM_INVOICE_HST_INFO_tab(i).PAYMENTS := 0;
+      end if;
+      
+      v_trac_etl_rec.track_last_val := DM_INVOICE_HST_INFO_tab(i).ACCOUNT_NUMBER;
+      v_trac_etl_rec.end_val := DM_INVOICE_HST_INFO_tab(i).ACCOUNT_NUMBER;
+
+    END LOOP;
 
 -- ETL SECTION END
 
@@ -196,8 +269,7 @@ BEGIN
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
-  DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-  DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
+  DBMS_OUTPUT.PUT_LINE('Total load count : '||ROW_CNT);
 
   COMMIT;
 
@@ -210,6 +282,7 @@ BEGIN
   v_trac_etl_rec.end_val := v_trac_rec.end_acct;
   v_trac_etl_rec.proc_end_date := SYSDATE;
   update_track_proc(v_trac_etl_rec);
+  DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   
   EXCEPTION
   WHEN OTHERS THEN
@@ -222,3 +295,7 @@ BEGIN
 END;
 /
 SHOW ERRORS
+
+grant execute on DM_INVOICE_HST_INFO_PROC to public;
+commit;
+

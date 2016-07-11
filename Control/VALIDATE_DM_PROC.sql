@@ -37,7 +37,7 @@ IS
 ;  
   
 BEGIN
-  DBMS_OUTPUT.PUT_LINE(i_c_rec.control_id||' - Start VALIDATION_PROC for '||i_c_rec.etl_name||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+--  DBMS_OUTPUT.PUT_LINE(i_c_rec.control_id||' - Start VALIDATION_PROC for '||i_c_rec.etl_name||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   v_c_rec := i_c_rec;
   SELECT * INTO v_etl_rec
   FROM  dm_tracking_etl

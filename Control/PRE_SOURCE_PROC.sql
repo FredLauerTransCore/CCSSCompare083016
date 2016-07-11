@@ -33,6 +33,7 @@ IS
 
   sql_string    VARCHAR2(500); -- := 'truncate table ';
   p_row_cnt     NUMBER := 0;
+  v_schema      VARCHAR2(100);
   v_select      VARCHAR2(100);
   v_into        VARCHAR2(100);
   v_from        VARCHAR2(100);
@@ -41,12 +42,13 @@ IS
 BEGIN
   v_c_rec := i_c_rec;
   calc_rec.calc_type := 'PRE';
+  v_schema := v_c_rec.SOURCE_SYSTEM||'.';
   SELECT * INTO v_etl_rec
   FROM  dm_tracking_etl
   WHERE track_etl_id = i_trac_id;
   
 --  calc_rec.TRACK_ID :=  v_etl_rec.TRACK_ID;
-  DBMS_OUTPUT.PUT_LINE('Start PRE_SOURCE_PROC for '||v_etl_rec.etl_name||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+--  DBMS_OUTPUT.PUT_LINE('Start PRE_SOURCE_PROC for '||v_etl_rec.etl_name||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   SELECT * INTO v_trac_rec
   FROM  dm_tracking
   WHERE track_id = v_etl_rec.track_id
@@ -57,7 +59,6 @@ BEGIN
   update_track_proc(v_etl_rec);
   
   calc_rec.track_etl_id :=  v_etl_rec.track_etl_id;
-  
   FOR idx IN c1(v_c_rec.control_id) 
   LOOP   
     calc_rec.track_calc_id   :=  track_calc_id_seq.NEXTVAL;
@@ -70,7 +71,7 @@ BEGIN
 
     v_select :=   'SELECT '||calc_rec.calc_func||'('||calc_rec.calc_field||')';
     v_into :=     ' INTO :val';
-    v_from :=     ' FROM '||calc_rec.calc_tab;
+    v_from :=     ' FROM '||v_schema||calc_rec.calc_tab;
     v_where := ' WHERE 1=1 ';
 --    v_where := ' WHERE rownum<11 ';
     IF idx.source_where IS NOT NULL THEN
@@ -98,7 +99,7 @@ BEGIN
 --      EXECUTE IMMEDIATE sql_string
 --      USING out calc_rec.calc_value
 
-    DBMS_OUTPUT.PUT_LINE('calc_value : '||calc_rec.calc_value);
+    DBMS_OUTPUT.PUT_LINE('Total '||calc_rec.calc_func||' : '||calc_rec.calc_value);
 
     INSERT INTO dm_tracking_calc VALUES calc_rec;      
     COMMIT;

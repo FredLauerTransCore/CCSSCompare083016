@@ -41,16 +41,18 @@ IS
   v_select      VARCHAR2(100);
   v_from        VARCHAR2(100);
   v_where       VARCHAR2(500);
+  v_schema      VARCHAR2(100);
   
 BEGIN
   v_c_rec := i_c_rec;
   calc_rec.calc_type := 'POST';
-
+--  v_schema  := 'DMSTAGING_DEV.';
+  
   SELECT * INTO v_etl_rec
   FROM  dm_tracking_etl
   WHERE track_etl_id = i_trac_id;
 
-  DBMS_OUTPUT.PUT_LINE('Start POST_DM_PROC for '||v_etl_rec.etl_name||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+--  DBMS_OUTPUT.PUT_LINE('Start POST_DM_PROC for '||v_etl_rec.etl_name||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
 
   v_etl_rec.proc_start_date := SYSDATE;  
   v_etl_rec.status := calc_rec.calc_type||' process Started';
@@ -77,7 +79,7 @@ BEGIN
     calc_rec.calc_value := 0;
     
     v_select :=   'SELECT '||calc_rec.calc_func||'('||calc_rec.calc_field||')';
-    v_from :=     ' FROM '||calc_rec.calc_tab;
+    v_from :=     ' FROM '||v_schema||calc_rec.calc_tab;
     sql_string := v_select||v_from;
 --    v_where := ' WHERE 1=1 ';
     v_where := ' WHERE source_system = '''||v_c_rec.source_system||'''';
@@ -90,7 +92,8 @@ BEGIN
       ;
 --      USING v_begin_date, v_end_date
 
-      DBMS_OUTPUT.PUT_LINE('calc_rec.calc_value : '||calc_rec.calc_value);
+--      DBMS_OUTPUT.PUT_LINE('calc_rec.calc_value : '||calc_rec.calc_value);
+      DBMS_OUTPUT.PUT_LINE('Total '||calc_rec.calc_func||' : '||calc_rec.calc_value);
 
       INSERT INTO dm_tracking_calc VALUES calc_rec;      
 
@@ -109,7 +112,7 @@ BEGIN
   v_etl_rec.status := calc_rec.calc_type||' process Completed';
   calc_rec.result_code := SQLCODE;
   calc_rec.result_msg := SQLERRM;
-  update_track_proc(v_etl_rec);
+--  update_track_proc(v_etl_rec);
   update_track_calc_proc(calc_rec);
   
   EXCEPTION

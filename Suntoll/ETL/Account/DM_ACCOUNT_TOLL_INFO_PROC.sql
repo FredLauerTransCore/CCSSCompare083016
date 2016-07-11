@@ -208,8 +208,7 @@ BEGIN
                        
     EXIT WHEN C1%NOTFOUND;
   END LOOP;
-  DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
-  DBMS_OUTPUT.PUT_LINE('Total ROW_CNT : '||ROW_CNT);
+  DBMS_OUTPUT.PUT_LINE('Total load count : '||ROW_CNT);
 
   COMMIT;
 
@@ -222,6 +221,7 @@ BEGIN
   v_trac_etl_rec.end_val := v_trac_rec.end_acct;
   v_trac_etl_rec.proc_end_date := SYSDATE;
   update_track_proc(v_trac_etl_rec);
+  DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   
   EXCEPTION
   WHEN OTHERS THEN
@@ -235,5 +235,7 @@ END;
 /
 SHOW ERRORS
 
+grant execute on DM_ACCOUNT_TOLL_INFO_PROC to public;
+commit;
 
 
