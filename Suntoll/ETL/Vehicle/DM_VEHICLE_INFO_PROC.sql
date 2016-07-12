@@ -49,8 +49,7 @@ IS SELECT
     pav.ACCT_ACCT_NUM ACCOUNT_NUMBER
     ,DECODE(pav.VEH_LIC_NUM, 'O', '0', pav.VEH_LIC_NUM) PLATE_NUMBER  -- PATRON.EVENT_LOOKUP_ROV
     ,pav.STATE_STATE_CODE_ABBR PLATE_STATE
-    ,nvl((select substr(trim(cs.COUNTRY),1,4) from  COUNTRY_STATE_LOOKUP cs
-           where cs.STATE_ABBR = pav.STATE_STATE_CODE_ABBR),'USA') PLATE_COUNTRY
+    ,NULL PLATE_COUNTRY
     ,nvl(pav.VEH_LIC_TYPE,'NULL-none') PLATE_TYPE    -- Prefix and Suffix for the Country and State.  
     ,'REGULAR' VEHICLE_TYPE     
     ,SUBSCRIPTION_START_DATE EFFECTIVE_START_DATE
@@ -129,6 +128,16 @@ BEGIN
       ;
       v_trac_etl_rec.track_last_val := DM_VEHICLE_INFO_tab(i).ACCOUNT_NUMBER;
       v_trac_etl_rec.end_val := DM_VEHICLE_INFO_tab(i).ACCOUNT_NUMBER;
+      
+      begin
+        select COUNTRY into DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY from COUNTRY_STATE_LOOKUP 
+        where STATE_ABBR = DM_VEHICLE_INFO_tab(i).PLATE_STATE
+        and rownum<=1;
+      exception
+        when others then null;
+        DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY:='USA';
+      end;
+      
 
     END LOOP;
 --      ETL SECTION END
