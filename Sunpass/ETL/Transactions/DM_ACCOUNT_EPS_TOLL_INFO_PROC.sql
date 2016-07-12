@@ -204,7 +204,6 @@ END;
     end;
 
     /* get PA_STATE_CODE.STATE_CODE_ABB for PLATE_STATE */
-	
     begin
       select STATE_CODE_ABBR into DM_ACCOUNT_EPS_TOLL_INF_tab(i).PLATE_STATE from PA_STATE_CODE sc, pa_lane_txn ln
       where sc.STATE_CODE_NUM=ln.state_id_code and DM_ACCOUNT_EPS_TOLL_INF_tab(i).LANE_TX_ID=ln.txn_id
@@ -213,6 +212,16 @@ END;
         when others then null;
         DM_ACCOUNT_EPS_TOLL_INF_tab(i).PLATE_STATE:=null;
     end;
+
+    /* get COUNTRY_STATE_LOOKUP.COUNTRY for PLATE_COUNTRY */
+      begin
+        select COUNTRY into DM_ACCOUNT_EPS_TOLL_INF_tab(i).PLATE_COUNTRY from COUNTRY_STATE_LOOKUP 
+        where STATE_ABBR = DM_ACCOUNT_EPS_TOLL_INF_tab(i).PLATE_STATE
+        and rownum<=1;
+      exception
+        when others then null;
+        DM_ACCOUNT_EPS_TOLL_INF_tab(i).PLATE_COUNTRY:='USA';
+      end;
 
     end loop;
 
