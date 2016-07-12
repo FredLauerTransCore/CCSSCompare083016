@@ -30,7 +30,7 @@ IS
 
   load_tab    VARCHAR2(50);
   row_cnt     NUMBER := 0;
-  v_source_sys dm_control.source_system%TYPE := 'SUNTOLL'; 
+--  v_source_sys dm_control.source_system%TYPE := 'SUNTOLL'; 
 
   sql_string    VARCHAR2(500) := 'delete ';
   p_row_cnt     NUMBER := 0;
