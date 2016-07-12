@@ -28,7 +28,14 @@ CURSOR C1
 --(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
     pa.ACCT_NUM ACCOUNT_NUMBER
-    ,pa.ACCTSTAT_ACCT_STATUS_CODE ACCOUNT_STATUS
+    ,decode(pa.ACCTSTAT_ACCT_STATUS_CODE,
+     '01','ACTIVE',
+     '02','SUSPENDED',
+     '03','RVKF',
+     '04','CLOSED',
+     '99','DO NOT USE',
+    pa.ACCTSTAT_ACCT_STATUS_CODE||'NO-MAPPING'
+    ) ACCOUNT_STATUS
     ,NULL ACCOUNT_STATUS_DATETIME    -- in ETL- Sub query  ,max(PA_ACCT_STATUS_CHANGES.STATUS_CHG_DATE)- 
     ,'MAIL' STATEMENT_DELIVERY_MODE 
     ,'NONE' STATEMENT_PERIOD    -- PA_ACCT.Statement_option decode? MONTHLY? STATOPTCDE_STATEMENT_OPT_CODE
