@@ -28,11 +28,11 @@ P_ARRAY_SIZE NUMBER:=10000;
 CURSOR C1 IS SELECT 
     ACCT_NUM ACCOUNT_NUMBER
     ,decode(ACCTSTAT_ACCT_STATUS_CODE,
-     '01','Active',
-     '02','Suspended',
-     '03','Terminated',
-     '04','Closed',
-     '99','Do Not Use',
+     '01','ACTIVE',
+     '02','SUSPENDED',
+     '03','RVKF',
+     '04','CLOSED',
+     '99','DO NOT USE',
     ACCTSTAT_ACCT_STATUS_CODE||'NO-MAPPING'
     ) ACCOUNT_STATUS
     ,NULL ACCOUNT_STATUS_DATETIME
