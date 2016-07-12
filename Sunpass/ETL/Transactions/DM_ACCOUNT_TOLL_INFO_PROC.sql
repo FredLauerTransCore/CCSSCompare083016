@@ -204,20 +204,27 @@ BEGIN
 
     /* get PA_PLAZA.FACCODE_FACILITY_CODE for FACILITY_ID */
     begin
-      select FACCODE_FACILITY_CODE, PLAZA_NAME ,decode(FTE_PLAZA,'N','I')
-	  into 
-	  DM_ACCOUNT_TOLL_INFO_tab(i).FACILITY_ID ,
-	  DM_ACCOUNT_TOLL_INFO_tab(i).LOCATION,
-	  DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND
-	  from PA_PLAZA 
-      where PLAZA_ID=DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID
+      select pp.FACCODE_FACILITY_CODE
+             ,pp.PLAZA_NAME
+             ,case WHEN pp.FTE_PLAZA = 'N' THEN 'I'
+                   WHEN lt.MSG_ID = 'ITOL' THEN 'V'
+                   ELSE 'E'
+              end
+	    into 
+	    DM_ACCOUNT_TOLL_INFO_tab(i).FACILITY_ID ,
+	    DM_ACCOUNT_TOLL_INFO_tab(i).LOCATION,
+	    DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND
+	    from PA_PLAZA pp,
+           PA_LANE_TXN lt
+      where pp.PLAZA_ID=DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID
+            and lt.EXT_PLAZA_ID=DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID
             and rownum<=1;
       exception 
         when others then null;
         DM_ACCOUNT_TOLL_INFO_tab(i).FACILITY_ID:=null;
     end;
 
-
+    
     /* this is for the TX_SUBTYPE_IND
     IF TX_TYPE_IND = 'E' THEN 'Z' 
     ELSE IF TX_TYPE_IND = 'V' THEN 
@@ -227,6 +234,48 @@ BEGIN
          ELSE 'I'
 
     */
+
+    /* derive TX_SUBTYPE_IND */
+    begin
+      select case WHEN DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND = 'E' THEN 'Z'
+                  WHEN DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND = 'V' THEN 
+                       case WHEN DM_ACCOUNT_TOLL_INFO_tab(i).DEVICE_NO like '%0210' THEN 'I'
+                            ELSE 'T'
+                       end
+                  WHEN DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND = 'I' THEN
+                       case WHEN lt.MSG_ID = 'TTOL' THEN 'C'
+                            ELSE 'I'
+                       end
+             end
+	    into 
+	    DM_ACCOUNT_TOLL_INFO_tab(i).TX_SUBTYPE_IND
+	    from PA_LANE_TXN lt
+      where lt.EXT_PLAZA_ID=DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID
+        and rownum<=1;
+      exception 
+        when others then null;
+    end;
+
+
+    /* derive ETC_TX_STATUS from TX_TYPE_IND and TX_SUBTYPE_IND */
+    begin
+      select decode(DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND||DM_ACCOUNT_TOLL_INFO_tab(i).TX_SUBTYPE_IND, 
+                                                 'EZ', 1,
+                                                 'VT', 2,
+                                                 'VI', 9,
+                                                 'IC', 7,
+                                                 'II', 6,
+                                                       0 )
+	    into 
+	    DM_ACCOUNT_TOLL_INFO_tab(i).ETC_TX_STATUS
+	    from PA_PLAZA 
+      where PLAZA_ID=DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID
+        and rownum<=1;
+      exception 
+        when others then null;
+        DM_ACCOUNT_TOLL_INFO_tab(i).ETC_TX_STATUS:=0;
+    end;
+
 
        /* to default the values NOT NULL columns */
 
@@ -435,5 +484,6 @@ BEGIN
 END;
 /
 SHOW ERRORS
+
 
 
