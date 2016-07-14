@@ -53,6 +53,7 @@ CURSOR C1 IS SELECT
     ,NULL PLATE_EXPIRY_DATE
     ,NULL PLATE_RENEWAL_DATE
     ,NULL ALT_VEHICLE_ID
+--  ,VEH_LIC_NUM SRC_LIC_VEH_NUM  -- Missing in Target DM table
 FROM PA_ACCT_VEHICLE; 
 
 BEGIN
@@ -70,7 +71,7 @@ BEGIN
 	    /* to default the values NOT NULL columns */
     FOR i in 1 .. DM_VEHICLE_INFO_tab.count loop
 	
-		/* get COUNTRY_STATE_LOOKUP.COUNTRY for PLATE_COUNTRY */
+			/* get COUNTRY_STATE_LOOKUP.COUNTRY for PLATE_COUNTRY */
     begin
       select COUNTRY into DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY from COUNTRY_STATE_LOOKUP 
       where STATE_ABBR=DM_VEHICLE_INFO_tab(i).PLATE_STATE
