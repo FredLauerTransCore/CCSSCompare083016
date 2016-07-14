@@ -38,15 +38,14 @@ IS SELECT
     ,pa.ORG COMPANY_NAME
     ,NULL DBA -- N/A
     ,pa.E_MAIL_ADDR EMAIL_ADDRESS
---    ,PA_ACCT_REPL_DETAIL.REPLENISHMENT_AMT REBILL_AMOUNT
+--  in ETL - ,PA_ACCT_REPL_DETAIL.REPLENISHMENT_AMT REBILL_AMOUNT
     ,0 REBILL_AMOUNT
---    ,PA_ACCT_REPL_DETAIL.LOW_BAL_AMT REBILL_THRESHOLD
+-- In ETL -   ,PA_ACCT_REPL_DETAIL.LOW_BAL_AMT REBILL_THRESHOLD
     ,0 REBILL_THRESHOLD
     ,pa.ACCT_PIN_NUMBER PIN
     ,NULL VIDEO_ACCT_STATUS -- N/A
     ,NULL SUSPENDED_DATE -- N/A
---    ,pa.CREATED_ON LAST_INVOICE_DATE --  ST_DOCUMENT_INFO - MAX(CREATED_ON)
-    ,NULL LAST_INVOICE_DATE --  ST_DOCUMENT_INFO - MAX(CREATED_ON)
+    ,NULL LAST_INVOICE_DATE -- In ETL  ST_DOCUMENT_INFO - MAX(CREATED_ON)
     ,pa.CLOSED_DATE ACCOUNT_CLOSE_DATE
     ,NULL CORRESPONDENCE_DEL_MODE
     ,'ENGLISH' LANGUAGE_PREFERENCE
@@ -196,6 +195,57 @@ BEGIN
         when others then null;
         DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
       end;
+
+      begin
+        select STATUS_CHG_DATE into DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_STATUS_DATETIME
+        from PA_ACCT_STATUS_CHANGES
+        where ACCT_NUM = DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_NUMBER
+        ;
+      exception 
+        when others then null;
+        DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
+      end;
+
+--    ,PA_ACCT_REPL_DETAIL.REPLENISHMENT_AMT REBILL_AMOUNT  -- If many sum or last
+      begin
+        select REPLENISHMENT_AMT 
+        into DM_ACCOUNT_HST_INFO_tab(i).REBILL_AMOUNT
+        from PA_ACCT_REPL_DETAIL
+        where ACCT_ACCT_NUM = DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_NUMBER
+        ;
+      exception 
+        when no_data_found then
+          DM_ACCOUNT_HST_INFO_tab(i).REBILL_AMOUNT:=0;       
+        when others then
+          DM_ACCOUNT_HST_INFO_tab(i).REBILL_AMOUNT:=0;
+          v_trac_etl_rec.result_code := SQLCODE;
+          v_trac_etl_rec.result_msg := SQLERRM;
+          v_trac_etl_rec.proc_end_date := SYSDATE;
+          update_track_proc(v_trac_etl_rec);
+          DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+          DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+      end;
+
+--    ,PA_ACCT_TRANSP.LOW_BAL_AMT REBILL_THRESHOLD     -- If many sum or last
+      begin
+        select LOW_BAL_AMT 
+        into DM_ACCOUNT_HST_INFO_tab(i).REBILL_THRESHOLD
+        from PA_ACCT_TRANSP
+        where ACCT_ACCT_NUM = DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_NUMBER
+        ;
+      exception 
+        when no_data_found then
+          DM_ACCOUNT_HST_INFO_tab(i).REBILL_THRESHOLD:=0;
+        when others then
+          v_trac_etl_rec.result_code := SQLCODE;
+          v_trac_etl_rec.result_msg := SQLERRM;
+          v_trac_etl_rec.proc_end_date := SYSDATE;
+          update_track_proc(v_trac_etl_rec);
+          DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+          DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+      end;
+
+
       begin
         select max(di.CREATED_ON) into  DM_ACCOUNT_HST_INFO_tab(i).LAST_INVOICE_DATE
         from ST_DOCUMENT_INFO di
@@ -205,9 +255,9 @@ BEGIN
         when others then null;
         DM_ACCOUNT_HST_INFO_tab(i).LAST_INVOICE_DATE:=null;
       end;
---    DBMS_OUTPUT.PUT_LINE('ACCT- '||i||' - '||DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
---        ||' - '||DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME
---        ||' - '||DM_ACCOUNT_INFO_tab(i).LAST_INVOICE_DATE);
+--    DBMS_OUTPUT.PUT_LINE('ACCT- '||i||' - '||DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_NUMBER
+--        ||' - '||DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_STATUS_DATETIME
+--        ||' - '||DM_ACCOUNT_HST_INFO_tab(i).LAST_INVOICE_DATE);
            
 --    IF ACCOUNT_NUM EXISTS IN ST_REG_STOP_PAYMENT_PLAN AND NVL(PAYMENT_PLAN_END, TRUNC(SYSDATE))  >=  TRUNC(SYSDATE) 
 --    THEN 'A'    -- (if plan end date is future or null) 

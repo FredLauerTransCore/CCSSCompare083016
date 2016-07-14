@@ -24,6 +24,16 @@ BEGIN
   
   v_etl_rec := io_trac_rec;
   v_etl_rec.proc_last_date := SYSDATE;
+  
+  select RESULT_CODE, RESULT_MSG
+  into   v_etl_rec.RESULT_CODE, v_etl_rec.RESULT_MSG
+  from   DM_TRACKING_ETL
+  where  track_etl_id = v_etl_rec.track_etl_id
+  ;
+
+  v_etl_rec.RESULT_CODE := v_etl_rec.RESULT_CODE||'*'||io_trac_rec.RESULT_CODE;
+  v_etl_rec.RESULT_MSG := v_etl_rec.RESULT_MSG||'*'||io_trac_rec.RESULT_MSG;
+  
   UPDATE DM_TRACKING_ETL
     SET ROW = v_etl_rec
   WHERE track_etl_id = v_etl_rec.track_etl_id
@@ -31,7 +41,7 @@ BEGIN
   ;
   UPDATE DM_TRACKING
   set PROC_END_DATE = SYSDATE,
-      STATUS = v_etl_rec.etl_name||' '||v_etl_rec.status
+      STATUS = v_etl_rec.etl_name||':'||v_etl_rec.status
   where TRACK_ID = v_etl_rec.track_id;
   COMMIT;
 

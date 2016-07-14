@@ -59,7 +59,7 @@ IS SELECT
 FROM PA_ACCT_ADDR paa
 WHERE DEFAULT_ADDR_FLAG = 'Y'
 --and  paa.acct_num<50000000
---where    paa.ACCT_NUM >= p_begin_acct_num   AND   paa.ACCT_NUM <= p_end_acct_num
+--and    paa.ACCT_NUM >= p_begin_acct_num   AND   paa.ACCT_NUM <= p_end_acct_num
 ;
 
 row_cnt          NUMBER := 0;
@@ -112,8 +112,8 @@ BEGIN
 
   COMMIT;
   v_trac_etl_rec.status := 'ETL Completed';
-  v_trac_etl_rec.result_code := SQLCODE;
-  v_trac_etl_rec.result_msg := SQLERRM;
+  v_trac_etl_rec.result_code := v_trac_etl_rec.result_code||SQLCODE;
+  v_trac_etl_rec.result_msg := v_trac_etl_rec.result_msg||SQLERRM;
   v_trac_etl_rec.end_val := v_trac_rec.end_acct;
   v_trac_etl_rec.proc_end_date := SYSDATE;
   update_track_proc(v_trac_etl_rec);
@@ -121,8 +121,8 @@ BEGIN
   
   EXCEPTION
   WHEN OTHERS THEN
-    v_trac_etl_rec.result_code := SQLCODE;
-    v_trac_etl_rec.result_msg := SQLERRM;
+    v_trac_etl_rec.result_code := v_trac_etl_rec.result_code||SQLCODE;
+    v_trac_etl_rec.result_msg := v_trac_etl_rec.result_msg||SQLERRM;
     v_trac_etl_rec.proc_end_date := SYSDATE;
     update_track_proc(v_trac_etl_rec);
      DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);

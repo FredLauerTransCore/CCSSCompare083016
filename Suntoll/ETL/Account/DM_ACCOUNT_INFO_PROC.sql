@@ -45,10 +45,10 @@ IS SELECT
     ,pa.ORG COMPANY_NAME
     ,NULL DBA
     ,pa.E_MAIL_ADDR EMAIL_ADDRESS
---    ,PA_ACCT_REPL_DETAIL.REPLENISHMENT_AMT REBILL_AMOUNT  -- If many sum or last
+-- IN ETL   ,PA_ACCT_REPL_DETAIL.REPLENISHMENT_AMT REBILL_AMOUNT  
     ,0 REBILL_AMOUNT  -- If many sum or last
---    ,PA_ACCT_TRANSP.LOW_BAL_AMT REBILL_THRESHOLD     -- If many sum or last
-    ,0 REBILL_THRESHOLD     -- If many sum or last    ,0 PIN
+-- IN ETL   ,PA_ACCT_TRANSP.LOW_BAL_AMT REBILL_THRESHOLD  
+    ,0 REBILL_THRESHOLD     -- If many sum or last  
     ,pa.ACCT_PIN_NUMBER PIN
     ,0 VIDEO_ACCT_STATUS
     ,NULL SUSPENDED_DATE
@@ -148,22 +148,54 @@ BEGIN
         v_trac_etl_rec.BEGIN_VAL := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
       end if;
       
---      begin
---        select STAT_POST_DATE into DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME
---        from PA_ACCT_STATUS_CHANGES
---        where ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
---        ;
---      exception 
---        when others then null;
---        DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
---      end;
-
+      begin
+        select STATUS_CHG_DATE into DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME
+        from PA_ACCT_STATUS_CHANGES
+        where ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
+        ;
+      exception 
+        when others then null;
+        DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
+      end;
 
 --    ,PA_ACCT_REPL_DETAIL.REPLENISHMENT_AMT REBILL_AMOUNT  -- If many sum or last
-
+      begin
+        select REPLENISHMENT_AMT 
+        into DM_ACCOUNT_INFO_tab(i).REBILL_AMOUNT
+        from PA_ACCT_REPL_DETAIL
+        where ACCT_ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
+        ;
+      exception 
+        when no_data_found then
+          DM_ACCOUNT_INFO_tab(i).REBILL_AMOUNT:=0;       
+        when others then
+          DM_ACCOUNT_INFO_tab(i).REBILL_AMOUNT:=0;
+          v_trac_etl_rec.result_code := SQLCODE;
+          v_trac_etl_rec.result_msg := SQLERRM;
+          v_trac_etl_rec.proc_end_date := SYSDATE;
+          update_track_proc(v_trac_etl_rec);
+          DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+          DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+      end;
 
 --    ,PA_ACCT_TRANSP.LOW_BAL_AMT REBILL_THRESHOLD     -- If many sum or last
-
+      begin
+        select LOW_BAL_AMT 
+        into DM_ACCOUNT_INFO_tab(i).REBILL_THRESHOLD
+        from PA_ACCT_TRANSP
+        where ACCT_ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
+        ;
+      exception 
+        when no_data_found then
+          DM_ACCOUNT_INFO_tab(i).REBILL_THRESHOLD:=0;
+        when others then
+          v_trac_etl_rec.result_code := SQLCODE;
+          v_trac_etl_rec.result_msg := SQLERRM;
+          v_trac_etl_rec.proc_end_date := SYSDATE;
+          update_track_proc(v_trac_etl_rec);
+          DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+          DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+      end;
 
       
       begin
