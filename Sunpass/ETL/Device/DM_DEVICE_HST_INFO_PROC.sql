@@ -128,9 +128,12 @@ BEGIN
             and rownum<=1;
       exception 
         when others then null;
-        DM_DEVICE_HST_INFO_tab(i).MANUFACTURER:=null;
+        DM_DEVICE_HST_INFO_tab(i).MANUFACTURER:='TRANSCORE';
     end;
-
+	if DM_DEVICE_HST_INFO_tab(i).MANUFACTURER is null then
+      DM_DEVICE_HST_INFO_tab(i).MANUFACTURER:='TRANSCORE';
+	end if;
+	
     /* get PA_INV_TRANSP.ISSUE_DATE for DOB */
     begin
       select ISSUE_DATE into DM_DEVICE_HST_INFO_tab(i).DOB from PA_INV_TRANSP 
