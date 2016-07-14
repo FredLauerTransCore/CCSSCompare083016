@@ -111,10 +111,12 @@ BEGIN
       end;
 
     
-    /* LAST_TOLL_TX_TIMESTAMP */
+    /* LAST_TOLL_TX_TIMESTAMP, LAST_TOLL_TX_DATE */
     begin
       select CAST(lt.EXT_DATE_TIME AS TIMESTAMP)
+            ,lt.EXT_DATE_TIME
         into DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_TIMESTAMP
+            ,DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_DATE
         from ( 
               select PA_LANE_TXN_ID
                 from (  select PA_LANE_TXN_ID
