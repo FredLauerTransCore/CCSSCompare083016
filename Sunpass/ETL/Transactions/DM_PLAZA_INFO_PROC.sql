@@ -94,16 +94,7 @@ BEGIN
 
     FOR i in 1 .. DM_PLAZA_INFO_tab.count loop
     
-      /* get PLAZA_LANE_TYPE_DIRECTION.PLAZA_ID for PLAZA_ID */
-      begin
-        select td.PLAZA_ID into DM_PLAZA_INFO_tab(i).PLAZA_ID
-        from PLAZA_LANE_TYPE_DIRECTION td 
-        where td.PLAZA_ID=DM_PLAZA_INFO_tab(i).PLAZA_ID
-              and rownum<=1;
-        exception 
-          when others then null;
-          DM_PLAZA_INFO_tab(i).PLAZA_ID:=null;
-      end;    
+ 
     
 	    /* to default the values NOT NULL columns */
 	 if DM_PLAZA_INFO_tab(i).HOST_PLAZA_ID is null then
