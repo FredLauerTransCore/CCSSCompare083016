@@ -27,39 +27,38 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
-    paa.ACCT_NUM ACCOUNT_NUMBER
+    ACCT_NUM ACCOUNT_NUMBER
     ,'MAILING' ADDR_TYPE
     ,1 ADDR_TYPE_INT_ID
-    ,substr(trim(paa.ADDR1),1,40) STREET_1    -- ADDR_1 mapping
-    ,trim(paa.ADDR2) STREET_2    -- ADDR_2 mapping
-    ,substr(trim(paa.CITY),1,25) CITY
-    ,paa.STATE_CODE_ABBR STATE    -- STATE_STATE_CODE_ABBR mapping
-    ,paa.ZIP_CODE ZIP_CODE
-    ,SUBSTR(paa.ZIP_CODE,7,10) ZIP_PLUS4
---    ,to_char(paa.COUNTRY_CODE) COUNTRY   -- COUNTRY_COUNTRY_CODE mapping
+    ,substr(trim(ADDR1),1,40) STREET_1    -- ADDR_1 mapping
+    ,trim(ADDR2) STREET_2    -- ADDR_2 mapping
+    ,substr(trim(CITY),1,25) CITY
+    ,STATE_CODE_ABBR STATE    -- STATE_STATE_CODE_ABBR mapping
+    ,ZIP_CODE ZIP_CODE
+    ,SUBSTR(ZIP_CODE,7,10) ZIP_PLUS4
+--    ,to_char(COUNTRY_CODE) COUNTRY   -- COUNTRY_COUNTRY_CODE mapping
     ,COUNTRY_CODE COUNTRY   -- COUNTRY_COUNTRY_CODE mapping
-    ,nvl2(paa.BAD_ADDR_DATE,'Y','N') NIXIE
+    ,nvl2(BAD_ADDR_DATE,'Y','N') NIXIE
     ,to_date('02/27/2017', 'MM/DD/YYYY') NIXIE_DATE
     ,'N' NCOA_FLAG
     ,'N' ADDRESS_CLEANSED_FLG
     ,'CSC' ADDRESS_SOURCE
 --    ,(select pa.CREATED_ON from PA_ACCT pa
---          WHERE pa.ACCT_NUM = paa.ACCT_NUM)  CREATED
+--          WHERE pa.ACCT_NUM = ACCT_NUM)  CREATED
     ,NULL  CREATED
     ,'SUNTOLL_CSC_ID' CREATED_BY
     ,to_date('02/27/2017', 'MM/DD/YYYY') LAST_UPD
     ,'SUNTOLL_CSC_ID' LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
     ,NULL ADDRESS_NUMBER  -- DECODE?
--- ICD - ,(select csl.COUNTY from COUNTY_STATE_LOOKUP csl where csl.CITY = paa.CITY) COUNTY_CODE
-    ,paa.COUNTY_CODE   COUNTY_CODE  --  (Need table)
+-- ICD - ,(select csl.COUNTY from COUNTY_STATE_LOOKUP csl where csl.CITY = CITY) COUNTY_CODE
+    ,COUNTY_CODE   COUNTY_CODE  --  (Need table)
 --    ,NULL   COUNTY_CODE  --  (Need table)
-FROM PA_ACCT_ADDR paa
+FROM PA_ACCT_ADDR
 WHERE DEFAULT_ADDR_FLAG = 'Y'
---and  paa.acct_num<50000000
---and    paa.ACCT_NUM >= p_begin_acct_num   AND   paa.ACCT_NUM <= p_end_acct_num
+and   ACCT_NUM >= p_begin_acct_num   AND   ACCT_NUM <= p_end_acct_num
 ;
 
 row_cnt          NUMBER := 0;
@@ -81,7 +80,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1; --(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 
@@ -131,4 +130,4 @@ END;
 /
 SHOW ERRORS
 
-
+commit;

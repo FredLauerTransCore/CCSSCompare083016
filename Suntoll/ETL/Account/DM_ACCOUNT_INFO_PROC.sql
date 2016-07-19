@@ -25,7 +25,7 @@ DM_ACCOUNT_INFO_tab DM_ACCOUNT_INFO_TYP;
 P_ARRAY_SIZE NUMBER:=10000;
 
 CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
     pa.ACCT_NUM ACCOUNT_NUMBER
     ,decode(pa.ACCTSTAT_ACCT_STATUS_CODE,
@@ -46,9 +46,9 @@ IS SELECT
     ,NULL DBA
     ,pa.E_MAIL_ADDR EMAIL_ADDRESS
 -- IN ETL   ,PA_ACCT_REPL_DETAIL.REPLENISHMENT_AMT REBILL_AMOUNT  
-    ,0 REBILL_AMOUNT  -- If many sum or last
+    ,0 REBILL_AMOUNT 
 -- IN ETL   ,PA_ACCT_TRANSP.LOW_BAL_AMT REBILL_THRESHOLD  
-    ,0 REBILL_THRESHOLD     -- If many sum or last  
+    ,0 REBILL_THRESHOLD 
     ,pa.ACCT_PIN_NUMBER PIN
     ,0 VIDEO_ACCT_STATUS
     ,NULL SUSPENDED_DATE
@@ -103,9 +103,8 @@ IS SELECT
 FROM PA_ACCT pa
     ,PA_ACCT_DETAIL pad
 WHERE  pa.ACCT_NUM = pad.ACCT_NUM (+)
---AND pa.ACCT_NUM > 0
---and rownum<3501
---AND   pa.ACCT_NUM >= p_begin_acct_num AND   pa.ACCT_NUM <= p_end_acct_num
+--AND pa.ACCT_NUM > 0   and rownum<3501
+AND   pa.ACCT_NUM >= p_begin_acct_num AND   pa.ACCT_NUM <= p_end_acct_num
 ; 
 
 SQL_STRING  varchar2(500) := 'delete table ';
@@ -129,7 +128,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1; --(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 
@@ -174,7 +173,7 @@ BEGIN
           v_trac_etl_rec.result_msg := SQLERRM;
           v_trac_etl_rec.proc_end_date := SYSDATE;
           update_track_proc(v_trac_etl_rec);
-          DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+          DBMS_OUTPUT.PUT_LINE('REB ERROR CODE: '||v_trac_etl_rec.result_code);
           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
       end;
 
@@ -193,7 +192,7 @@ BEGIN
           v_trac_etl_rec.result_msg := SQLERRM;
           v_trac_etl_rec.proc_end_date := SYSDATE;
           update_track_proc(v_trac_etl_rec);
-          DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+          DBMS_OUTPUT.PUT_LINE('LOW ERROR CODE: '||v_trac_etl_rec.result_code);
           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
       end;
 
@@ -255,10 +254,11 @@ BEGIN
     v_trac_etl_rec.result_msg := SQLERRM;
     v_trac_etl_rec.proc_end_date := SYSDATE;
     update_track_proc(v_trac_etl_rec);
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('EMP ERROR CODE: '||v_trac_etl_rec.result_code);
      DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
 END;
 /
 SHOW ERRORS
 
+commit;
 

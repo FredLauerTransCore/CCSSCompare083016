@@ -61,8 +61,6 @@ BEGIN
   FROM  dm_tracking
   WHERE track_id = v_etl_rec.track_id
   ;
---  DBMS_OUTPUT.PUT_LINE('Acct between: '||v_trac_rec.begin_acct||' - '||v_trac_rec.end_acct);
-
   calc_rec.track_etl_id :=  v_etl_rec.track_etl_id;
 
 --  FOR idx IN c1(c_rec.source_system, c_rec.control_id)
@@ -83,26 +81,28 @@ BEGIN
 --    v_where := ' WHERE 1=1 ';
     v_where := ' WHERE source_system = '''||v_c_rec.source_system||'''';
 
-      sql_string := sql_string||v_where;
+    if v_c_rec.source_acct_field is not null then
+      v_where := v_where||' and ACCOUNT_NUMBER >= '||v_trac_rec.begin_acct
+                        ||' and ACCOUNT_NUMBER <= '||v_trac_rec.end_acct;
+    end if;
+    IF idx.source_where IS NOT NULL THEN
+      v_where :=  v_where||' AND '||idx.target_where;
+    END IF;
 
-      DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
-      EXECUTE IMMEDIATE sql_string
-      INTO calc_rec.calc_value
-      ;
+    sql_string := sql_string||v_where;
+
+    DBMS_OUTPUT.PUT_LINE(calc_rec.calc_type||' sql : '||sql_string);
+    calc_rec.sql_text := sql_string;
+    EXECUTE IMMEDIATE sql_string
+    INTO calc_rec.calc_value
+    ;
 --      USING v_begin_date, v_end_date
 
---      DBMS_OUTPUT.PUT_LINE('calc_rec.calc_value : '||calc_rec.calc_value);
-      DBMS_OUTPUT.PUT_LINE('Total '||calc_rec.calc_func||' : '||calc_rec.calc_value);
+    DBMS_OUTPUT.PUT_LINE('Total '||calc_rec.calc_type||' '||calc_rec.calc_func||' : '||calc_rec.calc_value);
 
-      INSERT INTO dm_tracking_calc VALUES calc_rec;
+    INSERT INTO dm_tracking_calc VALUES calc_rec;
 
-      COMMIT;
-
---    END IF;
-
---- RETURN calc_rec.calc_value;
---    execute immediate 'begin :x := ' ||
--- vRunFunctie || '( :p1,  :p2, :vParmOut2 ); end;' using out vParmOut1, vParmIn1, vParmIn2, out vParmOut2;
+    COMMIT;
 
   END LOOP;
 
@@ -127,4 +127,4 @@ END;
 /
 SHOW ERRORS
 
-
+commit;

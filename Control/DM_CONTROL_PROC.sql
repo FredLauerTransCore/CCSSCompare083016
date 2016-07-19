@@ -49,7 +49,6 @@ BEGIN
   FOR c_rec IN c1(trac_rec.SOURCE_SYSTEM)
   LOOP
     DBMS_OUTPUT.PUT_LINE(c_rec.load_order||' - Start '||c_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
---    DBMS_OUTPUT.PUT_LINE(c_rec.load_order||' - Start '||c_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
 
     START_ETL_TRACK_PROC(c_rec, i_track_id, trac_etl_rec);
     
@@ -74,7 +73,7 @@ BEGIN
         trac_etl_rec.result_msg := trac_etl_rec.result_msg||SQLERRM;
         trac_etl_rec.proc_end_date := SYSDATE;
         update_track_proc(trac_etl_rec);
-        DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||trac_etl_rec.result_code);
+        DBMS_OUTPUT.PUT_LINE('EXE ETL ERROR CODE: '||trac_etl_rec.result_code);
         DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||trac_etl_rec.result_msg);
     end;
 
@@ -108,7 +107,7 @@ END;
 /
 SHOW ERRORS
 
-
+commit;
 
   
 

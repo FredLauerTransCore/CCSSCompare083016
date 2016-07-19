@@ -31,7 +31,7 @@ CURSOR C1 IS SELECT
     ,trim(STATUS) ACTIVE_FLAG   --Indicates whether Employee is Active (A) or Inactive (I)
     ,nvl(LEGACY_EMP_CODE,'0') EMP_NUM
     ,nvl(USER_TYPE_CODE,0) JOB_TITLE
-    ,trim(nvl(M_INITIAL,'0')) MID_NAME
+    ,trim(nvl(M_INITIAL,'UNDEFINED')) MID_NAME
 --    ,NULL BIRTH_DT   -- Target is required
     ,to_date('11/17/1858','MM/DD/YYYY') BIRTH_DT   -- Target is required
     ,nvl(LOCATION_ID,0) STORE_NAME

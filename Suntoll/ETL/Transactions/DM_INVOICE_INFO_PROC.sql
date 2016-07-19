@@ -32,7 +32,7 @@ IS SELECT --distinct
     ,DOCUMENT_ID INVOICE_NUMBER
     ,trunc(CREATED_ON) INVOICE_DATE  -- date only   
     ,'CLOSED' STATUS  -- Derived (IN ETL)
-    ,'NULL-none' ESCALATION_LEVEL  -- Derived (IN ETL)
+    ,'0' ESCALATION_LEVEL  -- Derived (IN ETL)
       
     ,DOCUMENT_START START_DATE
     ,DOCUMENT_END END_DATE
@@ -50,7 +50,7 @@ IS SELECT --distinct
     ,0 PAYMENTS -- Derived (IN ETL)  
     ,nvl(PAYMT_ADJS,0) ADJUSTMENTS
     ,'N' IS_ESCALATION_EXMPT
-    ,trunc(nvl(MAILED_ON,SYSDATE))+25 PAYMENT_DUE_DT  -- Default if NULL ?
+    ,nvl2(MAILED_ON, trunc(MAILED_ON)+25, to_date('01-01-1900','MM-DD-YYYY')) PAYMENT_DUE_DT  -- Default if NULL ?
     ,NULL DISCOUNT_ELIGIBLE_CHARGES
     ,0 DISCOUNTS
     ,0 MILEGE
@@ -129,7 +129,7 @@ BEGIN
           WHEN COLL_COURT_FLAG is NOT null  and CHILD_DOC_ID is NOT null and COLL_COURT_FLAG = 'COLL' THEN 'COLLECTION'
           WHEN COLL_COURT_FLAG is NOT null  and CHILD_DOC_ID is NOT null and COLL_COURT_FLAG = 'CRT' THEN 'COURT'
 --          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
-          ELSE 'NULL-none'
+          ELSE '0'
          END    
         into  DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL
         from  VB_ACTIVITY
@@ -144,7 +144,7 @@ BEGIN
         when others then --null;
           DBMS_OUTPUT.PUT_LINE('1) INVOICE_NUMBER: '||DM_INVOICE_INFO_tab(i).INVOICE_NUMBER);
           insert into dup_invoice_num values (DM_INVOICE_INFO_tab(i).INVOICE_NUMBER);
-          DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL := 'NULL-none';
+          DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL := '0';
           v_trac_etl_rec.result_code := SQLCODE;
           v_trac_etl_rec.result_msg := SQLERRM;
           v_trac_etl_rec.proc_end_date := SYSDATE;

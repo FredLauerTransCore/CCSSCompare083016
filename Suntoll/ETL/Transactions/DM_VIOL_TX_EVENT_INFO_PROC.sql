@@ -66,7 +66,7 @@ IS SELECT
     Sunny will provide extract rule to determine status once the status is finalized between Xerox and FTE. 
 ***/
     ,0 PREV_VIOL_TX_STATUS  -- Translation?. Required default to 0?
-    ,sysdate EVENT_TIMESTAMP -- ** Discussion in ICD.  Required defaulted to SYSDATE?
+    ,to_date('12-31-9999','MM-DD-YYYY') EVENT_TIMESTAMP -- ** Discussion in ICD.  Required defaulted to SYSDATE?
 
     ,kl.ACCT_NUM ETC_ACCOUNT_ID   -- Join KS_LEDGER on TXN_ID ** add to internal Xerox Discussion
     ,lt.VEH_LIC_NUM PLATE_NUMBER
@@ -75,7 +75,7 @@ IS SELECT
 --            from COUNTRY_STATE_LOOKUP cs, PA_STATE_CODE s
 --           where cs.STATE_ABBR = s.STATE_CODE_ABBR
 --           and   s.STATE_CODE_NUM = lt.STATE_ID_CODE),'USA') PLATE_COUNTRY
-    ,nvl((select substr(trim(cs.COUNTRY),1,4) 
+    ,nvl((select trim(cs.COUNTRY)
             from COUNTRY_STATE_LOOKUP cs
            where cs.STATE_ABBR = lt.STATE_ID_CODE),'USA') PLATE_COUNTRY
     ,0 MAKE_ID  -- No mapping.  Required - defaulted to 0?
@@ -278,5 +278,7 @@ END;
 /
 SHOW ERRORS
 
+grant execute on DM_VIOL_TX_EVENT_INFO_PROC to public;
+commit;
 
 

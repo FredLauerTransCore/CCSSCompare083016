@@ -30,7 +30,7 @@ IS SELECT
     ,DOCUMENT_ID INVOICE_NUMBER
     ,trunc(CREATED_ON) INVOICE_DATE  -- date only   
     ,'CLOSED' STATUS  -- Derived (IN ETL)
-    ,'NULL-none' ESCALATION_LEVEL  -- Derived (IN ETL)
+    ,'UNDEFINED' ESCALATION_LEVEL  -- Derived (IN ETL)
       
     ,DOCUMENT_START START_DATE
     ,DOCUMENT_END END_DATE
@@ -114,30 +114,18 @@ BEGIN
 ----IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NOT NULL  and COLL_COURT_FLAG is 'CRT' THEN 'COURT'
 ----FOR BANKRUPTCY _FLAG NOT NULL
 ----IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'     
+
       begin
+--  DOCUMENT_ID is NOT null status  -----
         select distinct
         CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
-          WHEN COLL_COURT_FLAG is null and
-               DOCUMENT_ID is null THEN 'UNBILLED'
-          WHEN COLL_COURT_FLAG is null and
-               DOCUMENT_ID is NOT null and
-               CHILD_DOC_ID is null THEN 'INVOICED'
-          WHEN COLL_COURT_FLAG is null and
-               DOCUMENT_ID is NOT null and
-               CHILD_DOC_ID like '%-%' THEN 'UTC'
-          WHEN COLL_COURT_FLAG is null and
-               DOCUMENT_ID is NOT null and
-               CHILD_DOC_ID is NOT null THEN 'ESCALATED'
-          WHEN COLL_COURT_FLAG is NOT null and
-               DOCUMENT_ID is NOT null and
-               CHILD_DOC_ID is NOT null and
-               COLL_COURT_FLAG = 'COLL' THEN 'COLLECTION'
-          WHEN COLL_COURT_FLAG is NOT null and
-               DOCUMENT_ID is NOT null and
-               CHILD_DOC_ID is NOT null and
-               COLL_COURT_FLAG = 'CRT' THEN 'COURT'
+          WHEN COLL_COURT_FLAG is null      and CHILD_DOC_ID is null THEN 'INVOICED'
+          WHEN COLL_COURT_FLAG is null      and CHILD_DOC_ID like '%-%' THEN 'UTC'
+          WHEN COLL_COURT_FLAG is null      and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
+          WHEN COLL_COURT_FLAG is NOT null  and CHILD_DOC_ID is NOT null and COLL_COURT_FLAG = 'COLL' THEN 'COLLECTION'
+          WHEN COLL_COURT_FLAG is NOT null  and CHILD_DOC_ID is NOT null and COLL_COURT_FLAG = 'CRT' THEN 'COURT'
 --          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
-          ELSE 'NULL-none'
+          ELSE '0'
          END    
         into  DM_INVOICE_HST_INFO_tab(i).ESCALATION_LEVEL
         from  VB_ACTIVITY
@@ -146,11 +134,13 @@ BEGIN
         ;
         
       exception 
-        when no_data_found then --null;
-          DM_INVOICE_HST_INFO_tab(i).ESCALATION_LEVEL := 'NULL-none';
+        when no_data_found then --null;  OCUMENT_ID is null 
+-- WHEN COLL_COURT_FLAG is null      and DOCUMENT_ID is null     THEN 'UNBILLED'
+          DM_INVOICE_HST_INFO_tab(i).ESCALATION_LEVEL := 'UNBILLED';
         when others then --null;
           DBMS_OUTPUT.PUT_LINE('1) INVOICE_NUMBER: '||DM_INVOICE_HST_INFO_tab(i).INVOICE_NUMBER);
-          DM_INVOICE_HST_INFO_tab(i).ESCALATION_LEVEL := 'NULL-none';
+          insert into dup_invoice_num values (DM_INVOICE_HST_INFO_tab(i).INVOICE_NUMBER);
+          DM_INVOICE_HST_INFO_tab(i).ESCALATION_LEVEL := '0';
           v_trac_etl_rec.result_code := SQLCODE;
           v_trac_etl_rec.result_msg := SQLERRM;
           v_trac_etl_rec.proc_end_date := SYSDATE;
@@ -158,6 +148,7 @@ BEGIN
            DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
            DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
       end;
+
 
 ----    ,CASE WHEN (nvl(AMT_CHARGED,0) - nvl(TOTAL_AMT_PAID,0)) > 0 THEN 'OPEN'
 ----          WHEN (select nvl(AMOUNT,0) from KS_LEDGER where id = ap.LEDGER_ID)

@@ -50,7 +50,7 @@ IS SELECT
     ,DECODE(pav.VEH_LIC_NUM, 'O', '0', pav.VEH_LIC_NUM) PLATE_NUMBER  -- PATRON.EVENT_LOOKUP_ROV
     ,pav.STATE_STATE_CODE_ABBR PLATE_STATE
     ,NULL PLATE_COUNTRY
-    ,nvl(pav.VEH_LIC_TYPE,'NULL-none') PLATE_TYPE    -- Prefix and Suffix for the Country and State.  
+    ,nvl(pav.VEH_LIC_TYPE,'UNDEFINED') PLATE_TYPE    -- Prefix and Suffix for the Country and State.  
     ,'REGULAR' VEHICLE_TYPE     
     ,SUBSCRIPTION_START_DATE EFFECTIVE_START_DATE
     ,SUBSCRIPTION_END_DATE EFFECTIVE_END_DATE
@@ -78,12 +78,13 @@ IS SELECT
     ,ev.REG_EXP_DATE PLATE_EXPIRY_DATE   -- DERIVE  REG_EXP_DATE
     ,ev.DECAL_ISSUE_DATE PLATE_RENEWAL_DATE  -- DERIVE  DECAL_ISSUE_DATE
     ,ev.VIN ALT_VEHICLE_ID      -- DERIVE  VIN
+    ,'UNDEFINED' SRC_LIC_VEH_NUM
 FROM PA_ACCT_VEHICLE pav
     ,ST_REG_STOP srs
     ,EVENT_VEHICLE ev
 WHERE pav.VEH_LIC_NUM = srs.VEH_LIC_NUM (+)
 AND   pav.VEH_LIC_NUM = ev.PLATE (+)
---AND   pav.ACCT_NUM >= p_begin_acct_num AND   pav.ACCT_NUM <= p_end_acct_num
+--AND   pav.ACCT_ACCT_NUM >= p_begin_acct_num AND   pav.ACCT_ACCT_NUM <= p_end_acct_num
 ; -- FTE source
 row_cnt          NUMBER := 0;
 v_trac_rec       dm_tracking%ROWTYPE;

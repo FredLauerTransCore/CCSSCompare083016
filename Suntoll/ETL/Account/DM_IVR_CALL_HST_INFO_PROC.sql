@@ -28,8 +28,8 @@ CURSOR C1 IS SELECT
     ANI
     ,CALL_ID
     ,nvl(DISPOSITION,0) DISPOSITION -- Required -- Default to 0?
-    ,nvl(END_TIME,SYSDATE) END_TIME   -- Required -- Default?
-    ,nvl(FAX_NUM,'NULL-none') FAX_NUM  -- Required -- Default?
+    ,nvl(END_TIME, to_date('12-31-9999','MM-DD-YYYY')) END_TIME   -- Required -- Default?
+    ,nvl(FAX_NUM,'9999999999') FAX_NUM  -- Required -- Default?
     ,START_TIME
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM IVR_CALL
@@ -106,4 +106,4 @@ END;
 /
 SHOW ERRORS
 
-
+commit;

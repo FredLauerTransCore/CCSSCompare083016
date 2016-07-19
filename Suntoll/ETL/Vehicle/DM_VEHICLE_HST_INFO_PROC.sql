@@ -34,7 +34,7 @@ IS SELECT
     ,pav.STATE_STATE_CODE_ABBR PLATE_STATE
     ,nvl((select substr(trim(cs.COUNTRY),1,4) from  COUNTRY_STATE_LOOKUP cs
            where cs.STATE_ABBR = pav.STATE_STATE_CODE_ABBR),'USA') PLATE_COUNTRY
-    ,nvl(pav.VEH_LIC_TYPE,'NULL-none') PLATE_TYPE    -- Prefix and Suffix for the Country and State.  
+    ,nvl(pav.VEH_LIC_TYPE,'UNDEFINED') PLATE_TYPE    -- Prefix and Suffix for the Country and State.  
     ,'REGULAR' VEHICLE_TYPE     
     ,SUBSCRIPTION_START_DATE EFFECTIVE_START_DATE
     ,SUBSCRIPTION_END_DATE EFFECTIVE_END_DATE

@@ -33,27 +33,24 @@ CURSOR C1
 IS SELECT 
 --    ETC_ACCOUNT_ID ETC_ACCOUNT_ID
     ua.PA_ACCT_NUM ETC_ACCOUNT_ID
-    ,nvl(u.USERNAME,'NULL-none') USER_NAME
-    ,nvl(u.PASSWORD,'NULL-none') PASSWORD  -- (Encrypted) How?
-    ,nvl(u.LAST_LOGIN_DATE,SYSDATE) LAST_LOGIN_DATETIME
-    ,nvl(u.ACCT_LOCKED_UNTIL_DATE,SYSDATE) INVALID_LOGIN_DATETIME
+    ,nvl(u.USERNAME,'UNDEFINED') USER_NAME
+    ,nvl(u.PASSWORD,'UNDEFINED') PASSWORD  -- (Encrypted) How?
+    ,nvl(u.LAST_LOGIN_DATE, to_date('12-31-9999','MM-DD-YYYY')) LAST_LOGIN_DATETIME
+    ,nvl(u.ACCT_LOCKED_UNTIL_DATE, to_date('12-31-9999','MM-DD-YYYY')) INVALID_LOGIN_DATETIME
     ,u.LOGIN_ATTEMPT_COUNT INVALID_LOGIN_COUNT
---    ,nvl(decode(u.ACCT_LOCKED_UNTIL_DATE,'Y','N'),'N') PASSWORD_RESET  --Derived- IF INVALID LOGIN DATETIME IS NOT NULL THEN YES ELSE NO
     ,nvl2(u.ACCT_LOCKED_UNTIL_DATE,'Y','N') PASSWORD_RESET  --Derived- IF INVALID LOGIN DATETIME IS NOT NULL THEN YES ELSE NO
     ,NULL UPDATE_TS
     ,sysdate LAST_LOGOUT_DATETIME
-    ,NULL LOGIN_IP_ADDRESS  -- LOGIN_IP ADDRESS of MAX(LOGIN_DATE) from PA_WEB_LOGIN_INFO
-    ,NULL USER_AGENT  -- PA_WEB_LOGIN_INFO
-    ,NULL ANI  -- IVR_CALL
-    ,NULL IVR_CALL_START_TIME  -- IVR_CALL ic.START_TIME
-    ,NULL IVR_CALL_END_TIME  -- IVR_CALL ic.END_TIME
-    ,NULL LAST_IVR_CALL_DATE  -- SELECT MAX(LAST_LOGIN_DATE) from PA_WEB_LOGIN_INFO WHERE USER AGENT = 'IVR'
+    ,NULL LOGIN_IP_ADDRESS  -- In ETL - LOGIN_IP ADDRESS of MAX(LOGIN_DATE) from PA_WEB_LOGIN_INFO
+    ,NULL USER_AGENT  -- In ETL - PA_WEB_LOGIN_INFO
+    ,NULL ANI  -- In ETL - IVR_CALL
+    ,NULL IVR_CALL_START_TIME  -- In ETL - IVR_CALL ic.START_TIME
+    ,NULL IVR_CALL_END_TIME  -- In ETL - VR_CALL ic.END_TIME
+    ,NULL LAST_IVR_CALL_DATE  -- In ETL - SELECT MAX(LAST_LOGIN_DATE) from PA_WEB_LOGIN_INFO WHERE USER AGENT = 'IVR'
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM KS_USER_PA_ACCT_ASSOC ua
     ,KS_USER u
---    ,PA_WEB_LOGIN_INFO wl
---    ,IVR_CALL ic
---    ,IVR_CALL_DETAIL icd
+--    ,PA_WEB_LOGIN_INFO wl ,IVR_CALL ic ,IVR_CALL_DETAIL icd
 WHERE ua.USER_ID = u.ID
 --AND ua.PA_ACCT_NUM = icd.ACCT_NUM -- (+) ?
 --AND icd.CALL_ID = ic.CALL_ID
@@ -100,7 +97,8 @@ BEGIN
       end if;
       
       begin
-       select max(LOGIN_DATE) into  DM_ACCOUNT_WEB_INFO_tab(i).LAST_IVR_CALL_DATE
+        select max(LOGIN_DATE) 
+        into  DM_ACCOUNT_WEB_INFO_tab(i).LAST_IVR_CALL_DATE
         from PA_WEB_LOGIN_INFO wl
         where wl.ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID
         and wl.USER_AGENT = 'IVR'
@@ -109,7 +107,7 @@ BEGIN
 --        when others then null;
         when others then
           DBMS_OUTPUT.PUT_LINE('1) ETC_ACCOUNT_ID: '||DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID);
-          DM_ACCOUNT_WEB_INFO_tab(i).LAST_IVR_CALL_DATE := sysdate;
+          DM_ACCOUNT_WEB_INFO_tab(i).LAST_IVR_CALL_DATE := to_date('12-31-9999','MM-DD-YYYY');
           v_trac_etl_rec.result_code := SQLCODE;
           v_trac_etl_rec.result_msg := SQLERRM;
           v_trac_etl_rec.proc_end_date := SYSDATE;
@@ -120,8 +118,10 @@ BEGIN
       
       begin
 --       select wi.LOGIN_IP, wi.USER_AGENT 
-       select LOGIN_IP, USER_AGENT 
-       into   DM_ACCOUNT_WEB_INFO_tab(i).LOGIN_IP_ADDRESS, DM_ACCOUNT_WEB_INFO_tab(i).USER_AGENT
+       select LOGIN_IP, 
+              USER_AGENT 
+        into  DM_ACCOUNT_WEB_INFO_tab(i).LOGIN_IP_ADDRESS, 
+              DM_ACCOUNT_WEB_INFO_tab(i).USER_AGENT
         from  PA_WEB_LOGIN_INFO wl
         where wl.ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID
         and wl.LOGIN_DATE = (select max(LOGIN_DATE)
@@ -131,8 +131,8 @@ BEGIN
         ;
       exception 
         when no_data_found THEN
-          DM_ACCOUNT_WEB_INFO_tab(i).LOGIN_IP_ADDRESS := 'none';
-          DM_ACCOUNT_WEB_INFO_tab(i).USER_AGENT := 'none';        
+          DM_ACCOUNT_WEB_INFO_tab(i).LOGIN_IP_ADDRESS := 'UNDEFINED';
+          DM_ACCOUNT_WEB_INFO_tab(i).USER_AGENT := 'UNDEFINED';        
         when others then
           DBMS_OUTPUT.PUT_LINE('2) ETC_ACCOUNT_ID: '||DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID);
           v_trac_etl_rec.result_code := SQLCODE;

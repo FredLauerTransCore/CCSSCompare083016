@@ -44,7 +44,7 @@ P_ARRAY_SIZE NUMBER:=10000;
 CURSOR C1
 --(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
-    lt.TXN_ID TX_EXTERN_REF_NO
+    lt.TXN_ID TX_EXTERN_REF_NO   -- Primary key
     ,nvl(lt.EXT_MSG_SEQ_NUM,0) TX_SEQ_NUMBER
     ,lt.TOUR_TOUR_SEQ EXTERN_FILE_ID
     ,to_number(lt.EXT_LANE_ID) LANE_ID
@@ -60,21 +60,22 @@ IS SELECT
     ,0 LANE_STATE
     ,0 LANE_HEALTH
     
-----Join ST_INTEROP_AGENCIES and PA_PLAZA on ENT_PLAZA_ID to PLAZA_ID
-    ,to_number(nvl((select ia.AGENCY_ID 
+------Join ST_INTEROP_AGENCIES and PA_PLAZA on ENT_PLAZA_ID to PLAZA_ID
+    ,(nvl((select ia.AGENCY_ID 
         from ST_INTEROP_AGENCIES ia, PA_PLAZA p
         where ia.AUTHORITY_CODE = p.AUTHCODE_AUTHORITY_CODE
-        and   p.PLAZA_ID =lt.EXT_PLAZA_ID
-        and   rownum=1),'0'))  PLAZA_AGENCY_ID 
+        and   p.PLAZA_ID =lt.EXT_PLAZA_ID),'0')
+        )  PLAZA_AGENCY_ID 
         
-    ,to_number(nvl(lt.EXT_PLAZA_ID,'0')) PLAZA_ID
+----    ,to_number(nvl(lt.EXT_PLAZA_ID,'0')) PLAZA_ID
+    ,to_number(lt.EXT_PLAZA_ID) PLAZA_ID
     ,0 COLLECTOR_ID
     ,0 TOUR_SEGMENT_ID
     ,'0' ENTRY_DATA_SOURCE
-    ,to_number(nvl(lt.ENT_LANE_ID,'0')) ENTRY_LANE_ID
-    ,to_number(nvl(lt.ENT_PLAZA_ID,'0')) ENTRY_PLAZA_ID
-    ,nvl(lt.ENT_DATE_TIME,SYSDATE) ENTRY_TIMESTAMP  -- Required - default?
-    ,nvl(lt.TXN_ENTRY_NUMBER,0) ENTRY_TX_SEQ_NUMBER
+    ,to_number(nvl(lt.ENT_LANE_ID,'0')) ENTRY_LANE_ID  -- Required - If NULL default ?
+    ,to_number(nvl(lt.ENT_PLAZA_ID,'0')) ENTRY_PLAZA_ID  -- Required - If NULL default ?
+    ,nvl(lt.ENT_DATE_TIME, to_date('01-01-1900','MM-DD-YYYY')) ENTRY_TIMESTAMP  -- Required - If NULL default ?
+    ,nvl(lt.TXN_ENTRY_NUMBER,0) ENTRY_TX_SEQ_NUMBER  -- Required - If NULL default ?
     ,0 ENTRY_VEHICLE_SPEED
     ,0 LANE_TX_STATUS
     ,0 LANE_TX_TYPE
@@ -101,18 +102,18 @@ IS SELECT
     ,0 VEHICLE_SPEED
     ,0 RECEIPT_ISSUED
 
---- JOIN WITH JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN AND 
----- JOIN UFM_TOKEN TO UFM_ID FOR EVENT_ROV       
---    ,(select HOST_UFM_TOKEN from UFM_LANE_TXN_INFO where TXN_ID=lt.TXN_ID)   HOST_UFM_TOKEN
+-- JOIN WITH JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN AND 
+-- JOIN UFM_TOKEN TO UFM_ID FOR EVENT_ROV       
+-- -    ,(select HOST_UFM_TOKEN from UFM_LANE_TXN_INFO where TXN_ID=lt.TXN_ID)   HOST_UFM_TOKEN
     ,nvl((select er.TRANSP_ID -- unique 
         from EVENT_ROV er, UFM_LANE_TXN_INFO ult
         where er.UFM_ID = ult.HOST_UFM_TOKEN 
-        and   ult.TXN_ID = lt.TXN_ID
-        and   rownum=1),'NULL')   DEVICE_NO
+        and   ult.TXN_ID = lt.TXN_ID and   rownum=1
+        ),'0')   DEVICE_NO
 
-    ,(select pa.ACCTTYPE_ACCT_TYPE_CODE from PA_ACCT pa 
-        where pa.ACCT_NUM=kl.ACCT_NUM
-        and   rownum=1)  ACCOUNT_TYPE -- PA_ACCT
+    ,(select pa.ACCTTYPE_ACCT_TYPE_CODE 
+        from PA_ACCT pa 
+        where pa.ACCT_NUM=kl.ACCT_NUM)  ACCOUNT_TYPE -- PA_ACCT  -- KS_LEDGER  ----
     ,0 DEVICE_CODED_CLASS
     ,0 DEVICE_AGENCY_CLASS
     ,0 DEVICE_IAG_CLASS
@@ -121,14 +122,14 @@ IS SELECT
 
 ------ ACCOUNT_AGENCY_ID - SUBSTR(TRANSP_ID,9,2) 
 ----JOIN ST_INTEROP_AGENCIES ON AGENCY_CODE RETURN AGENCY_ID [XEROX TO LOOKUP INTERNAL ID]
-    ,(select AGENCY_ID from ST_INTEROP_AGENCIES 
-        where AGENCY_CODE=SUBSTR(lt.TRANSP_ID,9,2)
-        and   rownum=1) ACCOUNT_AGENCY_ID  
+    ,(select distinct AGENCY_ID from ST_INTEROP_AGENCIES 
+        where AGENCY_CODE=SUBSTR(lt.TRANSP_ID,9,2)   and   rownum=1
+        ) ACCOUNT_AGENCY_ID  
     ,0 READ_AVI_CLASS
     ,0 READ_AVI_AXLES
     ,'N' DEVICE_PROGRAM_STATUS
     ,'N' BUFFERED_READ_FLAG
-    ,to_number(nvl(lt.MSG_INVALID,'0')) LANE_DEVICE_STATUS
+    ,to_number(nvl(lt.MSG_INVALID,'0')) LANE_DEVICE_STATUS  -- Required - If NULL default ?
     ,0 POST_DEVICE_STATUS
     ,0 PRE_TXN_BALANCE
     ,1 PLAN_TYPE_ID
@@ -140,7 +141,7 @@ IS SELECT
 --    ,nvl((select substr(csl.COUNTRY,1,4) from COUNTRY_STATE_LOOKUP csl, PA_STATE_CODE ps 
 --        where csl.STATE_ABBR    = lt.STATE_CODE_ABBR
 --        and   ps.STATE_CODE_NUM = lt.STATE_ID_CODE),'USA')  PLATE_COUNTRY
-    ,nvl((select substr(csl.COUNTRY,1,4) from COUNTRY_STATE_LOOKUP csl
+    ,nvl((select csl.COUNTRY from COUNTRY_STATE_LOOKUP csl
         where csl.STATE_ABBR  = lt.STATE_ID_CODE),'USA')  PLATE_COUNTRY
 
 --    ,(select ps.STATE_CODE_ABBR from PA_STATE_CODE ps 
@@ -165,11 +166,14 @@ IS SELECT
     ,'000000000000' DEPOSIT_ID
 
 ---- JOIN FROM PA_LANE_TXN REQUEST_ID to EVENT_LOOKUP_ROV ROV_ID to RETURN REQUEST_DATE
-    ,nvl((select REQUEST_DATE from EVENT_LOOKUP_ROV 
-        where EVENT_OAVA_LINK_ID=lt.OAVA_LINK_ID
-        and   rownum=1),SYSDATE) LOAD_DATE
+    ,nvl((select elr.REQUEST_DATE from EVENT_LOOKUP_ROV elr
+        where elr.EVENT_OAVA_LINK_ID=lt.OAVA_LINK_ID  --        and   rownum=1
+        ),SYSDATE) LOAD_DATE
+--    ,(select elr.REQUEST_DATE from EVENT_LOOKUP_ROV elr
+--        where elr.EVENT_OAVA_LINK_ID=lt.OAVA_LINK_ID  --        and   rownum=1
+--        ) LOAD_DATE
 --    ,(select elr.REQUEST_DATE from EVENT_LOOKUP_ROV elr 
---        where elr.ROV_ID = lt.REQUEST_ID) LOAD_DATE
+--        where elr.ID = lt.VPS_EVENT_ID) LOAD_DATE
 --    ,(select elr.REQUEST_DATE
 --        from EVENT_LOOKUP_ROV elr, EVENT_ROV er
 --        where elr.id = er.LOOKUP_Q_ID
@@ -182,8 +186,9 @@ IS SELECT
     ,0 IMAGE_BATCH_ID
     ,0 IMAGE_BATCH_SEQ_NUMBER
     
---    ,to_number(nvl(lt.VPS_EVENT_ID,'0')) IMAGE_INDEX  -- Source is Vrachar(20 and target is NUMBER(5)
-    ,to_number(substr(nvl(lt.VPS_EVENT_ID,'0'),1,5)) IMAGE_INDEX  
+--    ,to_number(nvl(lt.VPS_EVENT_ID,'0')) IMAGE_INDEX  -- Source is NUMBER(20) and target is NUMBER(5)
+--    ,to_number(substr(nvl(lt.VPS_EVENT_ID,'0'),1,5)) IMAGE_INDEX  
+    ,to_number(substr(lt.VPS_EVENT_ID,1,5)) IMAGE_INDEX  
 
     ,0 ADJUSTED_AMOUNT
 -- AMT_CHARGED - TOTAL_AMT_PAID JOIN WITH KS_LEDGER ON LEDGER_ID 
@@ -199,68 +204,7 @@ IS SELECT
       END IS_RECIPROCITY_TXN  -- IF SUBSTR(TRANSP_ID,9,2) = '20' THEN NO ELSE YES 
     ,0 MAKE_ID
     ,lt.EXT_DATE_TIME EVENT_TIMESTAMP -- EXT_DATE_TIME Default PA_LANE_TXN
-
---------JOIN ID of KS_LEDGER to LEDGER_ID of VB_ACTVITY for KS_LEDGER.TRANSACTION_TYPE in ('38','42') and 
-------  JOIN PA_LANE_TXN_ID of KS_LEDGER to TXN_ID of PA_LANE_LANE_TXN and 
-------  JOIN PLAZA_ID of PA_PLAZA to EXT_PLAZA_ID for PA_Lane_txn
---------  IF SUM (VB_ACTIVITY.AMT_CHARGED – VB_ACTIVITY.TOTAL_AMT_PAID) < :REG_STOP_THRESHOLD_AMT_IN_CENTS grouped by KS_LEDGER.ACCT_NUM
---------  FOR PA_PLAZA.FTE_PLAZA = 'Y',
-------  VB_ACTIVITY.COLL_COURT_FLAG is NULL, 
-------  VB_ACTIVITY.CHILD_DOC_ID not null,
-------  VB_ACTIVITY.CHILD_DOC_ID NOT LIKE '%-%' 
-------  and VB_ACTIVITY.BANKRUPTCY_flag is null
---------  THEN 'REG STOP'    
---    ,nvl((select 
---      CASE WHEN va.BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is null THEN 'UNBILLED'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is null THEN 'INVOICED'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID like '%-%' THEN 'UTC'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is NOT null THEN 'ESCALATED'
---          WHEN va.COLL_COURT_FLAG is NOT null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is NOT null and
---               va.COLL_COURT_FLAG = 'COLL' THEN 'COLLECTION'
---          WHEN va.COLL_COURT_FLAG is NOT null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is NOT null and
---               va.COLL_COURT_FLAG = 'CRT' THEN 'COURT'
-----          WHEN va.BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
---          ELSE 'NULL-none'
---      END 
---      from  VB_ACTIVITY va
---      WHERE va.LEDGER_ID = kl.ID),'NULL-none')  EVENT_TYPE 
-
---    ,CASE WHEN va.BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is null THEN 'UNBILLED'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is null THEN 'INVOICED'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID like '%-%' THEN 'UTC'
---          WHEN va.COLL_COURT_FLAG is null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is NOT null THEN 'ESCALATED'
---          WHEN va.COLL_COURT_FLAG is NOT null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is NOT null and
---               va.COLL_COURT_FLAG = 'COLL' THEN 'COLLECTION'
---          WHEN va.COLL_COURT_FLAG is NOT null and
---               va.DOCUMENT_ID is NOT null and
---               va.CHILD_DOC_ID is NOT null and
---               va.COLL_COURT_FLAG = 'CRT' THEN 'COURT'
-----          WHEN va.BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
---          ELSE 'NULL-none'
---      END EVENT_TYPE  -- ,0 EVENT_TYPE  -- Derived
-    ,'NULL-none' EVENT_TYPE -- Derived   -- VB_ACTIVITY (IN ETL)
+    ,'UNDEFINED' EVENT_TYPE -- Derived   -- VB_ACTIVITY (IN ETL)
 
     ,0 PREV_EVENT_TYPE
     ,0 VIOL_TX_STATUS
@@ -308,8 +252,7 @@ IS SELECT
 --  AND VEHICLE_ID of EVENT_OWNER_ADDR_VEHICLE_ACCT to ID of EVENT_VEHICLE
     ,nvl((select eo.CREATED_ON 
         from EVENT_OWNER_ADDR_VEHICLE_ACCT eo
-        where eo.ID = lt.OAVA_LINK_ID
-        and   rownum=1),sysdate) DMV_RETURN_DATE
+        where eo.ID = lt.OAVA_LINK_ID), to_date('12-31-9999','MM-DD-YYYY')) DMV_RETURN_DATE
         
 ----  IF VB_ACTIVITY.COLL_COURT_FLAG = 'COLL' THEN 'SEND_TO_COLLECTION' 
 ----  IF ST_ACTIVITY_PAID.COLL_COURT_FLAG = 'COLL'  AND AMT_CHARGED <> 0 THEN PAID_ON_COLLECTIONS    
@@ -327,34 +270,30 @@ IS SELECT
     ,0 TAXI
     ,0 TAXI_LIMO 
     
-----    ,lt.ACCT_NUM in (select ra.ACCT_NUM from PATRON.PA_RENTAL_AGENCY)
-----    ,CASE WHEN lt.ACCT_NUM IN (select ra.ACCT_NUM from PATRON.PA_RENTAL_AGENCY) THEN 
-    ,decode(nvl((select ra.ACCT_NUM 
-        from PA_RENTAL_AGENCY  ra
-        where ra.ACCT_NUM = kl.ACCT_NUM
-        and   rownum=1),0),0,'NULL') RENTAL_COMPANY_ID -- PA_RENTAL_AGNCY -- NULLs
+------    ,lt.ACCT_NUM in (select ra.ACCT_NUM from PATRON.PA_RENTAL_AGENCY)
+------    ,CASE WHEN lt.ACCT_NUM IN (select ra.ACCT_NUM from PATRON.PA_RENTAL_AGENCY) THEN 
+--    ,decode(nvl((select ra.ACCT_NUM 
+--        from PA_RENTAL_AGENCY  ra
+--        where ra.ACCT_NUM = kl.ACCT_NUM
+--        and   rownum=1),0),0,'NULL') RENTAL_COMPANY_ID -- PA_RENTAL_AGNCY -- NULLs
+    ,'NULL' RENTAL_COMPANY_ID -- PA_RENTAL_AGNCY -- NULLs (IN ETL)
         
     ,NVL2(lt.OAVA_LINK_ID,'DMV','OTH') ADDRESS_SOURCE  -- IF OAVA_LINK_ID IS NOT NULL THEN 'DMV' ELSE 'OTH'
     ,trunc(lt.EXT_DATE_TIME) IMAGE_RECEIVE_DATE
     ,'0' IMG_FILE_INDEX
     ,'**' BASEFILENAME -- ** Vector assigns internally **NOTE** 
--- JOIN PA_PLAZA ON PLAZA_ID RETURN PLAZA_NAME
-    ,nvl((select substr(trim(pp.PLAZA_NAME),1,15) 
-        from PA_PLAZA pp
-        where pp.PLAZA_ID = lt.EXT_PLAZA_ID
-        and   rownum=1),'NULL') LOCATION  --    ,lt.EXT_PLAZA_ID LOCATION
- -- EVENT_VEHICLE - REFER TO EXTRACT RULE ABOVE (#2)
+    ,'UNDEFINED'  LOCATION  --   -- in ETL section  ,lt.EXT_PLAZA_ID LOCATION
+        
+-- -- EVENT_VEHICLE - REFER TO EXTRACT RULE ABOVE (#2)
     ,nvl((select ev.MAKE 
         from EVENT_VEHICLE ev, EVENT_OWNER_ADDR_VEHICLE_ACCT eo
         where eo.ID = lt.OAVA_LINK_ID
-        and   eo.VEHICLE_ID = ev.ID 
-        and   rownum=1),'NULL') DMV_MAKE_ID 
+        and   eo.VEHICLE_ID = ev.ID     --        and   rownum=1
+        ),'UNDEFINED') DMV_MAKE_ID 
+
     ,0 PAR_LANE_TX_ID 
--- JOIN PA_PLAZA ON PLAZA_ID RETURN FACCODE_FACILITY_CODE
-    ,nvl((select pp.FACCODE_FACILITY_CODE 
-        from PA_PLAZA pp
-        where pp.PLAZA_ID = lt.EXT_PLAZA_ID
-        and   rownum=1),'NULL') FACILITY_ID 
+    ,'UNDEFINED' FACILITY_ID  -- in ETL section
+
     ,0 FARE_TBL_ID
     ,lt.EXT_MSG_SEQ_NUM LANE_SEQ_NO
 -- IF TXN_TYPE = 253 THEN 1 ELSE 0 (only for iTolls)
@@ -431,21 +370,43 @@ BEGIN
         end;
 --      end if;
 
---      begin
---        select PUR_DET_ID
---              ,nvl(PRODUCT_PUR_PRODUCT_CODE,'NULL')
---              ,nvl(VES_REF_NUM,'NULL')
---        into   v_PUR_DET_ID
---              ,DM_VIOL_TX_MTCH1_INFO_tab(i).TRAN_TYPE
---              ,DM_VIOL_TX_MTCH1_INFO_tab(i).ORG_TRANSACTION_ID
---        from  PA_PURCHASE_DETAIL
---        where PUR_PUR_ID = DM_VIOL_TX_MTCH1_INFO_tab(i).PAYMENT_REFERENCE_NUM
---        AND   ITEM_ORDER = 1
---        ;
---      exception 
---        when others then null;
---      end;
+      begin
+        select PUR_DET_ID
+              ,nvl(PRODUCT_PUR_PRODUCT_CODE,'NULL')
+              ,nvl(VES_REF_NUM,'NULL')
+        into   v_PUR_DET_ID
+              ,DM_VIOL_TX_MTCH1_INFO_tab(i).TRAN_TYPE
+              ,DM_VIOL_TX_MTCH1_INFO_tab(i).ORG_TRANSACTION_ID
+        from  PA_PURCHASE_DETAIL
+        where PUR_PUR_ID = DM_VIOL_TX_MTCH1_INFO_tab(i).PAYMENT_REFERENCE_NUM
+        AND   ITEM_ORDER = 1
+        ;
+      exception 
+        when others then null;
+      end;
 
+--    ,nvl((select substr(trim(pp.PLAZA_NAME),1,15) 
+--        from PA_PLAZA pp where pp.PLAZA_ID = lt.EXT_PLAZA_ID
+--        and   rownum=1),'NULL') LOCATION 
+--
+--    ,nvl((select pp.FACCODE_FACILITY_CODE from PA_PLAZA pp
+--        where pp.PLAZA_ID = lt.EXT_PLAZA_ID
+--        and   rownum=1),'NULL') FACILITY_ID
+        
+      begin
+        select substr(trim(PLAZA_NAME),1,15) -- Target is 15 chars
+              ,FACCODE_FACILITY_CODE
+        into  DM_VIOL_TX_MTCH1_INFO_tab(i).LOCATION
+              ,DM_VIOL_TX_MTCH1_INFO_tab(i).FACILITY_ID
+        from  PA_PLAZA
+        where PLAZA_ID = DM_VIOL_TX_MTCH1_INFO_tab(i).PLAZA_ID
+        ;
+      exception 
+        when others then null;
+          DM_VIOL_TX_MTCH1_INFO_tab(i).LOCATION := 'NULL';
+          DM_VIOL_TX_MTCH1_INFO_tab(i).FACILITY_ID := 'NULL';        
+      end;       
+        
       v_trac_etl_rec.track_last_val := DM_VIOL_TX_MTCH1_INFO_tab(i).ACCOUNT_NUMBER;
       v_trac_etl_rec.end_val := DM_VIOL_TX_MTCH1_INFO_tab(i).ACCOUNT_NUMBER;
 

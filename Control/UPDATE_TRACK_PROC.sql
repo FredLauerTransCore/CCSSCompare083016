@@ -25,14 +25,19 @@ BEGIN
   v_etl_rec := io_trac_rec;
   v_etl_rec.proc_last_date := SYSDATE;
   
-  select RESULT_CODE, RESULT_MSG
-  into   v_etl_rec.RESULT_CODE, v_etl_rec.RESULT_MSG
+  select RESULT_CODE
+        ,RESULT_MSG
+  into   v_etl_rec.RESULT_CODE
+        ,v_etl_rec.RESULT_MSG
   from   DM_TRACKING_ETL
   where  track_etl_id = v_etl_rec.track_etl_id
   ;
 
-  v_etl_rec.RESULT_CODE := v_etl_rec.RESULT_CODE||'*'||io_trac_rec.RESULT_CODE;
-  v_etl_rec.RESULT_MSG := v_etl_rec.RESULT_MSG||'*'||io_trac_rec.RESULT_MSG;
+  v_etl_rec.RESULT_CODE := io_trac_rec.RESULT_CODE;
+  if  io_trac_rec.RESULT_MSG is NOT NULL and 
+      io_trac_rec.RESULT_MSG NOT like '%normal, successful completion%'  THEN
+    v_etl_rec.RESULT_MSG := v_etl_rec.RESULT_MSG||':'||io_trac_rec.RESULT_MSG;
+  end if;
   
   UPDATE DM_TRACKING_ETL
     SET ROW = v_etl_rec
@@ -49,7 +54,7 @@ BEGIN
   
   EXCEPTION
   WHEN OTHERS THEN
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
+     DBMS_OUTPUT.PUT_LINE('UP TRACK ERROR CODE: '||SQLCODE);
      DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
 --    TOT_REC.RESULT_CODE = SQLCODE;
 --    TOT_REC.RESULT_MSG = SQLERRM;
@@ -58,4 +63,4 @@ END;
 /
 SHOW ERRORS
 
-
+commit;

@@ -106,10 +106,12 @@ BEGIN
     v_etl_rec.result_code := SQLCODE;
     v_etl_rec.result_msg := SQLERRM;
     update_track_proc(v_etl_rec);
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_etl_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('VAL ERROR CODE: '||v_etl_rec.result_code);
      DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_etl_rec.result_msg);
 END;
 /
 SHOW ERRORS
+
+commit;
 
 

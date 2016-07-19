@@ -69,13 +69,17 @@ BEGIN
     calc_rec.calc_name := calc_rec.calc_type||' '||calc_rec.calc_func||' '||calc_rec.calc_field;
 
     v_select :=   'SELECT '||calc_rec.calc_func||'('||calc_rec.calc_field||')';
-    v_into :=     ' INTO :val';
+--    v_into :=     ' INTO :val';
     v_from :=     ' FROM '||v_schema||calc_rec.calc_tab;
-    v_where := ' WHERE 1=1 ';
---    v_where := ' WHERE rownum<11 ';
+    v_where := ' WHERE 1=1 ';  -- rownum < 1001
     IF idx.source_where IS NOT NULL THEN
       v_where :=  v_where||' AND '||idx.source_where;
     END IF;
+
+    if v_c_rec.source_acct_field is not null then
+      v_where := v_where||' and '||v_c_rec.source_acct_field||' >= '||v_trac_rec.begin_acct
+                        ||' and '||v_c_rec.source_acct_field||' <= '||v_trac_rec.end_acct;
+    end if;
 
 -- execute immediate 'select dname, loc from dept where deptno = :1'
 --   into l_nam, l_loc using l_dept ;
@@ -83,23 +87,16 @@ BEGIN
 --              ||v_c_rec.load_drive_field||' <= :2 ;';
 --      v_where := v_where||' AND ACCT_NUM >= :1 AND ACCT_NUM <= :2 ;';
 
---      sql_string := v_select||v_into||v_from||v_where;
-      sql_string := v_select||v_from||v_where;
-
---      DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
---      EXECUTE IMMEDIATE sql_string
---      INTO calc_rec.calc_value
---      USING v_begin_acct, v_end_acct
---      ;
-      
-      DBMS_OUTPUT.PUT_LINE('PRE sql_string : '||sql_string);
-      calc_rec.sql_text := sql_string;
-      EXECUTE IMMEDIATE sql_string
-      INTO calc_rec.calc_value;
---      EXECUTE IMMEDIATE sql_string
+    sql_string := v_select||v_from||v_where;  -- v_select||v_into||v_from||v_where;
+    
+    DBMS_OUTPUT.PUT_LINE(calc_rec.calc_type||' sql : '||sql_string);
+    calc_rec.sql_text := sql_string;
+    EXECUTE IMMEDIATE sql_string
+    INTO calc_rec.calc_value;
 --      USING out calc_rec.calc_value
+--      USING v_begin_acct, v_end_acct
 
-    DBMS_OUTPUT.PUT_LINE('Total '||calc_rec.calc_func||' : '||calc_rec.calc_value);
+    DBMS_OUTPUT.PUT_LINE('Total '||calc_rec.calc_type||' '||calc_rec.calc_func||' : '||calc_rec.calc_value);
 
     INSERT INTO dm_tracking_calc VALUES calc_rec;
     COMMIT;
@@ -119,13 +116,13 @@ BEGIN
     calc_rec.result_code := SQLCODE;
     calc_rec.result_msg := SQLERRM;
     update_track_calc_proc(calc_rec);
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||calc_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('PRE ERROR CODE: '||calc_rec.result_code);
      DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||calc_rec.result_msg);
 END;
 /
 SHOW ERRORS
 
-
+commit;
 
       
 

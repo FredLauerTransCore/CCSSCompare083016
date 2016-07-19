@@ -59,7 +59,7 @@ IS SELECT
     ,NULL STATUS
 FROM PA_ACCT_ADDR paa
 WHERE DEFAULT_ADDR_FLAG = 'Y'
-and paa.acct_num<50000000
+--and paa.acct_num<50000000
 --and  paa.ACCT_NUM >= p_begin_acct_num AND   paa.ACCT_NUM <= p_end_acct_num
 ; -- Source
 /*Change FTE_TABLE to the actual table name*/

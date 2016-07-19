@@ -58,7 +58,7 @@ IS SELECT --distinct
     ,0 LANE_TX_ID
 
     ,'Open' LEVEL_INFO
-    ,nvl(di.PROMOTION_status,'NULL-None') REASON_CODE  --PROMOTION_CODE in ICD
+    ,nvl(di.PROMOTION_status,'UNDEFINED') REASON_CODE  --PROMOTION_CODE in ICD
     ,'INVOICE-ITEM' INVOICE_TYPE
 
 --    ,nvl(st.TOTAL_AMT_PAID,0) PAID_AMOUNT
@@ -78,7 +78,7 @@ FROM ST_DOCUMENT_INFO di
 --    AND di.DOCUMENT_ID = vac.CHILD_DOC_ID (+) 
 --    and di.DOCUMENT_ID = st.DOCUMENT_ID (+)
 --WHERE   di.ACCT_NUM >= p_begin_acct_num AND   di.ACCT_NUM <= p_end_acct_num
-WHERE   di.ACCT_NUM < 5000000
+--WHERE   di.ACCT_NUM < 5000000
 ; -- Source
 
 row_cnt          NUMBER := 0;
@@ -127,21 +127,21 @@ BEGIN
 --FOR VB_ACTIVITY KS_LEDGER_EVENT_TYPE_ID in ('8') and COLL_COURT_FLAG is null and Bankruptcy_flag is null 
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w DOCUMENT_ID of VB_ACTIVITY where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2')
           WHEN va.COLL_COURT_FLAG is null and va.KS_LEDGER_EVENT_TYPE_ID = '8'
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'OTHER'
 
 --INVTOLL
 --FOR VB_ACTIVITY KS_LEDGER_EVENT_TYPE_ID in ('38','42') and COLL_COURT_FLAG is null and Bankruptcy_flag is null 
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w DOCUMENT_ID of VB_ACTIVITY where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2')
           WHEN va.COLL_COURT_FLAG is null and va.KS_LEDGER_EVENT_TYPE_ID in ('38','42') 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'INVTOLL'
 
 --ESCTOLL
 --FOR VB_ACTIVITY KS_LEDGER_EVENT_TYPE_ID in ('38','42') and COLL_COURT_FLAG is null and Bankruptcy_flag is null 
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w CHILD_DOC_ID of VB_ACTIVITY where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2')
           WHEN vac.COLL_COURT_FLAG is null and vac.KS_LEDGER_EVENT_TYPE_ID in ('38','42') 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'ESCTOLL'
 
 --CLTOLL (collection toll)
@@ -149,14 +149,14 @@ BEGIN
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w CHILD_DOC_ID of VB_ACTIVITY 
 --where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2') gives latest document  (Collection assignment is not associated to a document creation )
           WHEN vac.COLL_COURT_FLAG = 'COLL' and vac.KS_LEDGER_EVENT_TYPE_ID in ('38','42') 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'CLTOLL' --(collection toll)
 
 --UTCTOLL
 --FOR VB_ACTIVITY KS_LEDGER_EVENT_TYPE_ID in ('38','42') and COLL_COURT_FLAG is null and Bankruptcy_flag is null 
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w CHILD_DOC_ID of VB_ACTIVITY where ST_DOCUMENT_INFO.DOC_TYPE_ID ='3'
           WHEN vac.COLL_COURT_FLAG is null and vac.KS_LEDGER_EVENT_TYPE_ID in ('38','42') 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY = '3' 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY = '3' -- DOC_TYPE_ID
           THEN 'UTCTOLL'
 
 --COURTTOLL
@@ -164,49 +164,53 @@ BEGIN
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w CHILD_DOC_ID of VB_ACTIVITY 
 --where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2') gives latest document  (Court assignment is not associated to a document creation )
           WHEN vac.COLL_COURT_FLAG = 'CRT' and vac.KS_LEDGER_EVENT_TYPE_ID in ('38','42') 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'COURTTOLL'
 
 --COURTPLEATOLL
 --Join VB_ACTIVITY.KS_LEDGER_EVENT_TYPE_ID ='89' and COLL_COURT_FLAG is null and Bankruptcy_flag is null. 
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w DOCUMENT_ID of VB_ACTIVITY where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2') 
           WHEN va.COLL_COURT_FLAG is null and va.KS_LEDGER_EVENT_TYPE_ID = '89'  
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'COURTPLEATOLL'
 
 --REGHOLDTOLL   ----------------------------------------------------------------  Clairification ?
 -- Join ST_ACCT_FLAGS.ACCT_NUM = ST_document_info.acct_num  
 --  and ST_ACCT_FLAGS.FLAG_TYPE ='9' and END_DATE is null, 
---   All the following tolls are on REG HOLD
---JOIN ID             of KS_LEDGER to LEDGER_ID of VB_ACTVITY       for KS_LEDGER.TRANSACTION_TYPE in ('38','42') and 
---JOIN PA_LANE_TXN_ID of KS_LEDGER to TXN_ID    of PA_LANE_LANE_TXN and
---JOIN PLAZA_ID       of PA_PLAZA  to EXT_PLAZA_ID for PA_Lane_txn
---   when --IF SUM (VB_ACTIVITY.AMT_CHARGED – VB_ACTIVITY.TOTAL_AMT_PAID) < :REG_STOP_THRESHOLD_AMT_IN_CENTS grouped by KS_LEDGER.ACCT_NUM
---  FOR PA_PLAZA.FTE_PLAZA = 'Y',
---  VB_ACTIVITY.COLL_COURT_FLAG is NULL, 
---  VB_ACTIVITY.CHILD_DOC_ID not null,
---  VB_ACTIVITY.CHILD_DOC_ID NOT LIKE '%-%' and 
---  VB_ACTIVITY.BANKRUPTCY_flag is null
---          THEN 'REGSTOP'
-
---          WHEN va.COLL_COURT_FLAG is null and va.CHILD_DOC_ID not null 
-----      VB_ACTIVITY.CHILD_DOC_ID NOT LIKE '%-%' and 
---          
---          va.KS_LEDGER_EVENT_TYPE_ID = '89'  and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
---          THEN 'REGSTOP'
-------------------------------------  ST_ACCT_FLAGS table ------------------------------
           WHEN (SELECT 'Y' 
                 FROM ST_ACCT_FLAGS saf 
                 WHERE saf.ACCT_NUM = DM_INVOICE_ITM_INFO_tab(i).ACCOUNT_NUMBER 
                 and saf.FLAG_TYPE ='9' and END_DATE is null)='Y'
           THEN 'REGHOLDTOLL'
-  
+
+--   All the following tolls are on REG HOLD -----  Unclear
+          
+----JOIN ID             of KS_LEDGER to LEDGER_ID of VB_ACTVITY       for KS_LEDGER.TRANSACTION_TYPE in ('38','42') and 
+----JOIN PA_LANE_TXN_ID of KS_LEDGER to TXN_ID    of PA_LANE_LANE_TXN and
+----JOIN PLAZA_ID       of PA_PLAZA  to EXT_PLAZA_ID for PA_Lane_txn
+--
+----   when --IF SUM (VB_ACTIVITY.AMT_CHARGED – VB_ACTIVITY.TOTAL_AMT_PAID) < :REG_STOP_THRESHOLD_AMT_IN_CENTS grouped by KS_LEDGER.ACCT_NUM
+----  FOR PA_PLAZA.FTE_PLAZA = 'Y',
+----  VB_ACTIVITY.COLL_COURT_FLAG is NULL, 
+----  VB_ACTIVITY.CHILD_DOC_ID not null,
+----  VB_ACTIVITY.CHILD_DOC_ID NOT LIKE '%-%' and 
+----  VB_ACTIVITY.BANKRUPTCY_flag is null
+----          THEN 'REGSTOP'
+--
+--          WHEN va.COLL_COURT_FLAG is null and va.CHILD_DOC_ID not null 
+----      va.CHILD_DOC_ID NOT LIKE '%-%' and 
+--          
+--          va.KS_LEDGER_EVENT_TYPE_ID = '89'  and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+--          THEN 'REGSTOP'
+-------------------------------------------------------------------------------------
+
+
 --ADMINFEE
 --FOR VB_ACTIVITY KS_LEDGER_EVENT_TYPE_ID in ('48') and COLL_COURT_FLAG is null and Bankruptcy_flag is null 
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w DOCUMENT_ID of VB_ACTIVITY 
 --where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2')
           WHEN va.COLL_COURT_FLAG is null and va.KS_LEDGER_EVENT_TYPE_ID = '48' 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'ADMINFEE'
 
 --ESCADMINFEE
@@ -214,7 +218,7 @@ BEGIN
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w CHILD_DOC_ID of VB_ACTIVITY 
 --where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2')
           WHEN vac.COLL_COURT_FLAG is null and vac.KS_LEDGER_EVENT_TYPE_ID = '48' 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'ESCADMINFEE'
 
 --CLADMINFEE
@@ -222,7 +226,7 @@ BEGIN
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w CHILD_DOC_ID of VB_ACTIVITY 
 --where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2') gives latest document  (Collection assignment is not associated to a document creation )
           WHEN vac.COLL_COURT_FLAG  = 'COLL' and vac.KS_LEDGER_EVENT_TYPE_ID = '48' 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'CLADMINFEE'
 
 --UTCFEE
@@ -230,7 +234,7 @@ BEGIN
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w DOCUMENT_ID of VB_ACTIVITY 
 --where ST_DOCUMENT_INFO.DOC_TYPE_ID ='3'
           WHEN va.COLL_COURT_FLAG is null and va.KS_LEDGER_EVENT_TYPE_ID = '25' 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY = '3' 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY = '3' -- DOC_TYPE_ID
           THEN 'UTCFEE'
 
 --CRTPLEAFEE
@@ -238,7 +242,7 @@ BEGIN
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w DOCUMENT_ID of VB_ACTIVITY 
 --where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2')
           WHEN va.COLL_COURT_FLAG is null and va.KS_LEDGER_EVENT_TYPE_ID = '100' 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'CRTPLEAFEE'
 
 --COURTUTCFEE
@@ -246,7 +250,7 @@ BEGIN
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w CHILD_DOC_ID of VB_ACTIVITY 
 --where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2') gives latest document  (Court assignment is not associated to a document creation )
           WHEN vac.COLL_COURT_FLAG = 'CRT' and vac.KS_LEDGER_EVENT_TYPE_ID = '25' 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'COURTUTCFEE'
 
 --EXPLANECHARGE (express lane charge)
@@ -254,7 +258,7 @@ BEGIN
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w DOCUMENT_ID of VB_ACTIVITY 
 --where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2')
           WHEN va.COLL_COURT_FLAG is null and va.KS_LEDGER_EVENT_TYPE_ID = '145' 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'EXPLANECHARGE' --(express lane charge)
 
 --ESCEXPPLANCECHARGE
@@ -262,7 +266,7 @@ BEGIN
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w CHILD_DOC_ID of VB_ACTIVITY 
 --where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2')
           WHEN vac.COLL_COURT_FLAG is null and vac.KS_LEDGER_EVENT_TYPE_ID = '145' 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'ESCEXPPLANCECHARGE'
 
 --MAILFEE (include a statement fee in case this is in the data)- We do not do this currently
@@ -272,7 +276,7 @@ BEGIN
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w DOCUMENT_ID of VB_ACTIVITY 
 --where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2')
           WHEN va.COLL_COURT_FLAG is null and va.KS_LEDGER_EVENT_TYPE_ID = '17' 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'NSF'
 
 --ESCNSF
@@ -280,7 +284,7 @@ BEGIN
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w CHILD_DOC_ID of VB_ACTIVITY 
 --where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2')
           WHEN vac.COLL_COURT_FLAG is null and vac.KS_LEDGER_EVENT_TYPE_ID = '17' 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'ESCNSF'
 
 --CLNSF
@@ -288,7 +292,7 @@ BEGIN
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w CHILD_DOC_ID of VB_ACTIVITY 
 --where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2') gives latest document  (Collection assignment is not associated to a document creation )
           WHEN vac.COLL_COURT_FLAG = 'COLL' and vac.KS_LEDGER_EVENT_TYPE_ID = '17' 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'CLNSF'
 
 --CLEXPLANECHARGE
@@ -296,7 +300,7 @@ BEGIN
 --JOIN DOCUMENT_ID of ST_DOCUMENT_INFO w CHILD_DOC_ID of VB_ACTIVITY 
 --where ST_DOCUMENT_INFO.DOC_TYPE_ID in ('1','2') gives latest document  (Collection assignment is not associated to a document creation )
           WHEN vac.COLL_COURT_FLAG = 'COLL' and vac.KS_LEDGER_EVENT_TYPE_ID = '145' 
-            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') 
+            and DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY in ('1','2') -- DOC_TYPE_ID
           THEN 'CLEXPLANECHARGE'
 
 --**Discussed bankruptcy, deceased, court – these will be tracked as statuses 
@@ -308,23 +312,21 @@ BEGIN
         from  VB_ACTIVITY va
               ,VB_ACTIVITY vac  -- Child
         where va.DOCUMENT_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER
-        and   va.DOCUMENT_ID = vac.CHILD_DOC_ID (+)
-        and   rownum=1  -- Verify what record to get ??
+        and   va.CHILD_DOC_ID = vac.DOCUMENT_ID (+)
+--        and   rownum=1  -- Verify what record to get ??
         ;
 --  DBMS_OUTPUT.PUT_LINE('2) DM_INVOICE_ITM_INFO_tab('||i||').SUB_CATEGORY: '||DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY);
         exception 
           when no_data_found then
-          DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY := 'NoData';
+          DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY := 'FTE Undefined';
           when others then null;
-          DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY := 'NULL-None';
+          DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY := 'Multi-value';
           DBMS_OUTPUT.PUT_LINE('2) INVOICE_NUMBER: '||DM_INVOICE_ITM_INFO_TAB(i).INVOICE_NUMBER);
-          DM_INVOICE_ITM_INFO_TAB(i).STATUS := 'CLOSED';
-          DM_INVOICE_ITM_INFO_TAB(i).PAID_AMOUNT := 0;
           v_trac_etl_rec.result_code := SQLCODE;
           v_trac_etl_rec.result_msg := SQLERRM;
           v_trac_etl_rec.proc_end_date := SYSDATE;
           update_track_proc(v_trac_etl_rec);
-           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+--           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
            DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
         end;
 --  DBMS_OUTPUT.PUT_LINE('3) DM_INVOICE_ITM_INFO_tab('||i||').SUB_CATEGORY: '||DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY);
