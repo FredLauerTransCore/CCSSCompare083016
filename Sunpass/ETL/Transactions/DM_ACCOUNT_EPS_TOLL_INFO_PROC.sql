@@ -481,7 +481,7 @@ END;
           DM_ACCOUNT_EPS_TOLL_INF_tab(i).DEVICE_AXLES:='0';
          end if;
 	 if DM_ACCOUNT_EPS_TOLL_INF_tab(i).ACCOUNT_AGENCY_ID is null then
-          DM_ACCOUNT_EPS_TOLL_INF_tab(i).ACCOUNT_AGENCY_ID:='0';
+          DM_ACCOUNT_EPS_TOLL_INF_tab(i).ACCOUNT_AGENCY_ID:='101';
          end if;
 	 if DM_ACCOUNT_EPS_TOLL_INF_tab(i).READ_AVI_CLASS is null then
           DM_ACCOUNT_EPS_TOLL_INF_tab(i).READ_AVI_CLASS:='0';
