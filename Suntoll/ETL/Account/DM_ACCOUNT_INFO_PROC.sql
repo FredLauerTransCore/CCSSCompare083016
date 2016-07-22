@@ -39,7 +39,20 @@ IS SELECT
     ,NULL ACCOUNT_STATUS_DATETIME    -- in ETL- Sub query  ,max(PA_ACCT_STATUS_CHANGES.STATUS_CHG_DATE)- 
     ,'MAIL' STATEMENT_DELIVERY_MODE 
     ,'NONE' STATEMENT_PERIOD    -- PA_ACCT.Statement_option decode? MONTHLY? STATOPTCDE_STATEMENT_OPT_CODE
-    ,pa.ACCTTYPE_ACCT_TYPE_CODE ACCOUNT_TYPE
+    ,decode(pa.ACCTTYPE_ACCT_TYPE_CODE,
+            '01','PRIVATE',
+            '02','BUSINESS',
+            '03','PVIDEOREG',
+            '04','PVIDEOUNREG',
+            '05','SHORTTERMVIDEO',
+            '06','BVIDEOREG',
+            '07','BVIDEOUNREG',
+            '08','PVIOLATOR',
+            '09','CVIOLATOR',
+            '10','10-NOMAPPING',
+            '11','11-NOMAPPING',
+            '12','12-NOMAPPING',
+            pa.ACCTTYPE_ACCT_TYPE_CODE||'-NOMAPPING') ACCOUNT_TYPE
     ,pa.CREATED_ON ACCOUNT_OPEN_DATE    -- ACCT_OPEN_DATE 
     ,trim(pa.L_NAME)||', '||trim(pa.F_NAME) ACCOUNT_NAME
     ,pa.ORG COMPANY_NAME
