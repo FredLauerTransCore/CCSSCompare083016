@@ -39,7 +39,7 @@ IS SELECT
     ,ZIP_CODE ZIP_CODE
     ,SUBSTR(ZIP_CODE,7,10) ZIP_PLUS4
 --    ,to_char(COUNTRY_CODE) COUNTRY   -- COUNTRY_COUNTRY_CODE mapping
-    ,COUNTRY_CODE COUNTRY   -- COUNTRY_COUNTRY_CODE mapping
+    ,NULL COUNTRY   -- COUNTRY_COUNTRY_CODE mapping
     ,nvl2(BAD_ADDR_DATE,'Y','N') NIXIE
     ,to_date('02/27/2017', 'MM/DD/YYYY') NIXIE_DATE
     ,'N' NCOA_FLAG
@@ -90,9 +90,22 @@ BEGIN
     FETCH C1 BULK COLLECT INTO DM_ADDRESS_INFO_tab
     LIMIT P_ARRAY_SIZE;
 
-    /*ETL SECTION BEGIN
+    /*ETL SECTION BEGIN*/
+    
+    FOR i in DM_ADDRESS_INFO_tab.first .. DM_ADDRESS_INFO_tab.last loop
 
-      ETL SECTION END*/
+      begin
+        select COUNTRY into DM_ADDRESS_INFO_tab(i).COUNTRY from COUNTRY_STATE_LOOKUP 
+        where STATE_ABBR = DM_ADDRESS_INFO_tab(i).STATE
+        and rownum<=1;
+      exception
+        when others then null;
+        DM_ADDRESS_INFO_tab(i).COUNTRY:='USA';
+      end;
+      
+    end loop;
+    
+      /*ETL SECTION END*/
 
     /*Bulk insert */ 
     FORALL i in DM_ADDRESS_INFO_tab.first .. DM_ADDRESS_INFO_tab.last
