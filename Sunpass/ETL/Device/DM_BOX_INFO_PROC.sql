@@ -32,9 +32,9 @@ P_ARRAY_SIZE NUMBER:=10000;
 CURSOR C1 IS SELECT 
     it.TRAY_TRAY_NUM BOX_NUMBER 
     ,it.TRAY_CASE_CASE_NUM BOX_TYPE 
-    ,NULL BOX_STATUS 
+    ,TRAY_CASE_LOT_LOT_NUM BOX_STATUS 
     ,it.TRANSPTYPE_TRANSP_TYPE_CODE DEVICE_MODEL 
-    ,at.VEHCLASS_VEH_CLASS_CODE VEHICLE_CLASS 
+    ,NULL VEHICLE_CLASS 
     ,'CSC STORE' STORE 
     ,NULL DEVICE_COUNT 
     ,NULL START_DEVICE_NUMBER 
@@ -43,16 +43,13 @@ CURSOR C1 IS SELECT
     ,NULL BOX_CHECKOUT_TO
     ,NULL BOX_CHECKOUT_BY
     ,NULL DISPOSE_DATE 
-    ,pa.ACCT_OPEN_DATE CREATED 
+    ,NULL CREATED 
     ,'SUNPASS_CSC_ID' CREATED_BY 
-    ,MAX(it.ISSUE_DATE) LAST_UPD --Verify if applicable per comment in
+    ,NULL LPA_ACCT_TRANSPAST_UPD --Verify if applicable per comment in
     ,NULL LAST_UPD_BY 
     ,'SUNPASS' SOURCE_SYSTEM 
 FROM PA_INV_TRANSP it
-    ,PA_ACCT_TRANSP at
-    ,PA_ACCT pa
-WHERE at.INVTRANSP_TRANSP_TRANSP_ID = it.INVTRANSP_TRANSP_ID
-  AND pa.ACCT_NUM = at.ACCT_ACCT_NUM;
+where rowid in (select min(rowid) from PA_INV_TRANSP group by TRAY_TRAY_NUM);
 
 BEGIN
  
@@ -68,16 +65,50 @@ BEGIN
     /*ETL SECTION BEGIN */
 
 
-    FOR i in DM_BOX_INFO_tab.first .. DM_BOX_INFO_tab.last loop
+    FOR i in 1.. DM_BOX_INFO_tab.count loop
 
     /* get PA_INV_TRANSP_ASSGN.EMP_EMP_CODE for BOX_CHECKOUT_TO */
      begin
-        select EMP_EMP_CODE into DM_BOX_INFO_tab(i).BOX_CHECKOUT_TO from PA_INV_TRANSP_ASSGN where TRAY_TRAY_NUM=DM_BOX_INFO_tab(i).BOX_NUMBER;
-        DM_BOX_INFO_tab(i).BOX_CHECKOUT_BY:=DM_BOX_INFO_tab(i).BOX_CHECKOUT_TO;
+        select EMP_EMP_CODE, EMP_EMP_CODE 
+		into DM_BOX_INFO_tab(i).BOX_CHECKOUT_TO , DM_BOX_INFO_tab(i).BOX_CHECKOUT_BY
+		from PA_INV_TRANSP_ASSGN where TRAY_TRAY_NUM=DM_BOX_INFO_tab(i).BOX_NUMBER and rownum<=1;
+  
         exception when others then null;
        DM_BOX_INFO_tab(i).BOX_CHECKOUT_TO:=null;
        DM_BOX_INFO_tab(i).BOX_CHECKOUT_BY:=null;
      end;
+
+
+    /* get PA_ACCT_TRANSP.VEHCLASS_VEH_CLASS_CODE for VEHICLE_CLASS */
+    begin
+      select VEHCLASS_VEH_CLASS_CODE into DM_BOX_INFO_tab(i).VEHICLE_CLASS from PA_ACCT_TRANSP 
+      where INVTRANSP_TRANSP_TRANSP_ID in (select  INVTRANSP_TRANSP_ID from pa_inv_transp 
+	                                       where TRAY_TRAY_NUM=DM_BOX_INFO_tab(i).BOX_NUMBER)
+			and rownum<=1;
+      exception 
+        when others then null;
+        DM_BOX_INFO_tab(i).VEHICLE_CLASS:=null;
+    end;
+
+    begin
+      select ACCT_OPEN_DATE into DM_BOX_INFO_tab(i).CREATED from PA_ACCT 
+      where ACCT_NUM in (SELECT ACCT_ACCT_NUM from pa_acct_transp where INVTRANSP_TRANSP_TRANSP_ID
+                                     in (select INVTRANSP_TRANSP_ID from pa_inv_transp 
+                                         where TRAY_TRAY_NUM= DM_BOX_INFO_tab(i).BOX_NUMBER)
+                                   )
+            and rownum<=1;
+      exception 
+        when others then null;
+        DM_BOX_INFO_tab(i).CREATED:=null;
+    end;
+
+	begin
+      select max(ISSUE_DATE) into DM_BOX_INFO_tab(i).LAST_UPD from PA_INV_TRANSP 
+      where TRAY_TRAY_NUM=DM_BOX_INFO_tab(i).BOX_NUMBER;
+      exception 
+        when others then null;
+        DM_BOX_INFO_tab(i).LAST_UPD:=null;
+    end;
 
 
     end loop;
@@ -103,7 +134,7 @@ BEGIN
           DM_BOX_INFO_tab(i).CREATED:=sysdate;
          end if;
 	 if DM_BOX_INFO_tab(i).LAST_UPD is null then
-          DM_BOX_INFO_tab(i).LAST_UPD:=sysdate;
+          DM_BOX_INFO_tab(i).LAST_UPD:=to_date('01/01/1900','MM/DD/YYYY');
          end if;
     end loop;
 
