@@ -37,8 +37,8 @@ CURSOR C1 IS SELECT
     ,NULL GENDER
     ,DR_LIC_NUM DRIVER_LIC_NUMBER
     ,NULL DRIVER_LIC_EXP_DT
-    ,DR_STATE_CODE DRIVER_LIC_STATE
-    ,'fromST' DRIVER_LIC_COUNTRY
+    ,STATE_STATE_CODE_ABBR DRIVER_LIC_STATE
+    ,NULL DRIVER_LIC_COUNTRY
     ,ACCT_OPEN_DATE CREATED
     ,'SUNPASS_CSC_ID' CREATED_BY
     ,to_date('02/27/2017','MM/DD/YYYY') LAST_UPD
@@ -58,6 +58,22 @@ BEGIN
 
 
     /*ETL SECTION BEGIN */
+    
+    
+    FOR i in DM_RETAILER_CONTACT_INFO_tab.first .. DM_RETAILER_CONTACT_INFO_tab.last loop
+
+      begin
+        select COUNTRY into DM_RETAILER_CONTACT_INFO_tab(i).DRIVER_LIC_COUNTRY from COUNTRY_STATE_LOOKUP 
+        where STATE_ABBR = DM_RETAILER_CONTACT_INFO_tab(i).DRIVER_LIC_STATE
+        and rownum<=1;
+      exception
+        when others then null;
+        DM_RETAILER_CONTACT_INFO_tab(i).DRIVER_LIC_COUNTRY:=NULL;
+      end;
+      
+    end loop;
+    
+    
     /* to default the values NOT NULL columns */
     FOR i in 1 .. DM_RETAILER_CONTACT_INFO_tab.count loop
 	 if DM_RETAILER_CONTACT_INFO_tab(i).ACCOUNT_NUMBER is null then
