@@ -27,11 +27,11 @@ P_ARRAY_SIZE NUMBER:=1000;
 -- 6/14/16 JL Updated REVERSED and NSF_FEE mapping to NULL based on 6/10 discussion with FTE and Xerox.
 
 CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
     pp.ACCT_ACCT_NUM ACCOUNT_NUMBER
     ,pp.PUR_TRANS_DATE TX_DT  -- PA_PURCHASE
-    ,trim(nvl(pay.PAYTYPE_PAYMENT_TYPE_CODE,'NULL')) PAY_TYPE
+    ,trim(nvl(pay.PAYTYPE_PAYMENT_TYPE_CODE,'UNDEFINED')) PAY_TYPE
 --    ,trim(nvl(pd.PRODUCT_PUR_PRODUCT_CODE,'R')) TRAN_TYPE  -- DETAIL  (IN ETL)
     ,'R' TRAN_TYPE  -- DETAIL  (IN ETL)
     ,nvl(pay.PUR_PAY_AMT,0) AMOUNT
@@ -47,12 +47,12 @@ IS SELECT
     ,trim(pay.EMP_EMP_CODE) EMPLOYEE_NUMBER    
     ,nvl(pay.PUR_PAY_ID,0) TRANSACTION_ID  
 --    ,nvl(pd.VES_REF_NUM,'NULL') ORG_TRANSACTION_ID 
-    ,'NULL' ORG_TRANSACTION_ID -- DETAIL  (IN ETL)
+    ,'UNDEFINED' ORG_TRANSACTION_ID -- DETAIL  (IN ETL)
 --    ,(select CHARGE_LEDGER_ID
 --      from VB_ACTIVITY_RECOVERY_REF varr
 --      join KS_LEDGER on PAID_CUST_LEDGER_ID=ID
 --      where PA_PUR_DET_ID=pd.PUR_DET_ID) XREF_TRANSACTION_ID      
-    ,'NULL' XREF_TRANSACTION_ID -- DETAIL  (IN ETL)
+    ,'UNDEFINED' XREF_TRANSACTION_ID -- DETAIL  (IN ETL)
     ,pay.PUR_CREDIT_AUTH_NUM CC_RESPONSE_CODE
     ,pay.CC_GATEWAY_REF_ID EXTERNAL_REFERENCE_NUM
     ,NULL MISS_APPLIED
@@ -82,7 +82,7 @@ FROM PA_PURCHASE pp
 --    ,PA_PURCHASE_DETAIL pd
 WHERE pp.PUR_ID = pay.PUR_PUR_ID
 --AND   pp.PUR_ID = pd.PUR_PUR_ID (+) -- AND   pd.ITEM_ORDER = 1 ?
---AND   pp.ACCT_ACCT_NUM >= p_begin_acct_num AND   pp.ACCT_ACCT_NUM <= p_end_acct_num
+AND   pp.ACCT_ACCT_NUM >= p_begin_acct_num AND   pp.ACCT_ACCT_NUM <= p_end_acct_num
 ; -- source
 
 v_PUR_DET_ID     PA_PURCHASE_DETAIL.PUR_DET_ID%TYPE := 0;
@@ -105,7 +105,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;  -- (v_trac_rec.begin_acct,v_end_acct,end_acct);  
+  OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 
@@ -123,8 +123,8 @@ BEGIN
       
       begin
         select PUR_DET_ID
-              ,nvl(PRODUCT_PUR_PRODUCT_CODE,'NULL')
-              ,nvl(VES_REF_NUM,'NULL')
+              ,nvl(PRODUCT_PUR_PRODUCT_CODE,'UNDEFINED')
+              ,nvl(VES_REF_NUM,'UNDEFINED')
         into   v_PUR_DET_ID
               ,DM_PAYMT_INFO_tab(i).TRAN_TYPE
               ,DM_PAYMT_INFO_tab(i).ORG_TRANSACTION_ID
@@ -135,8 +135,8 @@ BEGIN
       exception 
         when others then null;
         v_PUR_DET_ID := 0;
-        DM_PAYMT_INFO_tab(i).TRAN_TYPE := 'NULL';
-        DM_PAYMT_INFO_tab(i).ORG_TRANSACTION_ID := 'NULL';
+        DM_PAYMT_INFO_tab(i).TRAN_TYPE := 'UNDEFINED';
+        DM_PAYMT_INFO_tab(i).ORG_TRANSACTION_ID := 'UNDEFINED';
       end;
       
       if v_PUR_DET_ID != 0 then
@@ -155,7 +155,7 @@ BEGIN
           ;
         exception 
           when others then null;
-          DM_PAYMT_INFO_tab(i).XREF_TRANSACTION_ID := 'NULL';
+          DM_PAYMT_INFO_tab(i).XREF_TRANSACTION_ID := 'UNDEFINED';
         end;
       end if;
 

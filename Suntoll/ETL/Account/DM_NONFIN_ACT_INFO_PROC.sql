@@ -12,7 +12,7 @@ set serveroutput on
 set verify on
 set echo on
 
--- EMP_CODE IS LIKE '99xx' or '0100' -- SYSTEM
+-- EXTRACT RULE - EMP_CODE IS LIKE '99xx' or '0100' -- SYSTEM
 -- RH 6/20/2016 Added Tracking and acct num parameters
 
 CREATE OR REPLACE PROCEDURE DM_NONFIN_ACT_INFO_PROC   
@@ -29,13 +29,10 @@ P_ARRAY_SIZE NUMBER:=1000;
 
 
 CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
     ACCT_NUM ACCOUNT_NUMBER
---    ,nvl((SELECT MAX(ACTIVITY_NUMBER + 1) 
---        FROM DM_NONFIN_ACT_INFO 
---        WHERE ACCT_NUM = NOTE.ACCT_NUM),0) as ACTIVITY_NUMBER
-    ,0 ACTIVITY_NUMBER
+    ,0 ACTIVITY_NUMBER  -- In ETL
     ,TYPE_CODE CATEGORY
     ,PROB_CODE SUB_CATEGORY
     ,TYPE_ID ACTIVITY_TYPE
@@ -46,9 +43,10 @@ IS SELECT
     ,EMP_CODE LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM NOTE
-where EMP_CODE like '99%' or EMP_CODE = '0100'
-and ACCT_NUM is not null
---AND  ACCT_NUM >= p_begin_acct_num AND   ACCT_NUM <= p_end_acct_num
+where (EMP_CODE like '99%' or EMP_CODE = '0100')
+--and ACCT_NUM is not null
+AND  ACCT_NUM >= p_begin_acct_num AND   ACCT_NUM <= p_end_acct_num
+and  ACCT_NUM >0
 ; 
 --
 
@@ -74,10 +72,23 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 
+  begin
+    select nvl(max(ACTIVITY_NUMBER),0) into  v_activity_number
+    from DM_NONFIN_ACT_INFO
+    ;
+  exception 
+    when no_data_found then --null;
+      v_activity_number :=  0;
+    when others then --null;
+      v_activity_number :=  0;
+      DBMS_OUTPUT.PUT_LINE('activity_number ERROR CODE: '||SQLCODE);
+      DBMS_OUTPUT.PUT_LINE('activity_number ERROR MSG: '||SQLERRM);
+  end;    
+    
   LOOP
 
     /*Bulk select */
@@ -86,25 +97,16 @@ BEGIN
 
 --ETL SECTION BEGIN mapping
 --DBMS_OUTPUT.PUT_LINE(' - max activity_number: '||v_activity_number);
-    
+
     FOR i IN 1 .. DM_NONFIN_ACT_INFO_tab.COUNT LOOP
       IF i=1 then
         v_trac_etl_rec.BEGIN_VAL := DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER;
-        
-        begin
---          select nvl(max(ACTIVITY_NUMBER),0) into  v_activity_number
-          select nvl(max(ACTIVITY_NUMBER),0)+1 into  DM_NONFIN_ACT_INFO_tab(i).activity_number
-          from DM_NONFIN_ACT_INFO
-          ;
-        exception 
-          when others then --null;
-         DBMS_OUTPUT.PUT_LINE('activity_number ERROR CODE: '||SQLCODE);
-         DBMS_OUTPUT.PUT_LINE('activity_number ERROR MSG: '||SQLERRM);
-        end;
+        DBMS_OUTPUT.PUT_LINE('activity_number: '||v_activity_number);
     
       end if;
-
-      DM_NONFIN_ACT_INFO_tab(i).activity_number :=  DM_NONFIN_ACT_INFO_tab(i).activity_number+1;
+      
+      v_activity_number := v_activity_number+1;
+      DM_NONFIN_ACT_INFO_tab(i).activity_number :=  v_activity_number;
       
       v_trac_etl_rec.track_last_val := DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER;
       v_trac_etl_rec.end_val := DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER;

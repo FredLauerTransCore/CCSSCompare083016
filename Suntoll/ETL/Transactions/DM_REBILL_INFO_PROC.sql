@@ -25,32 +25,31 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
     aw.ACCT_NUM ACCOUNT_NUMBER 
     ,cc.CODE PAY_TYPE
-    ,cc.CC_TOKEN CREDIT_CARD_NUMBER_MASK
+    ,'XXXXXXXXXXXX'||substr(cc.CC_TOKEN,-4) CREDIT_CARD_NUMBER_MASK
     ,cc.CC_TOKEN CREDIT_CARD_NUMBER
     ,to_char(to_date(cc.EXPIRATION_DATE,'MM/YY'),'MM') CC_EXP_MONTH
     ,to_char(to_date(cc.EXPIRATION_DATE,'MM/YY'),'YYYY') CC_EXP_YEAR
-    ,substr(cc.CC_TOKEN,12,4) LAST_4_CC_NUMBER
-    ,NULL ACH_BANK_ACCOUNT_NUMBER
-    ,NULL ACH_BANK_ACCOUNT_NUMBER_MASK
-    ,NULL ACH_BANK_ROUTING_NUMBER
-    ,NULL LAST_4_ACH_NUMBER
-    ,'1' SEQUENCE_NUMBER -- DEFAULT to 1 ; FTE - We need the value possibilities, and what the sequence numbers are
-    ,cc.CREATED_DATE CREATED
+    ,substr(cc.CC_TOKEN,-4) LAST_4_CC_NUMBER
+    ,NULL ACH_BANK_ACCOUNT_NUMBER -- 'N/A'
+    ,NULL ACH_BANK_ACCOUNT_NUMBER_MASK -- 'N/A'
+    ,NULL ACH_BANK_ROUTING_NUMBER -- 'N/A'
+    ,NULL LAST_4_ACH_NUMBER -- 'N/A'
+    ,'1' SEQUENCE_NUMBER
+    ,cc.CREATED_DATE CREATED --  NOT NULL Default ?
     ,aw.CREATED_BY CREATED_BY 
---    ,NULL LAST_UPD    -- ICD N/A
-    ,SYSDATE LAST_UPD  -- Required need default
-    ,NULL LAST_UPD_BY
+    ,SYSDATE LAST_UPD -- 'N/A'  NOT NULL Default ?
+    ,NULL LAST_UPD_BY -- 'N/A'  Not Null
 --    ,aw.LAST_USED_DATE LAST_USED_DATE  -- PA_ACCT_WALLET NOT NULL
     ,nvl(aw.LAST_USED_DATE,cc.CREATED_DATE) LAST_USED_DATE  -- PA_ACCT_WALLET
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM PA_ACCT_WALLET aw
     ,PA_CREDIT_CARD cc
-WHERE aw.CARD_SEQ = cc.CARD_SEQ
---AND   aw.ACCT_NUM >= p_begin_acct_num AND   aw.ACCT_NUM <= p_end_acct_num
+WHERE aw.ACCT_NUM >= p_begin_acct_num AND   aw.ACCT_NUM <= p_end_acct_num
+and   aw.CARD_SEQ = cc.CARD_SEQ
     ; -- Source
 
 row_cnt          NUMBER := 0;
@@ -72,7 +71,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;  -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 
@@ -83,14 +82,25 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-    /*ETL SECTION BEGIN
+    /*ETL SECTION BEGIN*/
 
-      ETL SECTIONEND*/
+    FOR i IN 1 .. DM_REBILL_INFO_tab.COUNT LOOP
+      IF i=1 then
+        v_trac_etl_rec.BEGIN_VAL := DM_REBILL_INFO_tab(i).ACCOUNT_NUMBER;
+      end if;
+
+      v_trac_etl_rec.track_last_val := DM_REBILL_INFO_tab(i).ACCOUNT_NUMBER;
+      v_trac_etl_rec.end_val := DM_REBILL_INFO_tab(i).ACCOUNT_NUMBER;
+
+    END LOOP;
+    
+    /* ETL SECTIONEND*/
 
     /*Bulk insert */ 
     FORALL i in DM_REBILL_INFO_tab.first .. DM_REBILL_INFO_tab.last
            INSERT INTO DM_REBILL_INFO VALUES DM_REBILL_INFO_tab(i);
 
+    v_trac_etl_rec.end_val := v_trac_rec.end_acct;
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
     update_track_proc(v_trac_etl_rec);

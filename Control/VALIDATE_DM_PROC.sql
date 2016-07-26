@@ -37,7 +37,7 @@ IS
 ;
 
 BEGIN
---  DBMS_OUTPUT.PUT_LINE(i_c_rec.control_id||' - Start VALIDATION_PROC for '||i_c_rec.etl_name||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
+  DBMS_OUTPUT.PUT_LINE(i_c_rec.control_id||' - Start VALIDATION_PROC for '||i_c_rec.etl_name||' at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));
   v_c_rec := i_c_rec;
   SELECT * INTO v_etl_rec
   FROM  dm_tracking_etl
@@ -49,17 +49,19 @@ BEGIN
 --  FOR idx IN c1(c_rec.source_system, c_rec.control_id)
   FOR idx IN c1(i_c_rec.control_id)
   LOOP
-
+    DBMS_OUTPUT.PUT_LINE(i_c_rec.control_id||' - idx.control_calc_id '||idx.control_calc_id);
     select * into pre_calc_rec
-    from dm_tracking_calc dtc
+    from  dm_tracking_calc dtc
     where dtc.calc_type = 'PRE'
-    and   dtc.TRACK_ETL_ID = v_etl_rec.track_etl_id
+    and   dtc.track_etl_id = v_etl_rec.track_etl_id
+    and   dtc.control_calc_id = idx.control_calc_id
     ;
 
     select * into post_calc_rec
-    from dm_tracking_calc dtc
+    from  dm_tracking_calc dtc
     where dtc.calc_type = 'POST'
-    and   dtc.TRACK_ETL_ID = v_etl_rec.track_etl_id
+    and   dtc.track_etl_id = v_etl_rec.track_etl_id
+    and   dtc.control_calc_id = idx.control_calc_id
     ;
 
 --DBMS_OUTPUT.PUT_LINE('PRE value: '||pre_calc_rec.CALC_VALUE||' and POST value: '||post_calc_rec.CALC_VALUE||
@@ -67,7 +69,8 @@ BEGIN
 
     if nvl(pre_calc_rec.CALC_VALUE,0) != nvl(post_calc_rec.CALC_VALUE,0) then
       v_etl_rec.result_code := nvl(v_etl_rec.result_code,0)-1;
-      v_etl_rec.result_msg := 'ERROR: PRE value: '||pre_calc_rec.CALC_VALUE||' and POST value: '||post_calc_rec.CALC_VALUE||
+      v_etl_rec.result_msg := 'WARNING ('||idx.control_calc_id||') : PRE value: '||
+            pre_calc_rec.CALC_VALUE||' and POST value: '||post_calc_rec.CALC_VALUE||
           ' does not match for '||idx.calc_func||' of '||i_c_rec.etl_name||'.'||idx.target_field||'; '||v_etl_rec.result_msg;
 
 --      DBMS_OUTPUT.PUT_LINE('result : '||v_etl_rec.result_msg);

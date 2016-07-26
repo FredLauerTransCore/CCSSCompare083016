@@ -67,7 +67,8 @@ BEGIN
   FOR idx IN c1(i_c_rec.control_id)
   LOOP
 
-    calc_rec.track_calc_id   :=  track_calc_id_seq.NEXTVAL;
+    calc_rec.track_calc_id   := track_calc_id_seq.NEXTVAL;
+    calc_rec.control_calc_id := idx.control_calc_id;
 
     calc_rec.calc_func := idx.calc_func;
     calc_rec.calc_field := idx.target_field;
@@ -81,11 +82,12 @@ BEGIN
 --    v_where := ' WHERE 1=1 ';
     v_where := ' WHERE source_system = '''||v_c_rec.source_system||'''';
 
-    if v_c_rec.source_acct_field is not null then
-      v_where := v_where||' and ACCOUNT_NUMBER >= '||v_trac_rec.begin_acct
-                        ||' and ACCOUNT_NUMBER <= '||v_trac_rec.end_acct;
+    if v_c_rec.target_acct_field is not null then
+      v_where := v_where||' and '||v_c_rec.target_acct_field||' >= '||v_trac_rec.begin_acct
+                        ||' and '||v_c_rec.target_acct_field||' <= '||v_trac_rec.end_acct;
     end if;
-    IF idx.source_where IS NOT NULL THEN
+
+    IF idx.target_where IS NOT NULL THEN
       v_where :=  v_where||' AND '||idx.target_where;
     END IF;
 
@@ -104,15 +106,17 @@ BEGIN
 
     COMMIT;
 
+    calc_rec.result_code := SQLCODE;
+    calc_rec.result_msg := SQLERRM;
+    update_track_calc_proc(calc_rec);
+
   END LOOP;
 
   COMMIT;
 
   v_etl_rec.status := calc_rec.calc_type||' process Completed';
-  calc_rec.result_code := SQLCODE;
-  calc_rec.result_msg := SQLERRM;
 --  update_track_proc(v_etl_rec);
-  update_track_calc_proc(calc_rec);
+--  update_track_calc_proc(calc_rec);
 
   EXCEPTION
   WHEN OTHERS THEN
@@ -121,7 +125,7 @@ BEGIN
     calc_rec.result_code := SQLCODE;
     calc_rec.result_msg := SQLERRM;
     update_track_calc_proc(calc_rec);
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||calc_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('Post ERROR CODE: '||calc_rec.result_code);
      DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||calc_rec.result_msg);
 END;
 /

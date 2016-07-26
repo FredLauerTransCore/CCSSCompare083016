@@ -25,12 +25,21 @@ DM_ACCOUNT_HST_INFO_tab DM_ACCOUNT_HST_INFO_TYP;
 P_ARRAY_SIZE NUMBER:=10000;
 
 CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT
     pa.ACCT_NUM ACCOUNT_NUMBER
-    ,pa.ACCTSTAT_ACCT_STATUS_CODE ACCOUNT_STATUS
+    ,decode(pa.ACCTSTAT_ACCT_STATUS_CODE,
+     '01','ACTIVE',
+     '02','SUSPENDED',
+     '03','RVKF',
+     '04','CLOSED',
+     '99','DO NOT USE',
+    pa.ACCTSTAT_ACCT_STATUS_CODE||'NO-MAPPING'
+    ) ACCOUNT_STATUS
     ,NULL ACCOUNT_STATUS_DATETIME -- MAX(STATUS_CHG_DATE) PA_ACCT_STATUS_CHANGES - ETL sec
-    ,'MAIL' STATEMENT_DELIVERY_MODE
+--    ,'MAIL' STATEMENT_DELIVERY_MODE 
+--    If PA_ACCT.E_MAIL_ADDR IS NOT NULL then 'EMAIL' ELSE 'MAIL'
+    ,nvl2(pa.E_MAIL_ADDR, 'EMAIL', 'MAIL') STATEMENT_DELIVERY_MODE
     ,'NONE' STATEMENT_PERIOD  -- What is the source for this?PA_ACCT.Statement_option MONTHLY
     ,pa.ACCTTYPE_ACCT_TYPE_CODE ACCOUNT_TYPE
     ,pa.CREATED_ON ACCOUNT_OPEN_DATE    -- ACCT_OPEN_DATE 
@@ -148,7 +157,7 @@ FROM PA_ACCT pa
     ,PA_ACCT_DETAIL pad
 --    ,PATRON.KS_CHALLENGE_QUESTION
 WHERE pa.ACCT_NUM = pad.ACCT_NUM --(+)
---AND   paa.ACCT_NUM >= p_begin_acct_num AND   paa.ACCT_NUM <= p_end_acct_num
+AND   pa.ACCT_NUM >= p_begin_acct_num AND   pa.ACCT_NUM <= p_end_acct_num
 ;
 /*Change FTE_TABLE to the actual table name*/
 
@@ -171,7 +180,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 
@@ -181,24 +190,17 @@ BEGIN
     FETCH C1 BULK COLLECT INTO DM_ACCOUNT_HST_INFO_tab
     LIMIT P_ARRAY_SIZE;
 
-
     /*ETL SECTION BEGIN */
 
     FOR i IN 1 .. DM_ACCOUNT_HST_INFO_tab.COUNT LOOP
+      IF i=1 then
+        v_trac_etl_rec.BEGIN_VAL := DM_ACCOUNT_HST_INFO_TAB(i).ACCOUNT_NUMBER;
+      end if;
 
       begin
-        select max(sc.STATUS_CHG_DATE) into  DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_STATUS_DATETIME
-        from PA_ACCT_STATUS_CHANGES sc
-        where sc.ACCT_NUM = DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_NUMBER
-        ;
-      exception 
-        when others then null;
-        DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_STATUS_DATETIME:=null;
-      end;
-
-      begin
-        select STATUS_CHG_DATE into DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_STATUS_DATETIME
-        from PA_ACCT_STATUS_CHANGES
+        select max(STATUS_CHG_DATE) 
+        into  DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_STATUS_DATETIME
+        from  PA_ACCT_STATUS_CHANGES
         where ACCT_NUM = DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_NUMBER
         ;
       exception 
@@ -247,9 +249,10 @@ BEGIN
 
 
       begin
-        select max(di.CREATED_ON) into  DM_ACCOUNT_HST_INFO_tab(i).LAST_INVOICE_DATE
-        from ST_DOCUMENT_INFO di
-        where di.ACCT_NUM = DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_NUMBER
+        select max(CREATED_ON) 
+        into  DM_ACCOUNT_HST_INFO_tab(i).LAST_INVOICE_DATE
+        from ST_DOCUMENT_INFO
+        where ACCT_NUM = DM_ACCOUNT_HST_INFO_tab(i).ACCOUNT_NUMBER
         ;
       exception 
         when others then null;
@@ -262,12 +265,9 @@ BEGIN
 --    IF ACCOUNT_NUM EXISTS IN ST_REG_STOP_PAYMENT_PLAN AND NVL(PAYMENT_PLAN_END, TRUNC(SYSDATE))  >=  TRUNC(SYSDATE) 
 --    THEN 'A'    -- (if plan end date is future or null) 
 --    ELSE 'N' 
---    ,case when pa.ACCT_NUM = (select ACCT_NUM 
---                            from PATRON.ST_REG_STOP_PAYMENT_PLAN rsp
---                            where rsp.ACCT_NUM = pa.ACCT_NUM
---                            and nvl(PAYMENT_PLAN_END, trunc(SYSDATE)) >= trunc(SYSDATE)) THEN 'A' 
---                        
---          else 'N'
+
+      v_trac_etl_rec.track_last_val := DM_ACCOUNT_HST_INFO_TAB(i).ACCOUNT_NUMBER;
+      v_trac_etl_rec.end_val := DM_ACCOUNT_HST_INFO_TAB(i).ACCOUNT_NUMBER;
 
     END LOOP;
  

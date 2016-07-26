@@ -25,11 +25,11 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
-    nvl(pd.PRODUCT_PUR_PRODUCT_CODE,'NULL') CATEGORY
-    ,nvl(pd.PRODUCT_PUR_PRODUCT_CODE,'NULL') SUB_CATEGORY
-    ,nvl(pd.PRODUCT_PUR_PRODUCT_CODE,'NULL') TRANS_TYPE
+    nvl(pd.PRODUCT_PUR_PRODUCT_CODE,'UNDEFINED') CATEGORY
+    ,nvl(pd.PRODUCT_PUR_PRODUCT_CODE,'UNDEFINED') SUB_CATEGORY
+    ,nvl(pd.PRODUCT_PUR_PRODUCT_CODE,'UNDEFINED') TRANS_TYPE
 --    ,(select PROD_ABBRV from PA_PUR_PRODUCT where PUR_PRODUCT_CODE = pd.PRODUCT_PUR_PRODUCT_CODE) TRANS_TYPE    
     ,nvl(pd.PROD_AMT,0) AMOUNT
     ,'FTE' ENDO_AGENCY
@@ -55,7 +55,7 @@ FROM PA_PURCHASE pp
 --    ,PA_PURCHASE_PAYMENT pay
 WHERE pp.PUR_ID = pd.PUR_PUR_ID (+)
 --AND   pp.PUR_ID = pay.PUR_PUR_ID (+)
---AND   pp.ACCT_ACCT_NUM >= p_begin_acct_num AND   pp.ACCT_ACCT_NUM <= p_end_acct_num
+AND   pp.ACCT_ACCT_NUM >= p_begin_acct_num AND   pp.ACCT_ACCT_NUM <= p_end_acct_num
 ; -- source
 
 row_cnt          NUMBER := 0;
@@ -77,7 +77,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;  -- (v_trac_rec.begin_acct,v_end_acct,end_acct);  
+  OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
 --  v_trac_etl_rec.begin_val := v_trac_rec.begin_acct;
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);

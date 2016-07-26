@@ -29,7 +29,7 @@ P_ARRAY_SIZE NUMBER:=100;
 -- Join id of KS_USER to user_id of KS_USER_PA_ACCT_ASSOC to get external user acct_num
 
 CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
 --    ETC_ACCOUNT_ID ETC_ACCOUNT_ID
     ua.PA_ACCT_NUM ETC_ACCOUNT_ID
@@ -56,7 +56,7 @@ WHERE ua.USER_ID = u.ID
 --AND icd.CALL_ID = ic.CALL_ID
 --AND ACTIVE_FLAG = 'Y'
 --AND   ua.PA_ACCT_NUM = wi.ACCT_NUM (+)
---AND   ua.ACCT_NUM >= p_begin_acct_num AND   ua.ACCT_NUM <= p_end_acct_num
+AND   ua.PA_ACCT_NUM >= p_begin_acct_num AND   ua.PA_ACCT_NUM <= p_end_acct_num
 ; -- Source SunToll
 
 --PA_WEB_LOGIN_INFO
@@ -80,7 +80,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 

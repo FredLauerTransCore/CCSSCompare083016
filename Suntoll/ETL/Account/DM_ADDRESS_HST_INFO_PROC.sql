@@ -27,7 +27,7 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT
     ACCT_NUM  ACCOUNT_NUMBER
     ,'MAILING' ADDR_TYPE
@@ -59,8 +59,7 @@ IS SELECT
     ,NULL STATUS
 FROM PA_ACCT_ADDR paa
 WHERE DEFAULT_ADDR_FLAG = 'Y'
---and paa.acct_num<50000000
---and  paa.ACCT_NUM >= p_begin_acct_num AND   paa.ACCT_NUM <= p_end_acct_num
+and  paa.ACCT_NUM >= p_begin_acct_num AND   paa.ACCT_NUM <= p_end_acct_num
 ; -- Source
 /*Change FTE_TABLE to the actual table name*/
 
@@ -83,7 +82,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 

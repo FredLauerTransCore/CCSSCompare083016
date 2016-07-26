@@ -27,12 +27,12 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT
     pav.ACCT_ACCT_NUM ACCOUNT_NUMBER
     ,DECODE(pav.VEH_LIC_NUM, 'O', '0', pav.VEH_LIC_NUM) PLATE_NUMBER  -- PATRON.EVENT_LOOKUP_ROV
     ,pav.STATE_STATE_CODE_ABBR PLATE_STATE
-    ,nvl((select substr(trim(cs.COUNTRY),1,4) from  COUNTRY_STATE_LOOKUP cs
+    ,nvl((select cs.COUNTRY from  COUNTRY_STATE_LOOKUP cs
            where cs.STATE_ABBR = pav.STATE_STATE_CODE_ABBR),'USA') PLATE_COUNTRY
     ,nvl(pav.VEH_LIC_TYPE,'UNDEFINED') PLATE_TYPE    -- Prefix and Suffix for the Country and State.  
     ,'REGULAR' VEHICLE_TYPE     
@@ -74,7 +74,7 @@ FROM PA_ACCT_VEHICLE pav
     ,EVENT_VEHICLE ev
 WHERE pav.VEH_LIC_NUM = srs.VEH_LIC_NUM (+)
 AND   pav.VEH_LIC_NUM = ev.PLATE (+)
---AND   pav.ACCT_NUM >= p_begin_acct_num AND   pav.ACCT_NUM <= p_end_acct_num
+AND   pav.ACCT_ACCT_NUM >= p_begin_acct_num AND   pav.ACCT_ACCT_NUM <= p_end_acct_num
 ; -- FTE source
 
 row_cnt          NUMBER := 0;
@@ -96,7 +96,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;  -- (v_trac_rec.begin_acct,v_end_acct,end_acct);  
+  OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
 --  v_trac_etl_rec.begin_val := v_trac_rec.begin_acct;
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
@@ -117,6 +117,8 @@ BEGIN
       from EVENT_LOOKUP_ROV elr
       where elr.PLATE = DM_VEHICLE_HST_INFO_tab(i).PLATE_NUMBER
       ;
+      
+      
       v_trac_etl_rec.track_last_val := DM_VEHICLE_HST_INFO_tab(i).ACCOUNT_NUMBER;
       v_trac_etl_rec.end_val := DM_VEHICLE_HST_INFO_tab(i).ACCOUNT_NUMBER;
 

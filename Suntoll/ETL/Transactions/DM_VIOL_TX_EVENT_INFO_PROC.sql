@@ -15,7 +15,7 @@ set echo on
 -- 6/20/2016 RH Added Tracking and acct num parameters
 
 CREATE OR REPLACE PROCEDURE DM_VIOL_TX_EVENT_INFO_PROC 
-  (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
+(i_trac_id dm_tracking_etl.track_etl_id%TYPE)
 IS
 
 TYPE DM_VIOL_TX_EVENT_INFO_TYP IS TABLE OF DM_VIOL_TX_EVENT_INFO%ROWTYPE 
@@ -25,7 +25,7 @@ DM_VIOL_TX_EVENT_INFO_tab DM_VIOL_TX_EVENT_INFO_TYP;
 P_ARRAY_SIZE NUMBER:=10000;
 
 CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
  /** Internal Xerox lookup;  
  -- Valid status: (xerox internal values 0100 to 0200) 
@@ -68,13 +68,13 @@ IS SELECT
     ,0 PREV_VIOL_TX_STATUS  -- Translation?. Required default to 0?
     ,to_date('12-31-9999','MM-DD-YYYY') EVENT_TIMESTAMP -- ** Discussion in ICD.  Required defaulted to SYSDATE?
 
-    ,kl.ACCT_NUM ETC_ACCOUNT_ID   -- Join KS_LEDGER on TXN_ID ** add to internal Xerox Discussion
+    ,kl.ACCT_NUM ETC_ACCOUNT_ID   -- Join KS_LEDGER on TXN_ID ** add to internal Xerscussion
     ,lt.VEH_LIC_NUM PLATE_NUMBER
     ,lt.STATE_ID_CODE  PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
 --    ,nvl((select nvl(cs.COUNTRY,'USA') 
 --            from COUNTRY_STATE_LOOKUP cs, PA_STATE_CODE s
 --           where cs.STATE_ABBR = s.STATE_CODE_ABBR
---           and   s.STATE_CODE_NUM = lt.STATE_ID_CODE),'USA') PLATE_COUNTRY
+--           and   s.STATE_CODE_NUM = lt.STATE_ID_CODE),'USA') PLATE_COUNTRYox Di
     ,nvl((select trim(cs.COUNTRY)
             from COUNTRY_STATE_LOOKUP cs
            where cs.STATE_ABBR = lt.STATE_ID_CODE),'USA') PLATE_COUNTRY
@@ -112,25 +112,14 @@ JOIN ID of KS_LEDGER to LEDGER_ID of VB_ACTVITY for KS_LEDGER.TRANSACTION_TYPE i
 --      VB_ACTIVITY.BANKRUPTCY_flag is null
 --  THEN 'REG STOP'
     ,nvl(CASE WHEN va.BANKRUPTCY_FLAG is NOT null THEN 607 -- 'BANKRUPTCY'
-          WHEN va.COLL_COURT_FLAG is null and
-               va.DOCUMENT_ID is null THEN 601 -- 'UNBILLED'
-          WHEN va.COLL_COURT_FLAG is null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID is null THEN 602 -- 'INVOICED'
-          WHEN va.COLL_COURT_FLAG is null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID is NOT null THEN 603 -- 'ESCALATED'
-          WHEN va.COLL_COURT_FLAG is null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID like '%-%' THEN 604 -- 'UTC'
-          WHEN va.COLL_COURT_FLAG is NOT null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID is NOT null and
-               va.COLL_COURT_FLAG = 'COLL' THEN 605 -- 'COLLECTION'
-          WHEN va.COLL_COURT_FLAG is NOT null and
-               va.DOCUMENT_ID is NOT null and
-               va.CHILD_DOC_ID is NOT null and
-               va.COLL_COURT_FLAG = 'CRT' THEN 606 -- 'COURT'
+          WHEN va.COLL_COURT_FLAG is null and va.DOCUMENT_ID is null THEN 601 -- 'UNBILLED'
+          WHEN va.COLL_COURT_FLAG is null and va.DOCUMENT_ID is NOT null and va.CHILD_DOC_ID is null THEN 602 -- 'INVOICED'
+          WHEN va.COLL_COURT_FLAG is null and va.DOCUMENT_ID is NOT null and va.CHILD_DOC_ID is NOT null THEN 603 -- 'ESCALATED'
+          WHEN va.COLL_COURT_FLAG is null and va.DOCUMENT_ID is NOT null and va.CHILD_DOC_ID like '%-%' THEN 604 -- 'UTC'
+          WHEN va.COLL_COURT_FLAG is NOT null and va.DOCUMENT_ID is NOT null and 
+              va.CHILD_DOC_ID is NOT null and va.COLL_COURT_FLAG = 'COLL' THEN 605 -- 'COLLECTION'
+          WHEN va.COLL_COURT_FLAG is NOT null and va.DOCUMENT_ID is NOT null and
+               va.CHILD_DOC_ID is NOT null and va.COLL_COURT_FLAG = 'CRT' THEN 606 -- 'COURT'
           ELSE 0  --   -- NULL  Required Default 0?
       END,0) DMV_PLATE_TYPE  -- Derived
     
@@ -182,14 +171,11 @@ JOIN ID of KS_LEDGER to LEDGER_ID of VB_ACTVITY for KS_LEDGER.TRANSACTION_TYPE i
     ,lt.txn_id LANE_TX_ID
 FROM PA_LANE_TXN  lt
     ,KS_LEDGER kl
---    ,ST_DOCUMENT_INFO di
     ,VB_ACTIVITY va
 --    ,ST_ACTIVITY_PAID ap
 WHERE lt.txn_id = kl.PA_LANE_TXN_ID
   AND kl.ID = va.LEDGER_ID (+)
---  AND   k1.ACCT_NUM >= p_begin_acct_num AND   k1.ACCT_NUM <= p_end_acct_num
---  AND di.DOCUMENT_ID = va.DOCUMENT_ID (+)  
---  AND di.DOCUMENT_ID = ap.DOCUMENT_ID (+)  
+  AND kl.ACCT_NUM >= p_begin_acct_num AND   kl.ACCT_NUM <= p_end_acct_num
 ;   -- source
 
 row_cnt          NUMBER := 0;
@@ -211,7 +197,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 

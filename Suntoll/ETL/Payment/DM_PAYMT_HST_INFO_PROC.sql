@@ -26,7 +26,7 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
     pp.ACCT_ACCT_NUM ACCOUNT_NUMBER
     ,pp.PUR_TRANS_DATE TX_DT  -- PA_PURCHASE
@@ -82,7 +82,7 @@ FROM PA_PURCHASE pp
 --    ,PA_PURCHASE_DETAIL pd
 WHERE pp.PUR_ID = pay.PUR_PUR_ID
 --AND   pp.PUR_ID = pd.PUR_PUR_ID (+) -- AND   pd.ITEM_ORDER = 1 ?
---AND   pp.ACCT_ACCT_NUM >= p_begin_acct_num AND   pp.ACCT_ACCT_NUM <= p_end_acct_num
+AND   pp.ACCT_ACCT_NUM >= p_begin_acct_num AND   pp.ACCT_ACCT_NUM <= p_end_acct_num
 ; -- source
 
 v_PUR_DET_ID     PA_PURCHASE_DETAIL.PUR_DET_ID%TYPE := 0;
@@ -105,7 +105,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;  -- (v_trac_rec.begin_acct,v_end_acct,end_acct);  
+  OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 

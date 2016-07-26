@@ -27,15 +27,15 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 
 CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
     aw.ACCT_NUM ACCOUNT_NUMBER 
     ,cc.CODE PAY_TYPE
-    ,cc.CC_TOKEN CREDIT_CARD_NUMBER_MASK
+    ,'XXXXXXXXXXXX'||substr(cc.CC_TOKEN,-4) CREDIT_CARD_NUMBER_MASK
     ,cc.CC_TOKEN CREDIT_CARD_NUMBER
     ,to_char(to_date(cc.EXPIRATION_DATE,'MM/YY'),'MM') CC_EXP_MONTH
     ,to_char(to_date(cc.EXPIRATION_DATE,'MM/YY'),'YYYY') CC_EXP_YEAR
-    ,substr(cc.CC_TOKEN,12,4) LAST_4_CC_NUMBER
+    ,substr(cc.CC_TOKEN,-4) LAST_4_CC_NUMBER
     ,NULL ACH_BANK_ACCOUNT_NUMBER -- 'N/A'
     ,NULL ACH_BANK_ACCOUNT_NUMBER_MASK -- 'N/A'
     ,NULL ACH_BANK_ROUTING_NUMBER -- 'N/A'
@@ -65,7 +65,7 @@ IS SELECT
 FROM PA_ACCT_WALLET aw
     ,PA_CREDIT_CARD cc
 WHERE aw.CARD_SEQ = cc.CARD_SEQ
---AND   paa.ACCT_NUM >= p_begin_acct_num AND   paa.ACCT_NUM <= p_end_acct_num
+AND   aw.ACCT_NUM >= p_begin_acct_num AND   aw.ACCT_NUM <= p_end_acct_num
     ; -- Source
 /*Change FTE_TABLE to the actual table name*/
 
@@ -88,7 +88,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 

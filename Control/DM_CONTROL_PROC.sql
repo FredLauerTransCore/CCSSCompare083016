@@ -101,7 +101,7 @@ BEGIN
     trac_etl_rec.result_code := SQLCODE;
     trac_etl_rec.result_msg := SQLERRM;
     update_track_proc(trac_etl_rec);
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||trac_etl_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('CONTROL ERROR CODE: '||trac_etl_rec.result_code);
      DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||trac_etl_rec.result_code);
 END;
 /

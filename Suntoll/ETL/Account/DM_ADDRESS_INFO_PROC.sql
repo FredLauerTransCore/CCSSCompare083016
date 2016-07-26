@@ -22,9 +22,7 @@ TYPE DM_ADDRESS_INFO_TYP IS TABLE OF DM_ADDRESS_INFO%ROWTYPE
      INDEX BY BINARY_INTEGER;
 DM_ADDRESS_INFO_tab DM_ADDRESS_INFO_TYP;
 
-
 P_ARRAY_SIZE NUMBER:=10000;
-
 
 CURSOR C1
 (p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)

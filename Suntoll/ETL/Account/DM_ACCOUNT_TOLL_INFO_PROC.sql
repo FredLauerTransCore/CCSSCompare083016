@@ -28,7 +28,7 @@ P_ARRAY_SIZE NUMBER:=10000;
 /* indicates a violation toll */ -- (rentals included) 
 
 CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
 --    UFM_LANE_TXN_INFO.HOST_UFM_TOKEN TX_EXTERN_REF_NO -- JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN
     nvl((select HOST_UFM_TOKEN from UFM_LANE_TXN_INFO where TXN_ID = lt.TXN_ID),0)
@@ -162,7 +162,7 @@ FROM PA_LANE_TXN lt
 WHERE lt.txn_id = kl.PA_LANE_TXN_ID (+)
 AND lt.EXT_PLAZA_ID = pp.PLAZA_ID (+)
 AND lt.TRANSP_ID like '%2010'     --AND TRANSPONDER_ID ENDS WITH '2010' 
---AND  kl.ACCT_NUM >= p_begin_acct_num AND   kl.ACCT_NUM <= p_end_acct_num
+AND  kl.ACCT_NUM >= p_begin_acct_num AND   kl.ACCT_NUM <= p_end_acct_num
 ; -- Source
 
 row_cnt          NUMBER := 0;
@@ -184,7 +184,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 

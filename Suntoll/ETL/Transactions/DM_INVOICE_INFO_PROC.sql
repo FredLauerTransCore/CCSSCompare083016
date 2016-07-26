@@ -26,7 +26,7 @@ P_ARRAY_SIZE NUMBER:=1000;
 
 
 CURSOR C1
---(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
+(p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT --distinct
     ACCT_NUM ACCOUNT_NUMBER
     ,DOCUMENT_ID INVOICE_NUMBER
@@ -68,8 +68,7 @@ IS SELECT --distinct
     ,REG_STOP_FLAG REGISTRATION_STOP_FLAG   -- ST_ACCOUNT_FLAGS.REGISTRATION_STOP_FLAG
     ,RED_ENVELOPE_FLAG RED_ENVELOPE_FLAG   -- ST_ACCOUNT_FLAGS.RED_ENVELOPE_FLAG  
   FROM ST_DOCUMENT_INFO
---WHERE   ACCT_NUM >= p_begin_acct_num AND   ACCT_NUM <= p_end_acct_num
---where DOCUMENT_ID in (select DOCUMENT_ID from dup_invoice_num)
+WHERE   ACCT_NUM >= p_begin_acct_num AND   ACCT_NUM <= p_end_acct_num
 ; -- Source
 
 row_cnt          NUMBER := 0;
@@ -91,7 +90,7 @@ BEGIN
   WHERE  track_id = v_trac_etl_rec.track_id
   ;
 
-  OPEN C1;   -- (v_trac_rec.begin_acct,v_trac_rec.end_acct);  
+  OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 
@@ -123,12 +122,13 @@ BEGIN
 --  DOCUMENT_ID is NOT null status  -----
         select distinct
         CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
-          WHEN COLL_COURT_FLAG is null      and CHILD_DOC_ID is null THEN 'INVOICED'
-          WHEN COLL_COURT_FLAG is null      and CHILD_DOC_ID like '%-%' THEN 'UTC'
-          WHEN COLL_COURT_FLAG is null      and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
-          WHEN COLL_COURT_FLAG is NOT null  and CHILD_DOC_ID is NOT null and COLL_COURT_FLAG = 'COLL' THEN 'COLLECTION'
-          WHEN COLL_COURT_FLAG is NOT null  and CHILD_DOC_ID is NOT null and COLL_COURT_FLAG = 'CRT' THEN 'COURT'
+          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 'INVOICED'
+          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID like '%-%'  THEN 'UTC'
+          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
+          WHEN COLL_COURT_FLAG = 'COLL' and CHILD_DOC_ID is NOT null THEN 'COLLECTION'
+          WHEN COLL_COURT_FLAG = 'CRT'  and CHILD_DOC_ID is NOT null THEN 'COURT'
 --          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
+--          ELSE 'REG STOP'  -- ?
           ELSE '0'
          END    
         into  DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL

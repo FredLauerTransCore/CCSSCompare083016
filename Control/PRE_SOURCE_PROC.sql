@@ -61,7 +61,7 @@ BEGIN
   FOR idx IN c1(v_c_rec.control_id)
   LOOP
     calc_rec.track_calc_id   :=  track_calc_id_seq.NEXTVAL;
-
+    calc_rec.control_calc_id := idx.control_calc_id;
     calc_rec.calc_func := idx.calc_func;
     calc_rec.calc_field := idx.source_field;
     calc_rec.calc_tab := idx.source_tab;
@@ -100,15 +100,15 @@ BEGIN
 
     INSERT INTO dm_tracking_calc VALUES calc_rec;
     COMMIT;
+    calc_rec.result_code := SQLCODE;
+    calc_rec.result_msg := SQLERRM;
+    update_track_calc_proc(calc_rec);
 
   END LOOP;
 
   v_etl_rec.status := calc_rec.calc_type||' process Completed';
-  calc_rec.result_code := SQLCODE;
-  calc_rec.result_msg := SQLERRM;
---  update_track_proc(v_etl_rec);
-  update_track_calc_proc(calc_rec);
-
+  --  update_track_proc(v_etl_rec);
+  
   EXCEPTION
   WHEN OTHERS THEN
 --    v_etl_rec.result_code := SQLCODE;

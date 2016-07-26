@@ -24,6 +24,30 @@ DM_ACCOUNT_INFO_tab DM_ACCOUNT_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
+/*
+    ,decode(pa.ACCTSTAT_ACCT_STATUS_CODE,
+     '01','ACTIVE',       --  01	Active           
+     '02','SUSPENDED',    --  02	Suspended   
+     '03','RVKF',         --  03	Terminated
+     '04','CLOSED',       --  04	Closed
+     '05','Never Activate', --  05	Never Activate
+     '06','Pending',      --  06	Pending
+     '07','Pre Paid',     --  07	Pre Paid
+     '08','Post Paid',    --  08  Post Paid
+     '09','Bankruptcy',   --  09	Bankruptcy 
+     '99','DO NOT USE',   --  99	Do Not Use
+    pa.ACCTSTAT_ACCT_STATUS_CODE||'NO-MAPPING'
+    ) ACCOUNT_STATUS
+
+Account STATUS
+
+VECTOR ACCOUNT TYPE	Legacy	 
+ACTIVE	01 from FL gets mapped to ACTIVE	 
+RVKF	  03 (Terminated) from FL gets mapped to RVKF)	 
+CLOSED	04 (CLOSED) from FL gets mapped to CLOSED	 
+
+*/
+
 CURSOR C1
 (p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
@@ -37,13 +61,21 @@ IS SELECT
     pa.ACCTSTAT_ACCT_STATUS_CODE||'NO-MAPPING'
     ) ACCOUNT_STATUS
     ,NULL ACCOUNT_STATUS_DATETIME    -- in ETL- Sub query  ,max(PA_ACCT_STATUS_CHANGES.STATUS_CHG_DATE)- 
-    ,'MAIL' STATEMENT_DELIVERY_MODE 
+--    ,'MAIL' STATEMENT_DELIVERY_MODE 
+--    If PA_ACCT.E_MAIL_ADDR IS NOT NULL then 'EMAIL' ELSE 'MAIL'
+    ,nvl2(pa.E_MAIL_ADDR, 'EMAIL', 'MAIL') STATEMENT_DELIVERY_MODE
     ,'NONE' STATEMENT_PERIOD    -- PA_ACCT.Statement_option decode? MONTHLY? STATOPTCDE_STATEMENT_OPT_CODE
-    ,pa.ACCTTYPE_ACCT_TYPE_CODE ACCOUNT_TYPE
+    ,decode(pa.ACCTTYPE_ACCT_TYPE_CODE,
+     '01','PRIVATE',
+     '02','BUSINESS',
+    pa.ACCTSTAT_ACCT_STATUS_CODE||'NO-MAPPING'
+    ) ACCOUNT_TYPE
     ,pa.CREATED_ON ACCOUNT_OPEN_DATE    -- ACCT_OPEN_DATE 
     ,trim(pa.L_NAME)||', '||trim(pa.F_NAME) ACCOUNT_NAME
     ,pa.ORG COMPANY_NAME
     ,NULL DBA
+    
+
     ,pa.E_MAIL_ADDR EMAIL_ADDRESS
 -- IN ETL   ,PA_ACCT_REPL_DETAIL.REPLENISHMENT_AMT REBILL_AMOUNT  
     ,0 REBILL_AMOUNT 
@@ -107,8 +139,6 @@ WHERE  pa.ACCT_NUM = pad.ACCT_NUM (+)
 AND   pa.ACCT_NUM >= p_begin_acct_num AND   pa.ACCT_NUM <= p_end_acct_num
 ; 
 
-SQL_STRING  varchar2(500) := 'delete table ';
-
 row_cnt          NUMBER := 0;
 v_trac_rec       dm_tracking%ROWTYPE;
 v_trac_etl_rec   dm_tracking_etl%ROWTYPE;
@@ -148,7 +178,8 @@ BEGIN
       end if;
       
       begin
-        select STATUS_CHG_DATE into DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME
+        select max(STATUS_CHG_DATE)
+        into DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME
         from PA_ACCT_STATUS_CHANGES
         where ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
         ;
@@ -198,9 +229,10 @@ BEGIN
 
       
       begin
-        select max(di.CREATED_ON) into  DM_ACCOUNT_INFO_tab(i).LAST_INVOICE_DATE
-        from ST_DOCUMENT_INFO di
-        where di.ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
+        select max(CREATED_ON) 
+        into  DM_ACCOUNT_INFO_tab(i).LAST_INVOICE_DATE
+        from ST_DOCUMENT_INFO
+        where ACCT_NUM = DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
         ;
       exception 
         when others then null;
@@ -219,10 +251,6 @@ BEGIN
 
     END LOOP;
 --      ETL SECTION END
-
-    /*Bulk insert int Acount drive table list */    
---    FORALL i in DM_ACCOUNT_INFO_tab.first .. DM_ACCOUNT_INFO_tab.last
---           INSERT INTO DM_ACCOUNT_LIST VALUES DM_ACCOUNT_INFO_tab(i).ACCT_NUM;    
 
     /*Bulk insert */ 
     FORALL i in DM_ACCOUNT_INFO_tab.first .. DM_ACCOUNT_INFO_tab.last
@@ -254,7 +282,7 @@ BEGIN
     v_trac_etl_rec.result_msg := SQLERRM;
     v_trac_etl_rec.proc_end_date := SYSDATE;
     update_track_proc(v_trac_etl_rec);
-     DBMS_OUTPUT.PUT_LINE('EMP ERROR CODE: '||v_trac_etl_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
      DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
 END;
 /
