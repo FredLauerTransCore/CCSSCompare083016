@@ -97,7 +97,7 @@ BEGIN
     
     /* get PA_INV_TRANSP.TRANSP_SOURCE for TRANSP_SOURCE */
     begin
-      select TRANSP_SOURCE,TRAY_TRAY_NUM,TRAY_TRAY_NUM,TRAY_CASE_CASE_NUM
+      select nvl(rtrim(ltrim(TRANSP_SOURCE)),'TRANSCORE'),TRAY_TRAY_NUM,TRAY_TRAY_NUM,TRAY_CASE_CASE_NUM
       into DM_DEVICE_INFO_tab(i).MANUFACTURER,DM_DEVICE_INFO_tab(i).BOX_NUMBER,DM_DEVICE_INFO_tab(i).TRAY_NUMBER,DM_DEVICE_INFO_tab(i).CASE_NUMBER
       from PA_INV_TRANSP 
       where INVTRANSP_TRANSP_ID=DM_DEVICE_INFO_tab(i).DEVICE_NUMBER
@@ -114,8 +114,11 @@ BEGIN
 
 	    /* to default the values NOT NULL columns */
     FOR i in 1 .. DM_DEVICE_INFO_tab.count loop
+	if DM_DEVICE_INFO_tab(i).MANUFACTURER is null then
+	   DM_DEVICE_INFO_tab(i).MANUFACTURER:='TRANSCORE';
+	end if;
 	 if DM_DEVICE_INFO_tab(i).DEVICE_NUMBER is null then
-          DM_DEVICE_INFO_tab(i).DEVICE_NUMBER:='0';
+       DM_DEVICE_INFO_tab(i).DEVICE_NUMBER:='0';
          end if;
 	 if DM_DEVICE_INFO_tab(i).DEVICE_MODEL is null then
           DM_DEVICE_INFO_tab(i).DEVICE_MODEL:='0';
