@@ -27,7 +27,7 @@ CURSOR C1 IS SELECT
     ,DECODE(VEH_LIC_NUM, 'O', '0', VEH_LIC_NUM) PLATE_NUMBER
     ,STATE_STATE_CODE_ABBR PLATE_STATE
     ,NULL PLATE_COUNTRY
-    ,VEH_LIC_TYPE||STATE_STATE_CODE_ABBR PLATE_TYPE  
+    ,VEH_LIC_TYPE PLATE_TYPE
     ,'NA' VEHICLE_TYPE
     ,START_DATE EFFECTIVE_START_DATE
     ,END_DATE EFFECTIVE_END_DATE
@@ -87,7 +87,6 @@ BEGIN
         when others then null;
         DM_VEHICLE_HST_INFO_tab(i).PLATE_COUNTRY:='USA';
       end;
-      DM_VEHICLE_HST_INFO_tab(i).PLATE_TYPE := DM_VEHICLE_HST_INFO_tab(i).PLATE_COUNTRY||DM_VEHICLE_HST_INFO_tab(i).PLATE_TYPE;
       
 	    /* to default the values NOT NULL columns */
 	 if DM_VEHICLE_HST_INFO_tab(i).ACCOUNT_NUMBER is null then
@@ -103,7 +102,7 @@ BEGIN
           DM_VEHICLE_HST_INFO_tab(i).PLATE_TYPE:='0';
          end if;
 	 if DM_VEHICLE_HST_INFO_tab(i).MAKE is null then
-          DM_VEHICLE_HST_INFO_tab(i).MAKE:='0';
+          DM_VEHICLE_HST_INFO_tab(i).MAKE:='UNKNOWN';
          end if;
 	 if DM_VEHICLE_HST_INFO_tab(i).VEHICLE_CLASS is null then
           DM_VEHICLE_HST_INFO_tab(i).VEHICLE_CLASS:='0';

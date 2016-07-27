@@ -25,12 +25,12 @@ CURSOR C1 IS SELECT
     ,DECODE(VEH_LIC_NUM, 'O', '0', VEH_LIC_NUM) PLATE_NUMBER
     ,STATE_STATE_CODE_ABBR PLATE_STATE
     ,NULL  PLATE_COUNTRY  
-    ,VEH_LIC_TYPE||STATE_STATE_CODE_ABBR PLATE_TYPE  
+    ,VEH_LIC_TYPE PLATE_TYPE  
     ,'REGULAR' VEHICLE_TYPE   --	"REGULAR (Default), AUTO / SUV ?
     ,START_DATE EFFECTIVE_START_DATE  --MAX(RESPONSE_DATE)Event lookup ROV
     ,END_DATE EFFECTIVE_END_DATE
    ,nvl(decode(translate(lpad(VEH_MODEL_YR,4,'9'),'0123456789','9999999999'),'9999',VEH_MODEL_YR,null),'9999')  YEAR
-    ,nvl(VEH_MAKE, 'OTHER') MAKE
+    ,nvl(VEH_MAKE, 'UNKNOWN') MAKE
     ,nvl(VEH_MODEL, 'OTHER') MODEL
     ,VEH_COLOR COLOUR
     ,REG_STOP_DATE REG_STOP_START_DATE
@@ -53,7 +53,7 @@ CURSOR C1 IS SELECT
     ,NULL PLATE_EXPIRY_DATE
     ,NULL PLATE_RENEWAL_DATE
     ,NULL ALT_VEHICLE_ID
-    ,VEH_LIC_NUM SRC_LIC_VEH_NUM 
+ ,nvl(VEH_LIC_NUM,0) SRC_LIC_VEH_NUM  -- Missing in Target DM table
 FROM PA_ACCT_VEHICLE; 
 
 BEGIN
@@ -73,15 +73,13 @@ BEGIN
 	
 			/* get COUNTRY_STATE_LOOKUP.COUNTRY for PLATE_COUNTRY */
     begin
-      select COUNTRY into DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY 
-      from  COUNTRY_STATE_LOOKUP 
+      select COUNTRY into DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY from COUNTRY_STATE_LOOKUP 
       where STATE_ABBR=DM_VEHICLE_INFO_tab(i).PLATE_STATE
             and rownum<=1;
       exception 
         when others then null;
         DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY:='USA';
     end;
-    DM_VEHICLE_INFO_tab(i).PLATE_TYPE := DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY||DM_VEHICLE_INFO_tab(i).PLATE_TYPE;
 	
 	 if DM_VEHICLE_INFO_tab(i).ACCOUNT_NUMBER is null then
           DM_VEHICLE_INFO_tab(i).ACCOUNT_NUMBER:='0';
@@ -102,7 +100,7 @@ BEGIN
           DM_VEHICLE_INFO_tab(i).YEAR:='0';
          end if;
 	 if DM_VEHICLE_INFO_tab(i).MAKE is null then
-          DM_VEHICLE_INFO_tab(i).MAKE:='0';
+          DM_VEHICLE_INFO_tab(i).MAKE:='UNKNOWN';
          end if;
 	 if DM_VEHICLE_INFO_tab(i).VEHICLE_CLASS is null then
           DM_VEHICLE_INFO_tab(i).VEHICLE_CLASS:='0';
