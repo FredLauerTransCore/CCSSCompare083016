@@ -102,6 +102,10 @@ BEGIN
 	 if DM_VEHICLE_INFO_tab(i).MAKE is null then
           DM_VEHICLE_INFO_tab(i).MAKE:='UNKNOWN';
          end if;
+		 if DM_VEHICLE_INFO_tab(i).MODEL is null then
+          DM_VEHICLE_INFO_tab(i).MODEL:='OTHER';
+         end if;
+		 
 	 if DM_VEHICLE_INFO_tab(i).VEHICLE_CLASS is null then
           DM_VEHICLE_INFO_tab(i).VEHICLE_CLASS:='0';
          end if;
