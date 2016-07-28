@@ -116,9 +116,9 @@ JOIN ID of KS_LEDGER to LEDGER_ID of VB_ACTVITY for KS_LEDGER.TRANSACTION_TYPE i
           WHEN va.COLL_COURT_FLAG is null and va.DOCUMENT_ID is NOT null and va.CHILD_DOC_ID is null THEN 602 -- 'INVOICED'
           WHEN va.COLL_COURT_FLAG is null and va.DOCUMENT_ID is NOT null and va.CHILD_DOC_ID is NOT null THEN 603 -- 'ESCALATED'
           WHEN va.COLL_COURT_FLAG is null and va.DOCUMENT_ID is NOT null and va.CHILD_DOC_ID like '%-%' THEN 604 -- 'UTC'
-          WHEN va.COLL_COURT_FLAG is NOT null and va.DOCUMENT_ID is NOT null and 
+          WHEN va.DOCUMENT_ID is NOT null and 
               va.CHILD_DOC_ID is NOT null and va.COLL_COURT_FLAG = 'COLL' THEN 605 -- 'COLLECTION'
-          WHEN va.COLL_COURT_FLAG is NOT null and va.DOCUMENT_ID is NOT null and
+          WHEN va.DOCUMENT_ID is NOT null and
                va.CHILD_DOC_ID is NOT null and va.COLL_COURT_FLAG = 'CRT' THEN 606 -- 'COURT'
           ELSE 0  --   -- NULL  Required Default 0?
       END,0) DMV_PLATE_TYPE  -- Derived

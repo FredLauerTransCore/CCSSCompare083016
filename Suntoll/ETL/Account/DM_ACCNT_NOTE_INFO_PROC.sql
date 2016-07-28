@@ -74,9 +74,17 @@ BEGIN
     FETCH C1 BULK COLLECT INTO DM_ACCNT_NOTE_INFO_tab
     LIMIT P_ARRAY_SIZE;
 
-    /*ETL SECTION BEGIN
+    /*ETL SECTION BEGIN*/
+    
+    FOR i in DM_ACCNT_NOTE_INFO_tab.first .. DM_ACCNT_NOTE_INFO_tab.last loop
+      IF i=1 then
+        v_trac_etl_rec.BEGIN_VAL := DM_ACCNT_NOTE_INFO_tab(i).ACCOUNT_NUMBER;
+      end if;
 
-      ETL SECTION END*/
+      v_trac_etl_rec.track_last_val := DM_ACCNT_NOTE_INFO_tab(i).ACCOUNT_NUMBER;     
+    end loop;
+    
+      /*ETL SECTION END*/
 
     /*Bulk insert */ 
     FORALL i in DM_ACCNT_NOTE_INFO_tab.first .. DM_ACCNT_NOTE_INFO_tab.last

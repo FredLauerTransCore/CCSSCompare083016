@@ -93,10 +93,27 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-    /*ETL SECTION BEGIN
+    /*ETL SECTION BEGIN*/
+    
+    FOR i in DM_ADDRESS_HST_INFO_tab.first .. DM_ADDRESS_HST_INFO_tab.last loop
+      IF i=1 then
+        v_trac_etl_rec.BEGIN_VAL := DM_ADDRESS_HST_INFO_tab(i).ACCOUNT_NUMBER;
+      end if;
 
-      ETL SECTION END*/
-
+      begin
+        select COUNTRY into DM_ADDRESS_HST_INFO_tab(i).COUNTRY 
+        from COUNTRY_STATE_LOOKUP 
+        where STATE_ABBR = DM_ADDRESS_HST_INFO_tab(i).STATE
+        and rownum<=1;
+      exception
+        when others then null;
+        DM_ADDRESS_HST_INFO_tab(i).COUNTRY:='USA';
+      end;
+      
+      v_trac_etl_rec.track_last_val := DM_ADDRESS_HST_INFO_tab(i).ACCOUNT_NUMBER;     
+    end loop;
+    
+      /*ETL SECTION END*/
     /*Bulk insert */ 
     FORALL i in DM_ADDRESS_HST_INFO_tab.first .. DM_ADDRESS_HST_INFO_tab.last
            INSERT INTO DM_ADDRESS_HST_INFO VALUES DM_ADDRESS_HST_INFO_tab(i);

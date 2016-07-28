@@ -43,21 +43,13 @@ IS SELECT
     ,EVE_PHONE||EVE_PHONE_EXT PHONE_NUMBER_NIGHT
     ,NULL PHONE_NUMBER_MOBILE
     ,NULL FAX_NUMBER
-    ,(select to_date(eo.DOB,'YYYYMMDD')
-        from EVENT_OWNER eo,
-             EVENT_OWNER_ADDR_VEHICLE_ACCT e
-        where eo.ID = e.OWNER_ID
-          and e.ACCT_NUM = PA_ACCT.ACCT_NUM
-          and rownum=1
-          )  DOB
+    ,NULL DOB -- in ETL
     ,NULL GENDER
     ,DR_LIC_NUM DRIVER_LIC_NUMBER
     ,NULL DRIVER_LIC_EXP_DT
     ,DR_STATE_CODE DRIVER_LIC_STATE
---    ,(select nvl(cs.COUNTRY,'USA') from  COUNTRY_STATE_LOOKUP cs
---        where cs.STATE_ABBR = PA_ACCT.DR_STATE_CODE) DRIVER_LIC_COUNTRY
-    ,'USA' DRIVER_LIC_COUNTRY
-    ,CREATED_ON CREATED -- CREATED_ON ?
+    ,'USA' DRIVER_LIC_COUNTRY  -- in ETL
+    ,CREATED_ON CREATED 
     ,'SUNTOLL_CSC_ID' CREATED_BY
     ,to_date('27-FEB-2017','DD-MON-YYYY') LAST_UPD
     ,'SUNTOLL_CSC_ID' LAST_UPD_BY
@@ -95,9 +87,47 @@ BEGIN
     FETCH C1 BULK COLLECT INTO DM_CONTACT_INFO_tab
     LIMIT P_ARRAY_SIZE;
 
-    /*ETL SECTION BEGIN
+    /*ETL SECTION BEGIN*/
+    
+    FOR i in DM_CONTACT_INFO_tab.first .. DM_CONTACT_INFO_tab.last loop
 
-      ETL SECTION END*/
+      IF i=1 then
+        v_trac_etl_rec.BEGIN_VAL := DM_CONTACT_INFO_TAB(i).ACCOUNT_NUMBER;
+      end if;
+      
+      begin
+        select to_date(eo.DOB,'YYYYMMDD') into DM_CONTACT_INFO_tab(i).DOB 
+        from  EVENT_OWNER eo,
+              EVENT_OWNER_ADDR_VEHICLE_ACCT e
+        where eo.ID = e.OWNER_ID
+        and e.ACCT_NUM = DM_CONTACT_INFO_TAB(i).ACCOUNT_NUMBER
+        and e.id = (select max(id) 
+                    from  EVENT_OWNER_ADDR_VEHICLE_ACCT
+                    where ACCT_NUM = DM_CONTACT_INFO_TAB(i).ACCOUNT_NUMBER)
+        ;
+      exception
+        when no_data_found then null;
+          DM_CONTACT_INFO_tab(i).DOB:=NULL;
+        when others then null;
+          DM_CONTACT_INFO_tab(i).DOB:=NULL;
+          DBMS_OUTPUT.PUT_LINE(i||') ACCOUNT_NUMBER : '||DM_CONTACT_INFO_TAB(i).ACCOUNT_NUMBER);
+      end;
+      
+      begin
+        select COUNTRY into DM_CONTACT_INFO_tab(i).DRIVER_LIC_COUNTRY 
+        from COUNTRY_STATE_LOOKUP 
+        where STATE_ABBR = DM_CONTACT_INFO_tab(i).DRIVER_LIC_STATE
+        and rownum<=1        
+        ;
+      exception
+        when others then null;
+        DM_CONTACT_INFO_tab(i).DRIVER_LIC_COUNTRY:='USA';
+      end;
+      
+      v_trac_etl_rec.track_last_val := DM_CONTACT_INFO_TAB(i).ACCOUNT_NUMBER;
+    end loop;
+    
+      /*ETL SECTION END*/
 
     /*Bulk insert */ 
     FORALL i in DM_CONTACT_INFO_tab.first .. DM_CONTACT_INFO_tab.last

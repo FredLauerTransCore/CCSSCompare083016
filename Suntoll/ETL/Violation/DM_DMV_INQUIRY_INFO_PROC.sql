@@ -31,10 +31,11 @@ DM_DMV_INQUIRY_INFO_tab DM_DMV_INQUIRY_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
+-- (PK) X_ETC_ACCOUNT_ID, X_PLATE_NUM, X_STATUS 
 
 CURSOR C1
 (p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
-IS SELECT -- distinct
+IS SELECT  distinct
     0 MODIFICATION_NUM --number of times the account or plate informations were modified.
     ,'0' CONFLICT_ID
     ,ACCT_NUM X_ETC_X_ACCOUNT_ID
@@ -64,7 +65,7 @@ IS SELECT -- distinct
     ,SYSDATE LAST_UPD
     ,'CURRENT' LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
-FROM EVENT_OWNER_ADDR_VEHICLE_ACCT
+FROM EVENT_OWNER_ADDR_VEHICLE_ACCT e1
 --    ,EVENT_ADDRESS ea
 --    ,EVENT_VEHICLE ev
 --    ,EVENT_OWNER eo
@@ -74,6 +75,11 @@ FROM EVENT_OWNER_ADDR_VEHICLE_ACCT
 --AND e.VEHICLE_ID = ev.ID (+)
 --AND e.ACCT_NUM = srs.ACCT_NUM (+)
 where ACCT_NUM >= p_begin_acct_num AND  ACCT_NUM <= p_end_acct_num
+and   id = (select max(id) 
+            from EVENT_OWNER_ADDR_VEHICLE_ACCT e2
+            where e2.ACCT_NUM = e1.ACCT_NUM
+            and e2.VEHICLE_ID = e1.VEHICLE_ID
+            )
 ; 
 -- Source
 
@@ -84,7 +90,7 @@ where ACCT_NUM >= p_begin_acct_num AND  ACCT_NUM <= p_end_acct_num
 --AND ADDRESS_ID of EVENT_OWNER_ADDR_VEHICLE_ACCT to ID of EVENT_ADDRESS 
 --AND VEHICLE_ID of EVENT_OWNER_ADDR_VEHICLE_ACCT to ID of EVENT_VEHICLE
 v_event_rec     EVENT_OWNER_ADDR_VEHICLE_ACCT%ROWTYPE;
-
+v_msg           varchar2(200);
 row_cnt          NUMBER := 0;
 v_trac_rec       dm_tracking%ROWTYPE;
 v_trac_etl_rec   dm_tracking_etl%ROWTYPE;
@@ -139,17 +145,14 @@ BEGIN
 --          DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
 --      end;     
 
+      V_MSG := i||'. X_ACCOUNT_ID: '||DM_DMV_INQUIRY_INFO_tab(i).X_ACCOUNT_ID;
 ---- IF REG_STOP_SENT_ON IS NOT NULL AND REG_REMOVAL_SENT_ON IS NULL THEN  REG_STOP ELSE 'N' 
---    ,CASE WHEN srs.REG_STOP_SENT_ON IS NOT NULL AND srs.REG_STOP_REMOVAL_SENT_ON IS NULL
---          THEN 'Y'  --srs.REG_STOP // Further action required per comment ??
---          ELSE 'N'   X_DMV_STATUS
---   X_SEND_DMV  -- IF REG_STOP_SENT_ON IS NOT NULL THEN 'Y' ELSE 'N'
-
       begin
-        select  CASE WHEN REG_STOP_SENT_ON IS NOT NULL AND REG_STOP_REMOVAL_SENT_ON IS NULL
-                    THEN 'Y'  --srs.REG_STOP // Further action required per comment ??
-                    ELSE 'N'
-              END 
+        select distinct 
+          CASE WHEN REG_STOP_SENT_ON IS NOT NULL AND REG_STOP_REMOVAL_SENT_ON IS NULL
+               THEN 'Y'  --srs.REG_STOP // Further action required per comment ??
+               ELSE 'N'
+          END 
               ,nvl2(REG_STOP_SENT_ON,'Y','N')
         into  DM_DMV_INQUIRY_INFO_tab(i).X_DMV_STATUS
               ,DM_DMV_INQUIRY_INFO_tab(i).X_SEND_DMV
@@ -174,8 +177,9 @@ BEGIN
 --    ,decode(nvl(ea.COUNTRY_CODE,0),0,'UNDEFINED',ea.COUNTRY_CODE) X_COUNTRY
 --    ,ea.STATE_ABBR X_STATE    -- in ETL
 --    ,ea.ZIP X_ZIPCODE
+      V_MSG := V_MSG||' X_CONTACT_ID: '||DM_DMV_INQUIRY_INFO_tab(i).X_CONTACT_ID;
       begin
-        select ADDR1
+        select distinct ADDR1
               ,nvl(ADDR2,'UNDEFINED')
               ,nvl(CITY,'UNDEFINED')
               ,COUNTRY_CODE
@@ -188,7 +192,7 @@ BEGIN
               ,DM_DMV_INQUIRY_INFO_tab(i).X_STATE
               ,DM_DMV_INQUIRY_INFO_tab(i).X_ZIPCODE
         from  EVENT_ADDRESS
-        where ID = DM_DMV_INQUIRY_INFO_tab(i).X_CONTACT_ID -- v_event_rec.VEHICLE_ID
+        where ID = DM_DMV_INQUIRY_INFO_tab(i).X_CONTACT_ID
         ;
       exception
         when no_data_found THEN NULL;
@@ -201,16 +205,14 @@ BEGIN
           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
       end;     
     
---    ,nvl(eo.FIRST_NAME,'UNDEFINED') X_FST_NAME 
---    ,nvl(eo.LAST_ORG_NAME,'UNDEFINED') X_LAST_NAME
       begin
-        select nvl(FIRST_NAME,'UNDEFINED')
+        select distinct nvl(FIRST_NAME,'UNDEFINED')
               ,substr(LAST_ORG_NAME,1,50)
         into  DM_DMV_INQUIRY_INFO_tab(i).X_FST_NAME
               ,DM_DMV_INQUIRY_INFO_tab(i).X_LAST_NAME
         from  EVENT_OWNER
         where ID = DM_DMV_INQUIRY_INFO_tab(i).CREATED_BY
-        and rownum <=1
+--        and rownum <=1
         ;
       exception
         when no_data_found THEN NULL;
@@ -226,8 +228,9 @@ BEGIN
       end;
       
 -- ,nvl(ev.PLATE,'UNDEFINED') X_PLATE_NUM
+      V_MSG := V_MSG||' X_PLATE_NUM: '||DM_DMV_INQUIRY_INFO_tab(i).X_PLATE_NUM;
       begin
-        select PLATE
+        select distinct PLATE
         into  DM_DMV_INQUIRY_INFO_tab(i).X_PLATE_NUM
         from  EVENT_VEHICLE
         where ID = DM_DMV_INQUIRY_INFO_tab(i).X_PLATE_NUM -- v_event_rec.VEHICLE_ID
@@ -281,7 +284,8 @@ BEGIN
     v_trac_etl_rec.result_msg := SQLERRM;
     v_trac_etl_rec.proc_end_date := SYSDATE;
     update_track_proc(v_trac_etl_rec);
-     DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+     DBMS_OUTPUT.PUT_LINE('V_MSG: '||V_MSG);
+     DBMS_OUTPUT.PUT_LINE('DNV ERROR CODE: '||v_trac_etl_rec.result_code);
      DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
 END;
 /

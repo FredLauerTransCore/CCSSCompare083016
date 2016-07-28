@@ -91,9 +91,13 @@ BEGIN
     /*ETL SECTION BEGIN*/
     
     FOR i in DM_ADDRESS_INFO_tab.first .. DM_ADDRESS_INFO_tab.last loop
+      IF i=1 then
+        v_trac_etl_rec.BEGIN_VAL := DM_ADDRESS_INFO_TAB(i).ACCOUNT_NUMBER;
+      end if;
 
       begin
-        select COUNTRY into DM_ADDRESS_INFO_tab(i).COUNTRY from COUNTRY_STATE_LOOKUP 
+        select COUNTRY into DM_ADDRESS_INFO_tab(i).COUNTRY 
+        from COUNTRY_STATE_LOOKUP 
         where STATE_ABBR = DM_ADDRESS_INFO_tab(i).STATE
         and rownum<=1;
       exception
@@ -101,6 +105,7 @@ BEGIN
         DM_ADDRESS_INFO_tab(i).COUNTRY:='USA';
       end;
       
+      v_trac_etl_rec.track_last_val := DM_ADDRESS_INFO_TAB(i).ACCOUNT_NUMBER;     
     end loop;
     
       /*ETL SECTION END*/

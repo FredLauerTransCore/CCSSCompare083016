@@ -23,8 +23,9 @@ TYPE DM_REBILL_HST_INFO_TYP IS TABLE OF DM_REBILL_HST_INFO%ROWTYPE
 DM_REBILL_HST_INFO_tab DM_REBILL_HST_INFO_TYP;
 
 
-P_ARRAY_SIZE NUMBER:=10000;
+P_ARRAY_SIZE NUMBER:=100;
 
+-- PK - ACCOUNT_NUMBER, PAY_TYPE, VERSION
 
 CURSOR C1
 (p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
@@ -99,10 +100,19 @@ BEGIN
     LIMIT P_ARRAY_SIZE;
 
 
-    /*ETL SECTION BEGIN
+    /*ETL SECTION BEGIN*/
 
-      ETL SECTION END*/
+    FOR i IN 1 .. DM_REBILL_HST_INFO_tab.COUNT LOOP
+      IF i=1 then
+        v_trac_etl_rec.BEGIN_VAL := DM_REBILL_HST_INFO_tab(i).ACCOUNT_NUMBER;
+      end if;
 
+      v_trac_etl_rec.track_last_val := DM_REBILL_HST_INFO_tab(i).ACCOUNT_NUMBER;
+--      v_trac_etl_rec.end_val := DM_REBILL_HST_INFO_tab(i).ACCOUNT_NUMBER;
+
+    END LOOP;
+    
+    /* ETL SECTION END*/
     /*Bulk insert */ 
     FORALL i in DM_REBILL_HST_INFO_tab.first .. DM_REBILL_HST_INFO_tab.last
            INSERT INTO DM_REBILL_HST_INFO VALUES DM_REBILL_HST_INFO_tab(i);
@@ -140,5 +150,6 @@ END;
 /
 SHOW ERRORS
 
+commit;
 
 

@@ -23,6 +23,7 @@ DM_REBILL_INFO_tab DM_REBILL_INFO_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
+-- PK - ACCOUNT_NUMBER, PAY_TYPE, CREDIT_CARD_NUMBER, ACH_BANK_ACCOUNT_NUMBER
 
 CURSOR C1
 (p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
@@ -90,11 +91,11 @@ BEGIN
       end if;
 
       v_trac_etl_rec.track_last_val := DM_REBILL_INFO_tab(i).ACCOUNT_NUMBER;
-      v_trac_etl_rec.end_val := DM_REBILL_INFO_tab(i).ACCOUNT_NUMBER;
+--      v_trac_etl_rec.end_val := DM_REBILL_INFO_tab(i).ACCOUNT_NUMBER;
 
     END LOOP;
     
-    /* ETL SECTIONEND*/
+    /* ETL SECTION END*/
 
     /*Bulk insert */ 
     FORALL i in DM_REBILL_INFO_tab.first .. DM_REBILL_INFO_tab.last

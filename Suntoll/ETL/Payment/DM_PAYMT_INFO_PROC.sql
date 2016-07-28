@@ -160,7 +160,7 @@ BEGIN
       end if;
 
       v_trac_etl_rec.track_last_val := DM_PAYMT_INFO_tab(i).ACCOUNT_NUMBER;
-      v_trac_etl_rec.end_val := DM_PAYMT_INFO_tab(i).ACCOUNT_NUMBER;
+--      v_trac_etl_rec.end_val := DM_PAYMT_INFO_tab(i).ACCOUNT_NUMBER;
 
     END LOOP;
 

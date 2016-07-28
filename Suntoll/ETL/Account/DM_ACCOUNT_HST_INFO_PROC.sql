@@ -267,7 +267,7 @@ BEGIN
 --    ELSE 'N' 
 
       v_trac_etl_rec.track_last_val := DM_ACCOUNT_HST_INFO_TAB(i).ACCOUNT_NUMBER;
-      v_trac_etl_rec.end_val := DM_ACCOUNT_HST_INFO_TAB(i).ACCOUNT_NUMBER;
+--      v_trac_etl_rec.end_val := DM_ACCOUNT_HST_INFO_TAB(i).ACCOUNT_NUMBER;
 
     END LOOP;
  

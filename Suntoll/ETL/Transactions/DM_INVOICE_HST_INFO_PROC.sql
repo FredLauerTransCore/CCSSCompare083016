@@ -119,18 +119,19 @@ BEGIN
 --  DOCUMENT_ID is NOT null status  -----
         select distinct
         CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
-          WHEN COLL_COURT_FLAG is null      and CHILD_DOC_ID is null THEN 'INVOICED'
-          WHEN COLL_COURT_FLAG is null      and CHILD_DOC_ID like '%-%' THEN 'UTC'
-          WHEN COLL_COURT_FLAG is null      and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
-          WHEN COLL_COURT_FLAG is NOT null  and CHILD_DOC_ID is NOT null and COLL_COURT_FLAG = 'COLL' THEN 'COLLECTION'
-          WHEN COLL_COURT_FLAG is NOT null  and CHILD_DOC_ID is NOT null and COLL_COURT_FLAG = 'CRT' THEN 'COURT'
+          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 'INVOICED'
+          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID like '%-%'  THEN 'UTC'
+          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
+          WHEN COLL_COURT_FLAG = 'COLL' and CHILD_DOC_ID is NOT null THEN 'COLLECTION'
+          WHEN COLL_COURT_FLAG = 'CRT'  and CHILD_DOC_ID is NOT null THEN 'COURT'
 --          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
+--          ELSE 'REG STOP'  -- ?
           ELSE '0'
          END    
         into  DM_INVOICE_HST_INFO_tab(i).ESCALATION_LEVEL
         from  VB_ACTIVITY
         where DOCUMENT_ID = DM_INVOICE_HST_INFO_tab(i).INVOICE_NUMBER
-        and rownum=1  -- Verify what record to get ??
+        and rownum<=1  -- Verify what record to get ??
         ;
         
       exception 

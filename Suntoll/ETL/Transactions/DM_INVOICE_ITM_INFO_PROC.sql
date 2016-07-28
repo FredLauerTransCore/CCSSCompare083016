@@ -31,34 +31,30 @@ REG_STOP_THRESHOLD_AMT_CENTS NUMBER := 100000000; -- TODO: Need to get actual th
 CURSOR C1
 (p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT --distinct
-    di.ACCT_NUM ACCOUNT_NUMBER -- ST_DOCUMENT_MAILING_EXCEPTION
-    ,di.DOCUMENT_ID INVOICE_NUMBER
+    ACCT_NUM ACCOUNT_NUMBER -- ST_DOCUMENT_MAILING_EXCEPTION
+    ,DOCUMENT_ID INVOICE_NUMBER
     ,'POSTPAID' CATEGORY  -- DEFAULT to 'Postpaid'
-    ,di.DOC_TYPE_ID  SUB_CATEGORY  -- to use in ETL and get actual value
+    ,DOC_TYPE_ID  SUB_CATEGORY  -- to use in ETL and get actual value
 
 --    ,CASE WHEN (va.AMT_CHARGED-va.TOTAL_AMT_PAID)>0 THEN 'OPEN'
 --          WHEN st.TOTAL_AMT_PAID = 0 THEN 'DISPUTED'
 --          ELSE 'CLOSED' END STATUS
-    ,'CLOSED' STATUS
+    ,'CLOSED' STATUS  -- in ETL
 
-    ,trunc(NVL(di.CREATED_ON,SYSDATE)) INVOICE_DATE
+    ,trunc(NVL(CREATED_ON,SYSDATE)) INVOICE_DATE
 
---  ,nvl((select kl.AMOUNT from KS_LEDGER kl
---   where kl.ID = va.LEDGER_ID),0) PAYABLE 
-    ,(nvl(di.PREV_DUE,0) +
-      nvl(di.TOLL_CHARGED,0) +
-      nvl(di.FEE_CHARGED,0) +
-      nvl(di.PAYMT_ADJS,0)) PAYABLE
+-- ,nvl((select kl.AMOUNT from KS_LEDGER kl where kl.ID = va.LEDGER_ID),0) PAYABLE 
+    ,(nvl(PREV_DUE,0) +
+      nvl(TOLL_CHARGED,0) +
+      nvl(FEE_CHARGED,0) +
+      nvl(PAYMT_ADJS,0)) PAYABLE
 --    ,0 PAYABLE
 
     ,0 INVOICE_ITEM_NUMBER
+    ,0 LANE_TX_ID  -- in ETL
 
---    ,nvl((select unique kl.PA_LANE_TXN_ID from KS_LEDGER kl
---        where kl.ID = va.LEDGER_ID),0) LANE_TX_ID
-    ,0 LANE_TX_ID
-
-    ,'Open' LEVEL_INFO
-    ,nvl(di.PROMOTION_status,'UNDEFINED') REASON_CODE  --PROMOTION_CODE in ICD
+    ,'Open' LEVEL_INFO  -- in ETL
+    ,nvl(PROMOTION_status,'UNDEFINED') REASON_CODE  --PROMOTION_CODE in ICD
     ,'INVOICE-ITEM' INVOICE_TYPE
 
 --    ,nvl(st.TOTAL_AMT_PAID,0) PAID_AMOUNT
@@ -70,14 +66,8 @@ IS SELECT --distinct
     ,'SUNTOLL_CSC_ID' LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
     ,NULL DISMISSED_AMT
-FROM ST_DOCUMENT_INFO di
---      ,VB_ACTIVITY va
---      ,VB_ACTIVITY vac  -- Child
---      ,ST_ACTIVITY_PAID st
---  WHERE di.DOCUMENT_ID = va.DOCUMENT_ID (+) -- UNPAID (+)
---    AND di.DOCUMENT_ID = vac.CHILD_DOC_ID (+) 
---    and di.DOCUMENT_ID = st.DOCUMENT_ID (+)
-WHERE   di.ACCT_NUM >= p_begin_acct_num AND   di.ACCT_NUM <= p_end_acct_num
+FROM ST_DOCUMENT_INFO
+WHERE   ACCT_NUM >= p_begin_acct_num AND ACCT_NUM <= p_end_acct_num
 ; -- Source
 
 row_cnt          NUMBER := 0;
@@ -312,7 +302,7 @@ BEGIN
               ,VB_ACTIVITY vac  -- Child
         where va.DOCUMENT_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER
         and   va.CHILD_DOC_ID = vac.DOCUMENT_ID (+)
- and   rownum=1  -- Verify what record to get ??
+        and   rownum<=1  -- Verify what record to get ??
         ;
 --  DBMS_OUTPUT.PUT_LINE('2) DM_INVOICE_ITM_INFO_tab('||i||').SUB_CATEGORY: '||DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY);
         exception 
@@ -331,7 +321,6 @@ BEGIN
 --  DBMS_OUTPUT.PUT_LINE('3) DM_INVOICE_ITM_INFO_tab('||i||').SUB_CATEGORY: '||DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY);
 
 -- ST_DOCUMENT_INFO.PROMOTIONAL_STATUS 
- 
 -- SUM(PREV_DUE, TOLL_CHARGED, FEE_CHARGED, PAYMT_ADJS) 
  
 -- Join ST_Document_info.document_id with VB_Activity.document_id  
@@ -388,13 +377,13 @@ IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
           WHEN COLL_COURT_FLAG = 'COLL' and CHILD_DOC_ID is NOT null THEN 'COLLECTION'
           WHEN COLL_COURT_FLAG = 'CRT'  and CHILD_DOC_ID is NOT null THEN 'COURT'
 --          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
-          ELSE 'REG STOP'
---          ELSE '0'
+--          ELSE 'REG STOP'
+          ELSE '0'
          END    
         into  DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO
         from  VB_ACTIVITY
         where DOCUMENT_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER
-        and rownum=1  -- Verify what record to get ??
+        and rownum<=1  -- Verify what record to get ??
         ;
       exception 
         when no_data_found then
@@ -505,7 +494,7 @@ IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
 --    DBMS_OUTPUT.PUT_LINE('ACCT- '||i||' - '||DM_INVOICE_ITM_INFO_tab(i).ACCOUNT_NUMBER);
 
       v_trac_etl_rec.track_last_val := DM_INVOICE_ITM_INFO_tab(i).ACCOUNT_NUMBER;
-      v_trac_etl_rec.end_val := DM_INVOICE_ITM_INFO_tab(i).ACCOUNT_NUMBER;
+--      v_trac_etl_rec.end_val := DM_INVOICE_ITM_INFO_tab(i).ACCOUNT_NUMBER;
 
     END LOOP;
  

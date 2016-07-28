@@ -134,7 +134,7 @@ BEGIN
         into  DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL
         from  VB_ACTIVITY
         where DOCUMENT_ID = DM_INVOICE_INFO_tab(i).INVOICE_NUMBER
-        and rownum=1  -- Verify what record to get ??
+        and rownum<=1  -- Verify what record to get ??
         ;
         
       exception 
