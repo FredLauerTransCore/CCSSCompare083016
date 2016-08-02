@@ -43,16 +43,31 @@ IS SELECT
       END TX_MOD_SEQ   -- IF MSG_ID IN ('TCA','XADJ','FADJ') THEN 1 ELSE 0
     ,'V' TX_TYPE_IND
     ,'I' TX_SUBTYPE_IND
-    ,DECODE(substr(pp.PLAZA_ID,1,3),'004', 'C', 'B')
-        TOLL_SYSTEM_TYPE -- IF PLAZA_ID STARTS WITH '004' THEN 'C' ELSE 'B'
---    ,to_number(nvl(lt.EXT_LANE_TYPE_CODE,'0')) LANE_MODE  Source is char, target is number
-    ,0 LANE_MODE  -- Required added default to 0 
+
+-- IF PLAZA_ID STARTS WITH '004' THEN 'C' ELSE 'B'
+    ,DECODE(substr(EXT_PLAZA_ID,1,3),'004', 'C', 'B') TOLL_SYSTEM_TYPE 
+    ,decode(EXT_LANE_TYPE_CODE   -- Not a number
+        ,'A', 100  --  AC Lane 100
+        ,'E', 101  --  AE Lane 101
+        ,'M', 102  --  MB Lane 102
+        ,'D', 103  --  Dedicated 103
+        ,'C', 104  --  AC-AVI 104
+        ,'B', 105  --  MB-AVI 105
+        ,'N', 106  --  ME Lane 106
+        ,'X', 107  --  MX Lane 107
+        ,'F', 108  --  Free Lane 108
+        ,'Y', 109  --  Dedicated Entry 109
+        ,'Z', 110  --  Dedicated Exit 110
+        ,'S', 111  --  Express Lane 111
+        ,'G', 112  --  Magic Lane 112
+        ,'Q', 113  --  APM Lane 113
+        ,'T', 114  --  MA Lane 114
+        ,0) LANE_MODE
     ,1 LANE_TYPE
     ,0 LANE_STATE
     ,0 LANE_HEALTH
 --    AGENCY_ID.PLAZA_AGENCY_ID -- Join ST_INTEROP_AGENCIES and PA_PLAZA on ENT_PLAZA_ID to PLAZA_ID
-    ,to_number(nvl((select AGENCY_ID from ST_INTEROP_AGENCIES where ENT_PLAZA_ID = pp.PLAZA_ID),'0'))
-        PLAZA_AGENCY_ID  -- Required added default to 0 
+    ,'0' PLAZA_AGENCY_ID  -- Required added default to 0 
     ,to_number(nvl(lt.EXT_PLAZA_ID,'0')) PLAZA_ID -- Required added default to 0 
     ,0 COLLECTOR_ID
     ,0 TOUR_SEGMENT_ID
@@ -86,7 +101,7 @@ IS SELECT
     ,0 PRICE_SCHEDULE_ID
     ,0 VEHICLE_SPEED
     ,0 RECEIPT_ISSUED
-    ,lt.TRANSP_ID DEVICE_NO
+    ,TRANSP_ID DEVICE_NO
     ,(select to_number(pa.ACCTTYPE_ACCT_TYPE_CODE) from PA_ACCT pa where pa.ACCT_NUM=kl.ACCT_NUM)
         ACCOUNT_TYPE -- PA_ACCT
     ,to_number(nvl(lt.TRANSP_CLASS,'0')) DEVICE_CODED_CLASS  -- Required added default to 0/Convert to Number from varchar
@@ -95,7 +110,7 @@ IS SELECT
     ,0 DEVICE_AXLES
     ,kl.ACCT_NUM ETC_ACCOUNT_ID  -- KS_LEDGER - Join KS_LEDGER on TXN_ID
     ,0 ACCOUNT_AGENCY_ID
-    ,to_number(nvl(lt.TRANSP_CLASS,'0'))  READ_AVI_CLASS  -- Required added default to 0
+    ,to_number(nvl(TRANSP_CLASS,'0'))  READ_AVI_CLASS  -- Required added default to 0
     ,0 READ_AVI_AXLES
     ,'N' DEVICE_PROGRAM_STATUS
     ,'N' BUFFERED_READ_FLAG
@@ -122,15 +137,9 @@ IS SELECT
     ,'Y' IMAGE_TAKEN
 -- PLATE_COUNTRY - LOOKUP PA_STATE_CODE.  (visit DM_VEHICLE_INFO and DM_ACCT_INFO)
 -- Xerox - internal lookup in DM_ADDRESS_INFO and assign country correctly. 
---    ,NULL PLATE_COUNTRY -- - LOOKUP PA_STATE_CODE - in ETL
-    ,nvl((select substr(csl.COUNTRY,1,4) from COUNTRY_STATE_LOOKUP csl
-        where csl.STATE_ABBR = lt.STATE_ID_CODE),'USA')
-        PLATE_COUNTRY
-
---    ,(select STATE_CODE_ABBR from PA_STATE_CODE where STATE_CODE_NUM=lt.STATE_ID_CODE)
---        PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
-    ,nvl(lt.STATE_ID_CODE,'n') PLATE_STATE  -- Required
-    ,nvl(lt.VEH_LIC_NUM,'NULL-none') PLATE_NUMBER
+    ,NULL PLATE_COUNTRY -- - LOOKUP PA_STATE_CODE - in ETL
+    ,nvl(STATE_ID_CODE,'0') PLATE_STATE  -- Required
+    ,nvl(VEH_LIC_NUM,'UNDIFIENED') PLATE_NUMBER
     ,trunc(EXT_DATE_TIME) REVENUE_DATE -- Date only 
     ,trunc(TXN_PROCESS_DATE) POSTED_DATE -- Date only
     ,0 ATP_FILE_ID
@@ -149,18 +158,17 @@ IS SELECT
     ,0 ENTRY_DEVICE_WRITE_COUNT
     ,'000000000000' DEPOSIT_ID
     ,trunc(EXT_DATE_TIME) TX_DATE -- Date only
-    ,nvl(substr(trim(pp.PLAZA_NAME),1,15),'NULL-none') LOCATION  -- JOIN PA_PLAZA ON PLAZA_ID=EXT_PLAZA_ID RETURN PLAZA_NAME
-    ,nvl(pp.FACCODE_FACILITY_CODE,'NULL-none') FACILITY_ID -- JOIN PA_PLAZA ON PLAZA_ID=EXT_PLAZA_ID RETURN FACCODE_FACILITY_CODE
+ -- JOIN PA_PLAZA ON PLAZA_ID=EXT_PLAZA_ID RETURN PLAZA_NAME
+    ,'UNDEFINED' LOCATION  -- in ETL section
+    ,'UNDEFINED' FACILITY_ID  -- in ETL section
     ,0 FARE_TBL_ID
     ,0 TRAN_CODE
     ,'SUNTOLL' SOURCE_SYSTEM
-    ,lt.TXN_ID LANE_TX_ID
-    ,lt.TRANSP_INTERNAL_NUM DEVICE_INTERNAL_NUMBER
+    ,TXN_ID LANE_TX_ID
+    ,TRANSP_INTERNAL_NUM DEVICE_INTERNAL_NUMBER
 FROM PA_LANE_TXN lt
     ,KS_LEDGER kl
-    ,PA_PLAZA pp
 WHERE lt.txn_id = kl.PA_LANE_TXN_ID (+)
-AND lt.EXT_PLAZA_ID = pp.PLAZA_ID (+)
 AND lt.TRANSP_ID like '%2010'     --AND TRANSPONDER_ID ENDS WITH '2010' 
 AND  kl.ACCT_NUM >= p_begin_acct_num AND   kl.ACCT_NUM <= p_end_acct_num
 ; -- Source
@@ -198,20 +206,48 @@ BEGIN
     
     FOR i in DM_ACCOUNT_TOLL_INFO_tab.first .. DM_ACCOUNT_TOLL_INFO_tab.last loop
       IF i=1 then
-        v_trac_etl_rec.BEGIN_VAL := DM_ACCOUNT_TOLL_INFO_tab(i).ACCOUNT_NUMBER;
+        v_trac_etl_rec.BEGIN_VAL := DM_ACCOUNT_TOLL_INFO_tab(i).ETC_ACCOUNT_ID;
       end if;
 
       begin
         select COUNTRY into DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_COUNTRY 
         from COUNTRY_STATE_LOOKUP 
-        where STATE_ABBR = DM_ACCOUNT_TOLL_INFO_tab(i).STATE_ID_CODE
+        where STATE_ABBR = DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_STATE
         and rownum<=1;
       exception
         when others then null;
         DM_ACCOUNT_TOLL_INFO_tab(i).PLATE_COUNTRY:='USA';
       end;
+
+--    AGENCY_ID.PLAZA_AGENCY_ID -- Join ST_INTEROP_AGENCIES and PA_PLAZA on ENT_PLAZA_ID to PLAZA_ID
+      begin
+        select sia.AGENCY_ID 
+        into  DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID 
+        from  PA_PLAZA pp, ST_INTEROP_AGENCIES sia
+        Where pp.plaza_id  = DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID
+        and   pp.AUTHCODE_AUTHORITY_CODE = sia.AUTHORITY_CODE
+        and   rownum<=1
+        ;
+      exception 
+        when others then null;
+          DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID:='0'; 
+      end;
       
-      v_trac_etl_rec.track_last_val := DM_ACCOUNT_TOLL_INFO_tab(i).ACCOUNT_NUMBER;     
+      begin 
+        select substr(trim(PLAZA_NAME),1,15) -- Target is 15 chars
+              ,nvl(FACCODE_FACILITY_CODE,'UNDEFINED')
+        into  DM_ACCOUNT_TOLL_INFO_tab(i).LOCATION
+              ,DM_ACCOUNT_TOLL_INFO_tab(i).FACILITY_ID
+        from  PA_PLAZA
+        where PLAZA_ID = DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID
+        ;
+      exception 
+        when others then null;
+          DM_ACCOUNT_TOLL_INFO_tab(i).LOCATION := 'UNDEFINED';
+          DM_ACCOUNT_TOLL_INFO_tab(i).FACILITY_ID := 'UNDEFINED';        
+      end;  
+      
+      v_trac_etl_rec.track_last_val := DM_ACCOUNT_TOLL_INFO_tab(i).ETC_ACCOUNT_ID;     
     end loop;
     
       /*ETL SECTION END*/

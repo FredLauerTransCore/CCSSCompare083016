@@ -218,13 +218,14 @@ BEGIN
       end;  
     
       begin
-        select distinct nvl(FIRST_NAME,'UNDEFINED')
+        select -- distinct 
+              nvl(FIRST_NAME,'UNDEFINED')
               ,substr(LAST_ORG_NAME,1,50)
         into  DM_DMV_INQUIRY_INFO_tab(i).X_FST_NAME
               ,DM_DMV_INQUIRY_INFO_tab(i).X_LAST_NAME
         from  EVENT_OWNER
         where ID = DM_DMV_INQUIRY_INFO_tab(i).CREATED_BY
---        and rownum <=1
+        and rownum <=1
         ;
       exception
         when no_data_found THEN NULL;

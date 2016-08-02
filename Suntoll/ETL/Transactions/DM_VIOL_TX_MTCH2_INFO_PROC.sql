@@ -46,8 +46,23 @@ IS SELECT
     ,'F' TX_SUBTYPE_IND
   -- Derived IF PLAZA_ID STARTS WITH '004' THEN 'C' ELSE 'B'
     ,DECODE(substr(lt.EXT_PLAZA_ID,1,3),'004', 'C', 'B') TOLL_SYSTEM_TYPE 
---    ,lt.EXT_LANE_TYPE_CODE LANE_MODE  -- Not a number
-    ,EXT_LANE_TYPE_CODE LANE_MODE  -- Not a number
+    ,decode(EXT_LANE_TYPE_CODE   -- Not a number
+        ,'A', 100  --  AC Lane 100
+        ,'E', 101  --  AE Lane 101
+        ,'M', 102  --  MB Lane 102
+        ,'D', 103  --  Dedicated 103
+        ,'C', 104  --  AC-AVI 104
+        ,'B', 105  --  MB-AVI 105
+        ,'N', 106  --  ME Lane 106
+        ,'X', 107  --  MX Lane 107
+        ,'F', 108  --  Free Lane 108
+        ,'Y', 109  --  Dedicated Entry 109
+        ,'Z', 110  --  Dedicated Exit 110
+        ,'S', 111  --  Express Lane 111
+        ,'G', 112  --  Magic Lane 112
+        ,'Q', 113  --  APM Lane 113
+        ,'T', 114  --  MA Lane 114
+        ,0) LANE_MODE
     ,1 LANE_TYPE
     ,0 LANE_STATE
     ,0 LANE_HEALTH
