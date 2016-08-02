@@ -26,7 +26,7 @@ CURSOR C1 IS SELECT
     ACCT_ACCT_NUM ACCOUNT_NUMBER
     ,CREDITCARD_CREDIT_CARD_CODE PAY_TYPE
     ,rpad('*',length(REPL_NUM)-5,'*')||substr(REPL_NUM,-4) CREDIT_CARD_NUMBER_MASK
-    ,REPL_NUM CREDIT_CARD_NUMBER
+    ,rpad('*',length(REPL_NUM)-5,'*')||substr(REPL_NUM,-4) CREDIT_CARD_NUMBER
     ,substr(REPL_DATE,1,2) CC_EXP_MONTH
     ,substr(REPL_DATE,3,4) CC_EXP_YEAR
     ,substr(REPL_NUM,-4) LAST_4_CC_NUMBER
@@ -57,21 +57,32 @@ BEGIN
     /*ETL SECTION BEGIN */
 	
 	    /* to default the values NOT NULL columns */
-    FOR i in 1 .. DM_REBILL_INFO_tab.count loop
+
+    FOR i in 1 .. dm_rebill_info_tab.count loop
+
+    /* get PA_CREDIT_CARD_CODE.CREDIT_CARD_DESC for PAY_TYPE */
+    begin
+      select CREDIT_CARD_DESC into dm_rebill_info_tab(i).PAY_TYPE from PA_CREDIT_CARD_CODE 
+      where CREDIT_CARD_CODE=dm_rebill_info_tab(i).PAY_TYPE
+            and rownum<=1;
+      exception 
+        when others then null;
+        dm_rebill_info_tab(i).PAY_TYPE:='UNDEFINED';
+    end;
 	 if DM_REBILL_INFO_tab(i).ACCOUNT_NUMBER is null then
           DM_REBILL_INFO_tab(i).ACCOUNT_NUMBER:='0';
          end if;
 	 if DM_REBILL_INFO_tab(i).PAY_TYPE is null then
-          DM_REBILL_INFO_tab(i).PAY_TYPE:='0';
+          DM_REBILL_INFO_tab(i).PAY_TYPE:='UNDEFINED';
          end if;
 	 if DM_REBILL_INFO_tab(i).CREATED is null then
-          DM_REBILL_INFO_tab(i).CREATED:=sysdate;
+          DM_REBILL_INFO_tab(i).CREATED:=to_date('01/01/1900','MM/DD/YYYY');
          end if;
 	 if DM_REBILL_INFO_tab(i).LAST_UPD is null then
-          DM_REBILL_INFO_tab(i).LAST_UPD:=sysdate;
+          DM_REBILL_INFO_tab(i).LAST_UPD:=to_date('01/01/1900','MM/DD/YYYY');
          end if;
 	 if DM_REBILL_INFO_tab(i).LAST_USED_DATE is null then
-          DM_REBILL_INFO_tab(i).LAST_USED_DATE:=sysdate;
+          DM_REBILL_INFO_tab(i).LAST_USED_DATE:=to_date('01/01/1900','MM/DD/YYYY');
          end if;
     end loop;
 
