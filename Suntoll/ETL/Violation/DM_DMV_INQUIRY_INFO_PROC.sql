@@ -44,8 +44,7 @@ IS SELECT  distinct
     ,'UNDEFINED' X_ADDR_LINE_1
     ,'UNDEFINED' X_ADDR_LINE_2
     ,'UNDEFINED' X_CITY
---    ,'UNDEFINED' X_CONTACT_ID
-    ,ADDRESS_ID X_CONTACT_ID
+    ,ADDRESS_ID X_CONTACT_ID  -- Used in ETL
     ,'UNDEFINED' X_COUNTRY
 
 -- IF REG_STOP_SENT_ON IS NOT NULL AND REG_REMOVAL_SENT_ON IS NULL THEN  REG_STOP ELSE 'N' 
@@ -53,8 +52,7 @@ IS SELECT  distinct
       
     ,'UNDEFINED' X_FST_NAME   -- in ETL
     ,'UNDEFINED' X_LAST_NAME  -- in ETL
-    ,VEHICLE_ID X_PLATE_NUM  -- in ETL
---    ,'UNDEFINED' X_PLATE_NUM  -- in ETL
+    ,VEHICLE_ID X_PLATE_NUM   -- in ETL
     ,'N' X_SEND_DMV  -- IF REG_STOP_SENT_ON IS NOT NULL THEN 'Y' ELSE 'N'
     ,NULL X_STATE    -- in ETL
     ,'00000' X_STATUS
@@ -203,7 +201,21 @@ BEGIN
           update_track_proc(v_trac_etl_rec);
           DBMS_OUTPUT.PUT_LINE('EVENT_ADDRESS ERROR CODE: '||v_trac_etl_rec.result_code);
           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
-      end;     
+      end;
+
+      begin
+        select COUNTRY
+        into  DM_DMV_INQUIRY_INFO_tab(i).X_COUNTRY
+        from  COUNTRY_STATE_LOOKUP
+        where STATE_ABBR = DM_DMV_INQUIRY_INFO_tab(i).X_STATE
+        ;
+--        select COUNTRY_CODE_ABBR into  DM_DMV_INQUIRY_INFO_tab(i).X_COUNTRY
+--        from  PA_COUNTRY_CODE
+--        where COUNTRY_CODE = DM_DMV_INQUIRY_INFO_tab(i).X_COUNTRY;
+      exception
+        when others THEN NULL;
+        DM_DMV_INQUIRY_INFO_tab(i).X_COUNTRY  := 'USA';
+      end;  
     
       begin
         select distinct nvl(FIRST_NAME,'UNDEFINED')

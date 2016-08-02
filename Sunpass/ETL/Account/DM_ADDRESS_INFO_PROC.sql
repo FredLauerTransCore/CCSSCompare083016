@@ -73,18 +73,19 @@ BEGIN
         DM_ADDRESS_INFO_tab(i).NIXIE:=null;
     end;
 
+    if DM_ADDRESS_INFO_tab(i).STATE is null then
+       DM_ADDRESS_INFO_tab(i).STATE:='FL';
+    end if;
+
 	    /* get COUNTRY_STATE_LOOKUP.COUNTRY for COUNTRY */
     begin
-      select COUNTRY into DM_ADDRESS_INFO_tab(i).COUNTRY from COUNTRY_STATE_LOOKUP 
-      where STATE_ABBR in 
-            (select STATE_STATE_CODE_ABBR from pa_acct where acct_num=DM_ADDRESS_INFO_tab(i).account_number)
-            and rownum<=1;
+      select COUNTRY into DM_ADDRESS_INFO_tab(i).COUNTRY 
+      from  COUNTRY_STATE_LOOKUP 
+      where STATE_ABBR = DM_ADDRESS_INFO_tab(i).STATE
+        ;
       exception 
         when others then null;
         DM_ADDRESS_INFO_tab(i).COUNTRY:='USA';
-		if DM_ADDRESS_INFO_tab(i).STATE is null then
-	       DM_ADDRESS_INFO_tab(i).STATE:='FL';
-	    end if;
     end;
 
     end loop;

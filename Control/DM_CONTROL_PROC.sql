@@ -62,7 +62,8 @@ BEGIN
 --  EXECUTE IMMEDIATE plsql_block
 --    USING IN OUT new_deptid, new_dname, new_mgrid, new_locid;
 
-    sql_string := 'BEGIN '||trac_rec.SOURCE_SYSTEM||'_user.'||c_rec.etl_name||'_PROC(:id); END;';
+--    sql_string := 'BEGIN '||trac_rec.SOURCE_SYSTEM||'_user.'||c_rec.etl_name||'_PROC(:id); END;';
+    sql_string := 'BEGIN '||trac_rec.SOURCE_SYSTEM||'_user.'||c_rec.proc_name||'(:id); END;';
     DBMS_OUTPUT.PUT_LINE('sql_string : '||sql_string);
     begin
       EXECUTE IMMEDIATE sql_string

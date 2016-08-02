@@ -32,10 +32,9 @@ IS SELECT
     pp.ACCT_ACCT_NUM ACCOUNT_NUMBER
     ,pp.PUR_TRANS_DATE TX_DT  -- PA_PURCHASE
     ,trim(nvl(pay.PAYTYPE_PAYMENT_TYPE_CODE,'UNDEFINED')) PAY_TYPE
---    ,trim(nvl(pd.PRODUCT_PUR_PRODUCT_CODE,'R')) TRAN_TYPE  -- DETAIL  (IN ETL)
-    ,'R' TRAN_TYPE  -- DETAIL  (IN ETL)
+    ,'R' TRAN_TYPE  -- DETAIL  (IN ETL)  PA_PURCHASE_DETAIL.PRODUCT_PUR_PRODUCT_CODE
     ,nvl(pay.PUR_PAY_AMT,0) AMOUNT
-    ,NULL REVERSED  -- PA_PURCHASE_DETAIL.PRODUCT_PUR_PRODUCT_CODE -- DETAIL  (IN ETL)
+    ,NULL REVERSED  -- Default
     ,to_char(to_date(pay.PUR_CREDIT_EXP_DATE,'MM/YY'),'MM') EXP_MONTH
     ,to_char(to_date(pay.PUR_CREDIT_EXP_DATE,'MM/YY'),'YYYY') EXP_YEAR
     ,trim(pay.PUR_CREDIT_ACCT_NUM) CREDIT_CARD_NUMBER
@@ -46,13 +45,8 @@ IS SELECT
     ,decode(nvl(pay.PUR_PUR_ID,0),0,'NULL',pay.PUR_PUR_ID) PAYMENT_REFERENCE_NUM   -- unique    
     ,trim(pay.EMP_EMP_CODE) EMPLOYEE_NUMBER    
     ,nvl(pay.PUR_PAY_ID,0) TRANSACTION_ID  
---    ,nvl(pd.VES_REF_NUM,'NULL') ORG_TRANSACTION_ID 
-    ,'UNDEFINED' ORG_TRANSACTION_ID -- DETAIL  (IN ETL)
---    ,(select CHARGE_LEDGER_ID
---      from VB_ACTIVITY_RECOVERY_REF varr
---      join KS_LEDGER on PAID_CUST_LEDGER_ID=ID
---      where PA_PUR_DET_ID=pd.PUR_DET_ID) XREF_TRANSACTION_ID      
-    ,'UNDEFINED' XREF_TRANSACTION_ID -- DETAIL  (IN ETL)
+    ,NULL ORG_TRANSACTION_ID -- DETAIL  (IN ETL) PA_PURCHASE_DETAIL.VES_REF_NUM
+    ,NULL XREF_TRANSACTION_ID -- DETAIL  (IN ETL)
     ,pay.PUR_CREDIT_AUTH_NUM CC_RESPONSE_CODE
     ,pay.CC_GATEWAY_REF_ID EXTERNAL_REFERENCE_NUM
     ,NULL MISS_APPLIED
@@ -79,9 +73,7 @@ IS SELECT
     ,pay.CC_TXN_REF_NUM CC_TXN_REF_NUM
 FROM PA_PURCHASE pp
     ,PA_PURCHASE_PAYMENT pay
---    ,PA_PURCHASE_DETAIL pd
 WHERE pp.PUR_ID = pay.PUR_PUR_ID
---AND   pp.PUR_ID = pd.PUR_PUR_ID (+) -- AND   pd.ITEM_ORDER = 1 ?
 AND   pp.ACCT_ACCT_NUM >= p_begin_acct_num AND   pp.ACCT_ACCT_NUM <= p_end_acct_num
 ; -- source
 
@@ -123,39 +115,34 @@ BEGIN
       
       begin
         select PUR_DET_ID
-              ,nvl(PRODUCT_PUR_PRODUCT_CODE,'UNDEFINED')
-              ,nvl(VES_REF_NUM,'UNDEFINED')
+              ,PRODUCT_PUR_PRODUCT_CODE   --,'UNDEFINED')
+              ,VES_REF_NUM                --,'UNDEFINED')
         into   v_PUR_DET_ID
               ,DM_PAYMT_INFO_tab(i).TRAN_TYPE
               ,DM_PAYMT_INFO_tab(i).ORG_TRANSACTION_ID
         from  PA_PURCHASE_DETAIL
         where PUR_PUR_ID = DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM
-        AND   ITEM_ORDER = 1
+        AND   ITEM_ORDER = 1  -- ?? verify
         ;
       exception 
         when others then null;
         v_PUR_DET_ID := 0;
-        DM_PAYMT_INFO_tab(i).TRAN_TYPE := 'UNDEFINED';
-        DM_PAYMT_INFO_tab(i).ORG_TRANSACTION_ID := 'UNDEFINED';
+        DM_PAYMT_INFO_tab(i).TRAN_TYPE := NULL; -- 'UNDEFINED';
+        DM_PAYMT_INFO_tab(i).ORG_TRANSACTION_ID := NULL; -- 'UNDEFINED';
       end;
       
       if v_PUR_DET_ID != 0 then
---        select CHARGE_LEDGER_ID
---        into   DM_PAYMT_INFO_tab(i).XREF_TRANSACTION_ID
---        from  VB_ACTIVITY_RECOVERY_REF -- varr
---        join  KS_LEDGER on PAID_CUST_LEDGER_ID=ID
---        where PA_PUR_DET_ID=v_PUR_DET_ID
---        ;
         begin
           select  varr.CHARGE_LEDGER_ID
           into    DM_PAYMT_INFO_tab(i).XREF_TRANSACTION_ID
-          from    VB_ACTIVITY_RECOVERY_REF varr,  KS_LEDGER ks
+          from    VB_ACTIVITY_RECOVERY_REF varr,  
+                  KS_LEDGER ks
           where   varr.PAID_CUST_LEDGER_ID=ks.ID
           and     ks.PA_PUR_DET_ID=v_PUR_DET_ID
           ;
         exception 
           when others then null;
-          DM_PAYMT_INFO_tab(i).XREF_TRANSACTION_ID := 'UNDEFINED';
+          DM_PAYMT_INFO_tab(i).XREF_TRANSACTION_ID := NULL;
         end;
       end if;
 

@@ -105,6 +105,17 @@ BEGIN
         DM_ADDRESS_INFO_tab(i).COUNTRY:='USA';
       end;
       
+     begin
+        select nvl(MAIL_RETURNED, 
+        into  DM_ADDRESS_INFO_tab(i).COUNTRY 
+        from  PA_ACCT_FLAGS 
+        where ACCT_ACCT_NUM = DM_ADDRESS_INFO_tab(i).ACCOUNT_NUMBER
+        and rownum<=1;
+      exception
+        when others then null;
+        DM_ADDRESS_INFO_tab(i).COUNTRY:='USA';
+      end;
+      
       v_trac_etl_rec.track_last_val := DM_ADDRESS_INFO_TAB(i).ACCOUNT_NUMBER;     
     end loop;
     
