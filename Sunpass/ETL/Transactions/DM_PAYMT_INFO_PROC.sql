@@ -118,6 +118,17 @@ BEGIN
     end;
 
 
+    /* get PA_CREDIT_CARD_CODE.CREDIT_CARD_DESC for PAY_TYPE */
+    begin
+      select CREDIT_CARD_DESC into DM_PAYMT_INFO_tab(i).PAY_TYPE from PA_CREDIT_CARD_CODE 
+      where CREDIT_CARD_CODE=DM_PAYMT_INFO_tab(i).PAY_TYPE
+            and rownum<=1;
+      exception 
+        when others then null;
+        DM_PAYMT_INFO_tab(i).PAY_TYPE:='UNDEFINED';
+    end;
+	
+	
 
     end loop;
 	
@@ -131,7 +142,7 @@ BEGIN
           DM_PAYMT_INFO_tab(i).TX_DT:=sysdate;
          end if;
 	 if DM_PAYMT_INFO_tab(i).PAY_TYPE is null then
-          DM_PAYMT_INFO_tab(i).PAY_TYPE:='0';
+          DM_PAYMT_INFO_tab(i).PAY_TYPE:='UNDEFINED';
          end if;
 	 if DM_PAYMT_INFO_tab(i).AMOUNT is null then
           DM_PAYMT_INFO_tab(i).AMOUNT:='0';
