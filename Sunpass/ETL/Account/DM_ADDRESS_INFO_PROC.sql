@@ -30,8 +30,18 @@ CURSOR C1 IS SELECT
     ,ADDR_2 STREET_2
     ,CITY CITY
     ,STATE_STATE_CODE_ABBR STATE
-    ,ZIP_CODE ZIP_CODE
-    ,SUBSTR(ZIP_CODE,7,4) ZIP_PLUS4
+    ,  CASE
+    WHEN zip_code LIKE '%-%'
+    THEN SUBSTR(zip_code,1,5)
+    ELSE
+      CASE LENGTH(zip_code)
+        WHEN 5
+        THEN zip_code
+        WHEN 6 then upper(zip_code)
+        ELSE SUBSTR(zip_code,1,5)
+      END
+  END zip_code,
+  substr(zip_code,7,4) ZIP_PLUS4
     ,NULL COUNTRY
     ,NULL NIXIE
     ,to_date('02/27/2017','MM/DD/YYYY') NIXIE_DATE
