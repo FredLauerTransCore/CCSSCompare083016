@@ -89,7 +89,7 @@ CURSOR C1 IS SELECT
     ,'7' ETC_TX_STATUS
     ,'F' SPEED_VIOL_FLAG
     ,decode(msg_id,'ITOL','Y','N') IMAGE_TAKEN
-    ,NULL PLATE_COUNTRY
+    ,'..' PLATE_COUNTRY
     ,STATE_ID_CODE PLATE_STATE
     ,VEH_LIC_NUM PLATE_NUMBER
     ,trunc(EXT_DATE_TIME) REVENUE_DATE
@@ -171,15 +171,17 @@ BEGIN
         DM_AWAY_AGENCY_TX_TNSP_tab(i).TX_EXTERN_REF_NO:=null;
     end;
 
-      begin
-        select COUNTRY into DM_AWAY_AGENCY_TX_TNSP_tab(i).PLATE_COUNTRY from COUNTRY_STATE_LOOKUP 
-        where STATE_ABBR = DM_AWAY_AGENCY_TX_TNSP_tab(i).PLATE_STATE
-        and rownum<=1;
-      exception
+	/* get COUNTRY_STATE_LOOKUP.COUNTRY for PLATE_COUNTRY */
+    begin
+      select COUNTRY into DM_AWAY_AGENCY_TX_TNSP_tab(i).PLATE_COUNTRY from COUNTRY_STATE_LOOKUP 
+      where STATE_ABBR=DM_AWAY_AGENCY_TX_TNSP_tab(i).PLATE_STATE
+            and rownum<=1;
+      exception 
         when others then null;
         DM_AWAY_AGENCY_TX_TNSP_tab(i).PLATE_COUNTRY:='USA';
-      end;
-      
+    end;
+	
+	
     end loop;
 
 

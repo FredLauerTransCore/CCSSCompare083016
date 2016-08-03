@@ -50,13 +50,26 @@ BEGIN
 
     /*ETL SECTION BEGIN */
 
-	    /* to default the values NOT NULL columns */
+
     FOR i in 1 .. DM_ACCNT_NOTE_INFO_tab.count loop
+
+    /* get NOTES_DESC.pa_note_prob_code for NOTE_TYPE */
+    begin
+      select substr(NOTES_DESC,1,30) into DM_ACCNT_NOTE_INFO_tab(i).NOTE_TYPE from pa_note_prob_code 
+      where NOTES_PROB_CODE=DM_ACCNT_NOTE_INFO_tab(i).NOTE_TYPE
+            and rownum<=1;
+      exception 
+        when others then null;
+        DM_ACCNT_NOTE_INFO_tab(i).NOTE_TYPE:='UNDEFINED';
+    end;
+
+
+
 	 if DM_ACCNT_NOTE_INFO_tab(i).ACCOUNT_NUMBER is null then
           DM_ACCNT_NOTE_INFO_tab(i).ACCOUNT_NUMBER:='0';
          end if;
 	 if DM_ACCNT_NOTE_INFO_tab(i).NOTE_TYPE is null then
-          DM_ACCNT_NOTE_INFO_tab(i).NOTE_TYPE:='0';
+          DM_ACCNT_NOTE_INFO_tab(i).NOTE_TYPE:='UNDEFINED';
          end if;
 	 if DM_ACCNT_NOTE_INFO_tab(i).NOTE_SUB_TYPE is null then
           DM_ACCNT_NOTE_INFO_tab(i).NOTE_SUB_TYPE:='0';

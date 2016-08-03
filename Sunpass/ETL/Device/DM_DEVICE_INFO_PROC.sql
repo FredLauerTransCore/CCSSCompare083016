@@ -127,7 +127,7 @@ BEGIN
           DM_DEVICE_INFO_tab(i).BOX_NUMBER:='0';
          end if;
 	 if DM_DEVICE_INFO_tab(i).AGENCY is null then
-          DM_DEVICE_INFO_tab(i).AGENCY:='0';
+          DM_DEVICE_INFO_tab(i).AGENCY:='FTE';
          end if;
 	 if DM_DEVICE_INFO_tab(i).DOB is null then
           DM_DEVICE_INFO_tab(i).DOB:=sysdate;
