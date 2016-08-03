@@ -33,12 +33,11 @@ IS SELECT
     ,substr(trim(ADDR1),1,40) STREET_1    -- ADDR_1 mapping
     ,trim(ADDR2) STREET_2    -- ADDR_2 mapping
     ,substr(trim(CITY),1,25) CITY
-    ,STATE_CODE_ABBR STATE    -- STATE_STATE_CODE_ABBR mapping
+    ,STATE_CODE_ABBR STATE
     ,ZIP_CODE ZIP_CODE
     ,SUBSTR(ZIP_CODE,7,10) ZIP_PLUS4
---    ,to_char(COUNTRY_CODE) COUNTRY   -- COUNTRY_COUNTRY_CODE mapping
-    ,NULL COUNTRY   -- COUNTRY_COUNTRY_CODE mapping
-    ,nvl2(BAD_ADDR_DATE,'Y','N') NIXIE
+    ,NULL COUNTRY   -- COUNTRY_COUNTRY_CODE mapping in ETL
+    ,nvl2(BAD_ADDR_DATE,'Y','N') NIXIE   -- in ETL
     ,to_date('02/27/2017', 'MM/DD/YYYY') NIXIE_DATE
     ,'N' NCOA_FLAG
     ,'N' ADDRESS_CLEANSED_FLG
@@ -106,14 +105,16 @@ BEGIN
       end;
       
      begin
-        select nvl(MAIL_RETURNED, 
-        into  DM_ADDRESS_INFO_tab(i).COUNTRY 
+        select CASE WHEN (MAIL_RETURNED = 0 or MAIL_RETURNED is NULL) 
+                    THEN 'Y' ELSE 'N'
+              END
+        into  DM_ADDRESS_INFO_tab(i).NIXIE 
         from  PA_ACCT_FLAGS 
         where ACCT_ACCT_NUM = DM_ADDRESS_INFO_tab(i).ACCOUNT_NUMBER
         and rownum<=1;
       exception
         when others then null;
-        DM_ADDRESS_INFO_tab(i).COUNTRY:='USA';
+        DM_ADDRESS_INFO_tab(i).NIXIE:='Y';
       end;
       
       v_trac_etl_rec.track_last_val := DM_ADDRESS_INFO_TAB(i).ACCOUNT_NUMBER;     

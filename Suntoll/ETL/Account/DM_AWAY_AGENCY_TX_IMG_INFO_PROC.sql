@@ -28,11 +28,10 @@ P_ARRAY_SIZE NUMBER:=10000;
 CURSOR C1
 (p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
--- UFM_LANE_TXN_INFO.HOST_UFM_TOKEN 
 -- JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN
-    nvl((select u.HOST_UFM_TOKEN from UFM_LANE_TXN_INFO u where u.TXN_ID = lt.TXN_ID),0)
-        TX_EXTERN_REF_NO   -- Required added default to 0 
-    ,nvl(EXT_MSG_SEQ_NUM,0) TX_SEQ_NUMBER  -- Required
+--    nvl((select u.HOST_UFM_TOKEN from UFM_LANE_TXN_INFO u where u.TXN_ID = lt.TXN_ID),0)
+    0 TX_EXTERN_REF_NO   -- Required added default to 0 if NULL
+    ,nvl(EXT_MSG_SEQ_NUM,0) TX_SEQ_NUMBER  -- Required default to 0 if NULL
     ,0 EXTERN_FILE_ID
     ,EXT_LANE_ID LANE_ID
     ,EXT_DATE_TIME TX_TIMESTAMP
@@ -76,8 +75,10 @@ IS SELECT
 --    ,ENT_PLAZA_ID ENTRY_PLAZA_ID
 --    ,ENT_DATE_TIME ENTRY_TIMESTAMP
 --    ,TXN_ENTRY_NUMBER ENTRY_TX_SEQ_NUMBER
-    ,to_number(nvl(ENT_LANE_ID,'0')) ENTRY_LANE_ID  -- Required - If NULL default ?
-    ,to_number(nvl(ENT_PLAZA_ID,'0')) ENTRY_PLAZA_ID  -- Required - If NULL default ?
+--    ,to_number(nvl(ENT_LANE_ID,'0')) ENTRY_LANE_ID  -- Required - If NULL default ?
+--    ,to_number(nvl(ENT_PLAZA_ID,'0')) ENTRY_PLAZA_ID  -- Required - If NULL default ?
+    ,nvl(ENT_LANE_ID,'0') ENTRY_LANE_ID  -- Required - If NULL default ?
+    ,nvl(ENT_PLAZA_ID,'0') ENTRY_PLAZA_ID  -- Required - If NULL default ?
     ,nvl(ENT_DATE_TIME, to_date('01-01-1900','MM-DD-YYYY')) ENTRY_TIMESTAMP  -- Required - If NULL default ?
     ,nvl(TXN_ENTRY_NUMBER,0) ENTRY_TX_SEQ_NUMBER  -- Required - If NULL default ?
 
@@ -111,6 +112,7 @@ IS SELECT
 -- JOIN UFM_TOKEN TO UFM_ID FOR VIOLATIONS_EVENTS_AUX
     ,'***'  DEVICE_NO -- VIOLATIONS_EVENTS_AUX.TT_ID   ???
     ,0 ACCOUNT_TYPE  -- Convert to Number from varchar
+--    ,to_number(nvl(TRANSP_CLASS,'0')) DEVICE_CODED_CLASS  -- Required  
     ,to_number(nvl(TRANSP_CLASS,'0')) DEVICE_CODED_CLASS  -- Required  
     ,0 DEVICE_AGENCY_CLASS
     ,0 DEVICE_IAG_CLASS
@@ -121,7 +123,8 @@ IS SELECT
 -- ACCOUNT_AGENCY_ID -- SUBSTR(TRANSP_ID,9,2)
     ,SUBSTR(TRANSP_ID,9,2) ACCOUNT_AGENCY_ID  -- Use to get in ETL
  
-    ,to_number(nvl(TRANSP_CLASS,'0')) READ_AVI_CLASS
+--    ,to_number(nvl(TRANSP_CLASS,'0')) READ_AVI_CLASS
+    ,nvl(TRANSP_CLASS,'0') READ_AVI_CLASS
     ,0 READ_AVI_AXLES
     ,'N' DEVICE_PROGRAM_STATUS
     ,'N' BUFFERED_READ_FLAG
@@ -132,10 +135,7 @@ IS SELECT
     ,6 ETC_TX_STATUS
     ,'N' SPEED_VIOL_FLAG
     ,'Y' IMAGE_TAKEN
-
--- LOOKUP PA_STATE_CODE. Xerox - internal lookup in DM_ADDRESS_INFO and assign country correctly. 
--- visit DM_VEHICLE_INFO and DM_ACCT_INFO
-    ,'USA' PLATE_COUNTRY
+    ,'USA' PLATE_COUNTRY  -- in ETL
     ,STATE_ID_CODE PLATE_STATE
     ,VEH_LIC_NUM PLATE_NUMBER
     ,trunc(EXT_DATE_TIME) REVENUE_DATE
@@ -221,10 +221,21 @@ BEGIN
         v_trac_etl_rec.BEGIN_VAL := DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ETC_ACCOUNT_ID;
       end if;
 
---select agency_id  --  PLAZA_AGENCY_ID
---from PA_LANE_TXN a, PA_PLAZA b, ST_INTEROP_AGENCIES c
---Where a.ext_plaza_id  = b.plaza_id
---And AUTHCODE_AUTHORITY_CODE = AUTHORITY_CODE
+      /* get UFM_LANE_TXN_INFO.HOST_UFM_TOKEN for TX_EXTERN_REF_NO */
+-- JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN
+      begin
+        select HOST_UFM_TOKEN 
+        into  DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).TX_EXTERN_REF_NO 
+        from  UFM_LANE_TXN_INFO 
+        where TXN_ID=DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).LANE_TX_ID
+--              and rownum<=1
+        ;
+        exception 
+          when others then null;
+          DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).TX_EXTERN_REF_NO:=0;
+      end;
+
+      /* get ST_INTEROP_AGENCIES.AGENCY_ID for PLAZA_AGENCY_ID */
 -- Agency  id to which the plaza and lane belong to where the transaction took place.
       begin
         select sia.AGENCY_ID 
@@ -249,7 +260,6 @@ BEGIN
       
 ------ JOIN WITH JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN AND 
 ------ JOIN UFM_TOKEN TO UFM_ID FOR EVENT_ROV       
------- -    ,(select HOST_UFM_TOKEN from UFM_LANE_TXN_INFO where TXN_ID=lt.TXN_ID)   HOST_UFM_TOKEN
       begin
         select nvl(er.TRANSP_ID, '***')
         into  DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).DEVICE_NO
@@ -316,10 +326,7 @@ BEGIN
         DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).PLATE_COUNTRY:='USA';
       end;
       
-    /*  ETL SECTION END*/
       v_trac_etl_rec.track_last_val := DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ETC_ACCOUNT_ID;
---      v_trac_etl_rec.end_val := DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ETC_ACCOUNT_ID;
-
     END LOOP;
     /*  ETL SECTION END*/
 
