@@ -88,6 +88,9 @@ BEGIN
     end;
 
   
+  
+
+  
     /* get PA_PURCHASE_PAYMENT.CC_GATEWAY_REQ_ID for CC_GATEWAY_REQ_ID */
     begin
       select 
@@ -98,13 +101,7 @@ BEGIN
 	  EMP_EMP_CODE, 
 	  substr(PUR_CREDIT_EXP_DATE,1,2),
 	  PUR_PAY_AMT  , 
-    decode (PAYTYPE_PAYMENT_TYPE_CODE 
-            ,'03', 'American Express AMEX'
-            ,'04', 'Visa VISA'
-            ,'05', 'MasterCard MC'
-            ,'06', 'Discover DISC'
-            ,'99', 'Bank Draft BANK'
-            ,PAYTYPE_PAYMENT_TYPE_CODE)
+	  PAYTYPE_PAYMENT_TYPE_CODE 
 	  into 
 	  DM_PAYMT_INFO_tab(i).CC_GATEWAY_REQ_ID , 
 	  DM_PAYMT_INFO_tab(i).CC_TXN_REF_NUM,
@@ -123,8 +120,8 @@ BEGIN
 
     /* get PA_CREDIT_CARD_CODE.CREDIT_CARD_DESC for PAY_TYPE */
     begin
-      select CREDIT_CARD_DESC into DM_PAYMT_INFO_tab(i).PAY_TYPE from PA_CREDIT_CARD_CODE 
-      where CREDIT_CARD_CODE=DM_PAYMT_INFO_tab(i).PAY_TYPE
+      select PAYMENT_TYPE_DESC into DM_PAYMT_INFO_tab(i).PAY_TYPE from PA_PAYMENT_TYPE_CODE 
+      where PAYMENT_TYPE_CODE=DM_PAYMT_INFO_tab(i).PAY_TYPE
             and rownum<=1;
       exception 
         when others then null;
