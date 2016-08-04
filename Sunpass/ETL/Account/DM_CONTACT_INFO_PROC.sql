@@ -67,6 +67,17 @@ BEGIN
         when others then null;
         DM_CONTACT_INFO_tab(i).DRIVER_LIC_COUNTRY:=null;
       end;
+	  
+	
+    /* get pa_title_code.TITLE_DESC for TITLE */
+    begin
+      select rtrim(TITLE_DESC) into dm_contact_info_tab(i).TITLE from pa_title_code 
+      where TITLE_CODE=dm_contact_info_tab(i).TITLE
+            and rownum<=1;
+      exception 
+        when others then null;
+        dm_contact_info_tab(i).TITLE:=null;
+    end;
 
     /* to default the values NOT NULL columns */
  
