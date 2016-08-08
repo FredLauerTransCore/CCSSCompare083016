@@ -109,7 +109,6 @@ BEGIN
       DM_NONFIN_ACT_INFO_tab(i).activity_number :=  v_activity_number;
       
       v_trac_etl_rec.track_last_val := DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER;
-      v_trac_etl_rec.end_val := DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER;
 
     END LOOP;
 --      ETL SECTION END
@@ -120,6 +119,7 @@ BEGIN
                        
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
+    v_trac_etl_rec.end_val := v_trac_etl_rec.track_last_val;
     update_track_proc(v_trac_etl_rec);
     COMMIT;
                        

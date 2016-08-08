@@ -170,9 +170,9 @@ where txn_id = (select PA_LANE_TXN_ID
 and TRANSP_ID NOT like '%2010'  --TRANSPONDER_ID DOES NOT END WITH '2010'   
 ;   -- source
 
-row_cnt          NUMBER := 0;
-v_trac_rec       dm_tracking%ROWTYPE;
-v_trac_etl_rec   dm_tracking_etl%ROWTYPE;
+row_cnt           NUMBER := 0;
+v_trac_rec        dm_tracking%ROWTYPE;
+v_trac_etl_rec    dm_tracking_etl%ROWTYPE;
 
 BEGIN
   SELECT * INTO v_trac_etl_rec
@@ -192,7 +192,7 @@ BEGIN
   OPEN C1(v_trac_rec.begin_acct,v_trac_rec.end_acct);  
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
-
+  
   LOOP
 
     /*Bulk select */
@@ -336,6 +336,7 @@ BEGIN
                        
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
+    v_trac_etl_rec.end_val := v_trac_etl_rec.track_last_val;
     update_track_proc(v_trac_etl_rec);
                        
     EXIT WHEN C1%NOTFOUND;

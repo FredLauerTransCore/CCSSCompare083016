@@ -49,7 +49,12 @@ IS SELECT
     ,'REGULAR' VEHICLE_TYPE     
     ,SUBSCRIPTION_START_DATE EFFECTIVE_START_DATE
     ,SUBSCRIPTION_END_DATE EFFECTIVE_END_DATE
-    ,nvl(VEH_MODEL_YR, 9999) YEAR
+    ,CASE when VEH_MODEL_YR is NULL then '9999'
+           when VEH_MODEL_YR = '0' then '9000' -- ?
+           when length(VEH_MODEL_YR) = 4 then VEH_MODEL_YR
+           when substr(VEH_MODEL_YR,1,1) in ('0','1') THEN '20'||VEH_MODEL_YR
+           else '19'||VEH_MODEL_YR
+     END YEAR
     ,nvl(trim(VEH_MAKE), 'OTHER') MAKE
     ,nvl(trim(VEH_MODEL), 'OTHER') MODEL
     ,trim(VEH_COLOR) COLOUR
@@ -74,7 +79,7 @@ IS SELECT
     ,NULL PLATE_RENEWAL_DATE  -- In ETL - DERIVE  DECAL_ISSUE_DATE
     ,NULL ALT_VEHICLE_ID      -- In ETL - DERIVE  VIN
     ,'UNDEFINED' SRC_LIC_VEH_NUM
-FROM PA_ACCT_VEHICLE pav
+FROM PA_ACCT_VEHICLE
 WHERE ACCT_ACCT_NUM >= p_begin_acct_num AND   ACCT_ACCT_NUM <= p_end_acct_num
 ; -- FTE source
 
@@ -113,6 +118,18 @@ BEGIN
       IF i=1 then
         v_trac_etl_rec.BEGIN_VAL := DM_VEHICLE_INFO_tab(i).ACCOUNT_NUMBER;
       end if;
+
+      begin
+        select COUNTRY 
+        into  DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY 
+        from  COUNTRY_STATE_LOOKUP 
+        where STATE_ABBR = DM_VEHICLE_INFO_tab(i).PLATE_STATE
+        ;
+      exception
+        when others then null;
+          DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY:='0';
+      end;
+      DM_VEHICLE_INFO_tab(i).PLATE_TYPE := DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY||DM_VEHICLE_INFO_tab(i).PLATE_TYPE;
      
       begin
         select max(RESPONSE_DATE) 
@@ -122,6 +139,7 @@ BEGIN
         ;
       exception
         when others then null;
+        DM_VEHICLE_INFO_tab(i).DMV_RETURN_DATE := NULL;
       end;
 
       begin
@@ -144,19 +162,7 @@ BEGIN
           DBMS_OUTPUT.PUT_LINE('ST_REG_STOP ERROR CODE: '||v_trac_etl_rec.result_code);
           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
       end;
-      
-      begin
-        select COUNTRY 
-        into  DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY 
-        from  COUNTRY_STATE_LOOKUP 
-        where STATE_ABBR = DM_VEHICLE_INFO_tab(i).PLATE_STATE
-        ;
-      exception
-        when others then null;
-          DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY:='0';
-      end;
-      DM_VEHICLE_INFO_tab(i).PLATE_TYPE := DM_VEHICLE_INFO_tab(i).PLATE_COUNTRY||DM_VEHICLE_INFO_tab(i).PLATE_TYPE;
-      
+            
 --    ,ev.PLATE_ISSUE_DATE PLATE_ISSUE_DATE     -- DERIVE  PLATE_ISSUE_DATE
 --    ,ev.REG_EXP_DATE PLATE_EXPIRY_DATE        -- DERIVE  REG_EXP_DATE
 --    ,ev.DECAL_ISSUE_DATE PLATE_RENEWAL_DATE   -- DERIVE  DECAL_ISSUE_DATE
@@ -192,7 +198,6 @@ BEGIN
       end;
       
       v_trac_etl_rec.track_last_val := DM_VEHICLE_INFO_tab(i).ACCOUNT_NUMBER;
-      v_trac_etl_rec.end_val := DM_VEHICLE_INFO_tab(i).ACCOUNT_NUMBER;
 
     END LOOP;
 --      ETL SECTION END
@@ -203,6 +208,7 @@ BEGIN
                        
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
+    v_trac_etl_rec.end_val := v_trac_etl_rec.track_last_val;
     update_track_proc(v_trac_etl_rec);
                        
     EXIT WHEN C1%NOTFOUND;

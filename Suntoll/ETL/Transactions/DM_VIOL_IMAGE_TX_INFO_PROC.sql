@@ -33,7 +33,7 @@ CURSOR C1
 IS SELECT 
     EXT_LANE_ID LANE_ID
     ,EXT_DATE_TIME TX_TIMESTAMP
-    ,EXT_MSG_SEQ_NUM TX_SEQ_NUMBER
+    ,nvl(EXT_MSG_SEQ_NUM,0) TX_SEQ_NUMBER -- Required 
     ,VPS_EVENT_ID IN_FILE_NAME
     
     ,'**' OUT_FILE_NAME
@@ -80,20 +80,20 @@ IS SELECT
     ,NULL MANUAL_PLATE_COUNTRY -- in ETL
     
 -- DERIVE - EMPCODE FROM LEGACY_EMP_CODE FROM KS_USER USING USERNAME JOIN
-    ,NULL IMAGE_RVW_CLERK_ID      -- in ETL VIOLATION_EVENTS ?   
+    ,0 IMAGE_RVW_CLERK_ID      -- in ETL VIOLATION_EVENTS ?   
     ,0 REVIEWED_VEHICLE_TYPE
-    ,NULL IMAGE_REVIEW_TIMESTAMP  -- in ETL VIOLATION_EVENTS ?
-    ,NULL REVIEWED_DATE
+    ,to_date('01-01-1900','MM-DD-YYYY') IMAGE_REVIEW_TIMESTAMP  -- in ETL VIOLATION_EVENTS ?
+    ,to_date('01-01-1900','MM-DD-YYYY') REVIEWED_DATE -- Required
     ,0 IMAGE_BATCH_ID
     ,0 IMAGE_BATCH_SEQ_NUMBER
-    ,NULL DEVICE_NO
+    ,0 DEVICE_NO  -- Default 
     ,AVC_CLASS ACTUAL_AXLES
     ,AVC_CLASS ACTUAL_CLASS
     ,0 READ_AVI_CLASS
     ,0 REVIEWED_CLASS
     ,0 POSTCLASS_AXLES
     ,0 FP_STATUS
-    ,NULL OCR_THRESHOLD -- in ETL ?? PLAZAS - HIGH_LPR_CONF
+    ,0 OCR_THRESHOLD -- in ETL ?? PLAZAS - HIGH_LPR_CONF  default
     ,0 FP_THRESHOLD
     ,0 OCR_RUN_MODE
     ,EXT_DATE_TIME OCR_START_TIMESTAMP
@@ -172,14 +172,14 @@ BEGIN
 ---- JOIN UFM_TOKEN TO UFM_ID FOR EVENT_ROV       
 --   JOIN VPS_EVENT_ID of EVENT_ROV to VIOLATION_EVENT_ID of LPR_RESULTS
       begin
-        select 'CONF'  -- ?
-              ,JURISDICTION
+        select 'CON'  -- ?
+              ,nvl(JURISDICTION, '**')
               ,PLATE
               ,decode(IMAGE_VERIFIED, 1,0, 1)
               ,AXLE_COUNT
 -- IF IMAGE_VERIFIED = 1 then PLATE ELSE '**'
               ,decode(IMAGE_VERIFIED, 1,PLATE, '**')
-  -- IF IMAGE_VERIFIED = 1 then JURISDICTION ELSE '**'
+-- IF IMAGE_VERIFIED = 1 then JURISDICTION ELSE '**'
               ,decode(IMAGE_VERIFIED, 1,JURISDICTION, '**')  
         into  DM_VIOL_IMAGE_TX_INFO_tab(i).OCR_CONF
               ,DM_VIOL_IMAGE_TX_INFO_tab(i).OCR_PLATE_STATE
@@ -188,7 +188,6 @@ BEGIN
               ,DM_VIOL_IMAGE_TX_INFO_tab(i).AXLE_COUNT
               ,DM_VIOL_IMAGE_TX_INFO_tab(i).MANUAL_PLATE_NUMBER
               ,DM_VIOL_IMAGE_TX_INFO_tab(i).MANUAL_PLATE_STATE
---              ,DM_VIOL_IMAGE_TX_INFO_tab(i).MANUAL_PLATE_COUNTRY
         from  EVENT_ROV er, 
               UFM_LANE_TXN_INFO ult
         where er.UFM_ID = ult.HOST_UFM_TOKEN 
@@ -213,22 +212,54 @@ BEGIN
         DM_VIOL_IMAGE_TX_INFO_tab(i).MANUAL_PLATE_COUNTRY:='**'; -- ??
       end;
 
-      begin
-        select substr(trim(PLAZA_NAME),1,15) -- Target is 15 chars
-              ,nvl(FACCODE_FACILITY_CODE,'UNDEFINED')
-        into  DM_VIOL_TX_MTCH1_INFO_tab(i).LOCATION
-              ,DM_VIOL_TX_MTCH1_INFO_tab(i).FACILITY_ID
-        from  PA_PLAZA
-        where PLAZA_ID = DM_VIOL_TX_MTCH1_INFO_tab(i).PLAZA_ID
-        ;
-      exception 
-        when others then null;
-          DM_VIOL_TX_MTCH1_INFO_tab(i).LOCATION := 'UNDEFINED';
-          DM_VIOL_TX_MTCH1_INFO_tab(i).FACILITY_ID := 'UNDEFINED';        
-      end;  
-      
-      v_trac_etl_rec.track_last_val := v_acct_num; -- DM_VIOL_IMAGE_TX_INFO_tab(i).ETC_ACCOUNT_ID;
+--      begin
+--        select substr(trim(PLAZA_NAME),1,15) -- Target is 15 chars
+--              ,nvl(FACCODE_FACILITY_CODE,'UNDEFINED')
+--        into  DM_VIOL_IMAGE_TX_INFO_tab(i).LOCATION
+--              ,DM_VIOL_IMAGE_TX_INFO_tab(i).FACILITY_ID
+--        from  PA_PLAZA
+--        where PLAZA_ID = DM_VIOL_IMAGE_TX_INFO_tab(i).PLAZA_ID
+--        ;
+--      exception 
+--        when others then null;
+--          DM_VIOL_IMAGE_TX_INFO_tab(i).LOCATION := 'UNDEFINED';
+--          DM_VIOL_IMAGE_TX_INFO_tab(i).FACILITY_ID := 'UNDEFINED';        
+--      end;  
 
+
+      if DM_VIOL_IMAGE_TX_INFO_tab(i).OCR_CONF is null then
+         DM_VIOL_IMAGE_TX_INFO_tab(i).OCR_CONF := 'UND';
+      end if;
+      if DM_VIOL_IMAGE_TX_INFO_tab(i).OCR_PLATE_COUNTRY is null then
+         DM_VIOL_IMAGE_TX_INFO_tab(i).OCR_PLATE_COUNTRY := 'UND';
+      end if;
+      if DM_VIOL_IMAGE_TX_INFO_tab(i).OCR_PLATE_STATE is null then
+         DM_VIOL_IMAGE_TX_INFO_tab(i).OCR_PLATE_STATE := '0';
+      end if;  
+      if DM_VIOL_IMAGE_TX_INFO_tab(i).OCR_PLATE_NUMBER is null then
+         DM_VIOL_IMAGE_TX_INFO_tab(i).OCR_PLATE_NUMBER := 'UNDEFINED';
+      end if;  
+      if DM_VIOL_IMAGE_TX_INFO_tab(i).OCR_STATUS is null then
+         DM_VIOL_IMAGE_TX_INFO_tab(i).OCR_STATUS := 0;
+      end if;  
+      if DM_VIOL_IMAGE_TX_INFO_tab(i).OCR_THRESHOLD is null then
+         DM_VIOL_IMAGE_TX_INFO_tab(i).OCR_THRESHOLD := 0;
+      end if;  
+      if DM_VIOL_IMAGE_TX_INFO_tab(i).AXLE_COUNT is null then
+         DM_VIOL_IMAGE_TX_INFO_tab(i).AXLE_COUNT := 0;
+      end if;  
+      if DM_VIOL_IMAGE_TX_INFO_tab(i).IMAGE_RVW_CLERK_ID is null then
+         DM_VIOL_IMAGE_TX_INFO_tab(i).IMAGE_RVW_CLERK_ID := 0;
+      end if;  
+      if DM_VIOL_IMAGE_TX_INFO_tab(i).MANUAL_PLATE_NUMBER is null then
+         DM_VIOL_IMAGE_TX_INFO_tab(i).MANUAL_PLATE_NUMBER := 'UNDEFINED';
+      end if;  
+      if DM_VIOL_IMAGE_TX_INFO_tab(i).MANUAL_PLATE_STATE is null then
+         DM_VIOL_IMAGE_TX_INFO_tab(i).MANUAL_PLATE_STATE := '0';
+      end if;  
+
+
+      v_trac_etl_rec.track_last_val := v_acct_num; -- DM_VIOL_IMAGE_TX_INFO_tab(i).ETC_ACCOUNT_ID;
     END LOOP;
     /*  ETL SECTION END*/
 
@@ -238,6 +269,7 @@ BEGIN
                        
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
+    v_trac_etl_rec.end_val := v_trac_etl_rec.track_last_val;
     update_track_proc(v_trac_etl_rec);
                        
     EXIT WHEN C1%NOTFOUND;

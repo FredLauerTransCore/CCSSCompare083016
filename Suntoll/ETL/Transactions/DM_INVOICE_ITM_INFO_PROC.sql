@@ -172,13 +172,13 @@ BEGIN
                 and saf.FLAG_TYPE ='9' and END_DATE is null)='Y'
           THEN 'REGHOLDTOLL'
 
---   All the following tolls are on REG HOLD -----  Unclear
+--   All the following tolls are on REG HOLD -----  Unclear ------------------------
           
 ----JOIN ID             of KS_LEDGER to LEDGER_ID of VB_ACTVITY       for KS_LEDGER.TRANSACTION_TYPE in ('38','42') and 
 ----JOIN PA_LANE_TXN_ID of KS_LEDGER to TXN_ID    of PA_LANE_LANE_TXN and
 ----JOIN PLAZA_ID       of PA_PLAZA  to EXT_PLAZA_ID for PA_Lane_txn
 --
-----   when --IF SUM (VB_ACTIVITY.AMT_CHARGED – VB_ACTIVITY.TOTAL_AMT_PAID) < :REG_STOP_THRESHOLD_AMT_IN_CENTS grouped by KS_LEDGER.ACCT_NUM
+-- when --IF SUM (VB_ACTIVITY.AMT_CHARGED – VB_ACTIVITY.TOTAL_AMT_PAID) < :REG_STOP_THRESHOLD_AMT_IN_CENTS grouped by KS_LEDGER.ACCT_NUM
 ----  FOR PA_PLAZA.FTE_PLAZA = 'Y',
 ----  VB_ACTIVITY.COLL_COURT_FLAG is NULL, 
 ----  VB_ACTIVITY.CHILD_DOC_ID not null,
@@ -295,7 +295,7 @@ BEGIN
 --**Discussed bankruptcy, deceased, court – these will be tracked as statuses 
 --For ST_document_info. Acct_num joined PA_ACCT_DETAIL.DECEASED_DATE -- CRT is provided above
 --          ELSE 'None'      
-          ELSE 'REGSTOP2'
+          ELSE 'REGSTOP2'   -- ?
          END    
         into  DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY
         from  VB_ACTIVITY va
@@ -307,7 +307,7 @@ BEGIN
 --  DBMS_OUTPUT.PUT_LINE('2) DM_INVOICE_ITM_INFO_tab('||i||').SUB_CATEGORY: '||DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY);
         exception 
           when no_data_found then
-          DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY := 'FTE Undefined';
+          DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY := 'INVPAYMENT';
           when others then null;
           DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY := 'Multi-value';
           DBMS_OUTPUT.PUT_LINE('2) INVOICE_NUMBER: '||DM_INVOICE_ITM_INFO_TAB(i).INVOICE_NUMBER);
@@ -378,7 +378,7 @@ IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
           WHEN COLL_COURT_FLAG = 'CRT'  and CHILD_DOC_ID is NOT null THEN 'COURT'
 --          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
 --          ELSE 'REG STOP'
-          ELSE '0'
+          ELSE 'INVPAYMENT'
          END    
         into  DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO
         from  VB_ACTIVITY
@@ -390,7 +390,7 @@ IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
 -- WHEN COLL_COURT_FLAG is null      and DOCUMENT_ID is null     THEN 'UNBILLED'
           DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'UNBILLED';
         when others then --null;
-          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := '0';
+          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'INVPAYMENT';
           v_trac_etl_rec.result_code := SQLCODE;
           v_trac_etl_rec.result_msg := SQLERRM;
           v_trac_etl_rec.proc_end_date := SYSDATE;
@@ -488,13 +488,12 @@ IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
       End if;
 
       if DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY is null then
-        DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY := 'REGSTOP2';
+        DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY := 'INVPAYMENT';
       End if;
 
 --    DBMS_OUTPUT.PUT_LINE('ACCT- '||i||' - '||DM_INVOICE_ITM_INFO_tab(i).ACCOUNT_NUMBER);
 
       v_trac_etl_rec.track_last_val := DM_INVOICE_ITM_INFO_tab(i).ACCOUNT_NUMBER;
---      v_trac_etl_rec.end_val := DM_INVOICE_ITM_INFO_tab(i).ACCOUNT_NUMBER;
 
     END LOOP;
  
@@ -506,6 +505,7 @@ IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
                        
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
+    v_trac_etl_rec.end_val := v_trac_etl_rec.track_last_val;
     update_track_proc(v_trac_etl_rec);
                        
     EXIT WHEN C1%NOTFOUND;

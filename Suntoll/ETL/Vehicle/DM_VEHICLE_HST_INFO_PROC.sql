@@ -29,34 +29,38 @@ P_ARRAY_SIZE NUMBER:=10000;
 CURSOR C1
 (p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT
-    pav.ACCT_ACCT_NUM ACCOUNT_NUMBER
-    ,DECODE(pav.VEH_LIC_NUM, 'O', '0', pav.VEH_LIC_NUM) PLATE_NUMBER  -- PATRON.EVENT_LOOKUP_ROV
-    ,pav.STATE_STATE_CODE_ABBR PLATE_STATE
-    ,nvl((select cs.COUNTRY from  COUNTRY_STATE_LOOKUP cs
-           where cs.STATE_ABBR = pav.STATE_STATE_CODE_ABBR),'USA') PLATE_COUNTRY
-    ,nvl(pav.VEH_LIC_TYPE,'UNDEFINED') PLATE_TYPE    -- Prefix and Suffix for the Country and State.  
+    ACCT_ACCT_NUM ACCOUNT_NUMBER
+    ,DECODE(VEH_LIC_NUM, 'O', '0', VEH_LIC_NUM) PLATE_NUMBER  -- PATRON.EVENT_LOOKUP_ROV
+    ,STATE_STATE_CODE_ABBR PLATE_STATE
+    ,NULL PLATE_COUNTRY   -- in ETL
+    ,nvl(VEH_LIC_TYPE||STATE_STATE_CODE_ABBR,'0') PLATE_TYPE  -- Prefix and Suffix for the Country and State.  
     ,'REGULAR' VEHICLE_TYPE     
     ,SUBSCRIPTION_START_DATE EFFECTIVE_START_DATE
     ,SUBSCRIPTION_END_DATE EFFECTIVE_END_DATE
-    ,nvl(pav.VEH_MODEL_YR, 9999) YEAR
-    ,nvl(trim(pav.VEH_MAKE), 'OTHER') MAKE
-    ,nvl(trim(pav.VEH_MODEL), 'OTHER') MODEL
-    ,trim(pav.VEH_COLOR) COLOUR
-    ,srs.REG_STOP_SENT_ON REG_STOP_START_DATE  -- ST_REG_STOP
-    ,srs.REG_STOP_REMOVAL_SENT_ON REG_STOP_END_DATE -- ST_REG_STOP
+    ,CASE when VEH_MODEL_YR is NULL then '9999'
+           when VEH_MODEL_YR = '0' then '9000' -- ?
+           when length(VEH_MODEL_YR) = 4 then VEH_MODEL_YR
+           when substr(VEH_MODEL_YR,1,1) in ('0','1') THEN '20'||VEH_MODEL_YR
+           else '19'||VEH_MODEL_YR
+     END YEAR
+    ,nvl(trim(VEH_MAKE), 'OTHER') MAKE
+    ,nvl(trim(VEH_MODEL), 'OTHER') MODEL
+    ,trim(VEH_COLOR) COLOUR
+    ,NULL REG_STOP_START_DATE  -- ST_REG_STOP  in ETL
+    ,NULL REG_STOP_END_DATE -- ST_REG_STOP
     ,NULL METAL_OXIDE_WIND_SHIELD
     ,NULL DMV_RETURN_DATE -- suntoll    --MAX(RESPONSE_DATE)Event lookup ROV
     ,0 VEHICLE_CLASS  -- Required number
     ,NULL AXLE_COUNT
     ,NULL IS_DUAL_TIRE
     ,NULL IS_RENTAL
-    ,pav.RENTAL_CAR_FLAG IS_RENTAL
+    ,RENTAL_CAR_FLAG IS_RENTAL
     ,NULL RENTAL_COMPANY_PHONE
-    ,pav.SUBSCRIPTION_START_DATE CREATED
-    ,pav.EMP_EMP_CODE CREATED_BY
-    ,pav.LAST_MODIFIED_DATE LAST_UPD
+    ,SUBSCRIPTION_START_DATE CREATED
+    ,EMP_EMP_CODE CREATED_BY
+    ,LAST_MODIFIED_DATE LAST_UPD
     ,NULL LAST_UPD_BY
-    ,pav.VEHICLE_SEQ VEHICLE_SEQUENCE
+    ,VEHICLE_SEQ VEHICLE_SEQUENCE
     ,'SUNTOLL' SOURCE_SYSTEM
     ,NULL ACTIVITY_ID
     ,NULL REBILL_PAY_TYPE_INTEGRATION_ID
@@ -70,11 +74,7 @@ IS SELECT
     ,NULL X_WEB_VEHICLE_TYPE
     ,NULL VERSION
 FROM PA_ACCT_VEHICLE pav
-    ,ST_REG_STOP srs
-    ,EVENT_VEHICLE ev
-WHERE pav.VEH_LIC_NUM = srs.VEH_LIC_NUM (+)
-AND   pav.VEH_LIC_NUM = ev.PLATE (+)
-AND   pav.ACCT_ACCT_NUM >= p_begin_acct_num AND   pav.ACCT_ACCT_NUM <= p_end_acct_num
+WHERE ACCT_ACCT_NUM >= p_begin_acct_num AND   ACCT_ACCT_NUM <= p_end_acct_num
 ; -- FTE source
 
 row_cnt          NUMBER := 0;
@@ -112,15 +112,47 @@ BEGIN
       IF i=1 then
         v_trac_etl_rec.BEGIN_VAL := DM_VEHICLE_HST_INFO_tab(i).ACCOUNT_NUMBER;
       end if;
+
+      begin
+        select COUNTRY 
+        into  DM_VEHICLE_HST_INFO_tab(i).PLATE_COUNTRY 
+        from  COUNTRY_STATE_LOOKUP 
+        where STATE_ABBR = DM_VEHICLE_HST_INFO_tab(i).PLATE_STATE
+        ;
+      exception
+        when others then null;
+          DM_VEHICLE_HST_INFO_tab(i).PLATE_COUNTRY:='0';
+      end;
+      DM_VEHICLE_HST_INFO_tab(i).PLATE_TYPE := DM_VEHICLE_HST_INFO_tab(i).PLATE_COUNTRY||DM_VEHICLE_HST_INFO_tab(i).PLATE_TYPE;
       
-      select max(elr.RESPONSE_DATE) into  DM_VEHICLE_HST_INFO_tab(i).DMV_RETURN_DATE
-      from EVENT_LOOKUP_ROV elr
-      where elr.PLATE = DM_VEHICLE_HST_INFO_tab(i).PLATE_NUMBER
+      select max(RESPONSE_DATE) 
+      into  DM_VEHICLE_HST_INFO_tab(i).DMV_RETURN_DATE
+      from  EVENT_LOOKUP_ROV
+      where PLATE = DM_VEHICLE_HST_INFO_tab(i).PLATE_NUMBER
       ;
-      
-      
+
+      begin
+        select REG_STOP_SENT_ON
+              ,REG_STOP_REMOVAL_SENT_ON
+        into  DM_VEHICLE_HST_INFO_tab(i).REG_STOP_START_DATE
+              ,DM_VEHICLE_HST_INFO_tab(i).REG_STOP_END_DATE
+        from  ST_REG_STOP
+        where VEH_LIC_NUM = DM_VEHICLE_HST_INFO_tab(i).PLATE_NUMBER
+        ;
+      exception
+        when no_data_found THEN
+          DM_VEHICLE_HST_INFO_tab(i).REG_STOP_START_DATE:=NULL;
+          DM_VEHICLE_HST_INFO_tab(i).REG_STOP_END_DATE:=NULL;
+        when others then null;
+          v_trac_etl_rec.result_code := SQLCODE;
+          v_trac_etl_rec.result_msg := SQLERRM;
+          v_trac_etl_rec.proc_end_date := SYSDATE;
+          update_track_proc(v_trac_etl_rec);
+          DBMS_OUTPUT.PUT_LINE('ST_REG_STOP ERROR CODE: '||v_trac_etl_rec.result_code);
+          DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+      end;
+
       v_trac_etl_rec.track_last_val := DM_VEHICLE_HST_INFO_tab(i).ACCOUNT_NUMBER;
-      v_trac_etl_rec.end_val := DM_VEHICLE_HST_INFO_tab(i).ACCOUNT_NUMBER;
 
     END LOOP;
 --      ETL SECTION END
@@ -131,6 +163,7 @@ BEGIN
                        
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
+    v_trac_etl_rec.end_val := v_trac_etl_rec.track_last_val;
     update_track_proc(v_trac_etl_rec);
                        
     EXIT WHEN C1%NOTFOUND;

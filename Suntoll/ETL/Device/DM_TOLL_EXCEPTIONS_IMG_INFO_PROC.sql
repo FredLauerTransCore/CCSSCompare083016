@@ -1,10 +1,10 @@
 /********************************************************
 *
-* Name: DM_TOLL_EXCEPTIONS_IMG_INFO_PROC
+* Name: DM_TOLL_EXCEPTIONS_IMG_IN_PROC
 * Created by: RH, 5/22/2016
 * Revision: 1.0
 * Description: This is the template for bulk read/write
-*              DM_TOLL_EXCEPTIONS_IMG_INFO
+*              DM_TOLL_EXCEPTIONS_IMG_IN
 *
 ********************************************************/
 
@@ -14,13 +14,13 @@ set echo on
 
 -- 6/21/2016 RH Added Tracking and acct num parameters
 
-CREATE OR REPLACE PROCEDURE DM_TOLL_EXCEPTIONS_IMG_INFO_PROC 
+CREATE OR REPLACE PROCEDURE DM_TOLL_EXCEPTIONS_IMG_IN_PROC 
   (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
 IS
 
-TYPE DM_TOLL_EXCEPTIONS_IMG_INFO_TYP IS TABLE OF DM_TOLL_EXCEPTIONS_IMG_INFO%ROWTYPE 
+TYPE DM_TOLL_EXCEPTIONS_IMG_IN_TYP IS TABLE OF DM_TOLL_EXCEPTIONS_IMG_IN%ROWTYPE 
      INDEX BY BINARY_INTEGER;
-DM_TOLL_EXCEPTIONS_IMG_INFO_tab DM_TOLL_EXCEPTIONS_IMG_INFO_TYP;
+DM_TOLL_EXCEPTIONS_IMG_IN_tab DM_TOLL_EXCEPTIONS_IMG_IN_TYP;
 
 P_ARRAY_SIZE NUMBER:=10000;
 
@@ -148,7 +148,7 @@ BEGIN
   LOOP
 
     /*Bulk select */
-    FETCH C1 BULK COLLECT INTO DM_TOLL_EXCEPTIONS_IMG_INFO_tab
+    FETCH C1 BULK COLLECT INTO DM_TOLL_EXCEPTIONS_IMG_IN_tab
     LIMIT P_ARRAY_SIZE;
 
 
@@ -157,8 +157,8 @@ BEGIN
       ETL SECTION END*/
 
     /*Bulk insert */ 
-    FORALL i in DM_TOLL_EXCEPTIONS_IMG_INFO_tab.first .. DM_TOLL_EXCEPTIONS_IMG_INFO_tab.last
-           INSERT INTO DM_TOLL_EXCEPTIONS_IMG_INFO VALUES DM_TOLL_EXCEPTIONS_IMG_INFO_tab(i);
+    FORALL i in DM_TOLL_EXCEPTIONS_IMG_IN_tab.first .. DM_TOLL_EXCEPTIONS_IMG_IN_tab.last
+           INSERT INTO DM_TOLL_EXCEPTIONS_IMG_IN VALUES DM_TOLL_EXCEPTIONS_IMG_IN_tab(i);
                        
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;

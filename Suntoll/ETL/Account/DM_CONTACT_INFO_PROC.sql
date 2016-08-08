@@ -96,11 +96,15 @@ BEGIN
       end if;
       
       begin
-        select to_date(eo.DOB,'YYYYMMDD') into DM_CONTACT_INFO_tab(i).DOB 
+        select case when eo.DOB is null then NULL
+                    when length(eo.DOB) = 6 then to_date(eo.DOB,'MMDDYY') 
+                    when substr(eo.DOB,1,2) in ('19','20') then to_date(eo.DOB,'YYYYMMDD')  
+                    else to_date(eo.DOB,'MMDDYYYY')                  
+                end
+        into  DM_CONTACT_INFO_tab(i).DOB 
         from  EVENT_OWNER eo,
               EVENT_OWNER_ADDR_VEHICLE_ACCT e
         where eo.ID = e.OWNER_ID
-        and e.ACCT_NUM = DM_CONTACT_INFO_TAB(i).ACCOUNT_NUMBER
         and e.id = (select max(id) 
                     from  EVENT_OWNER_ADDR_VEHICLE_ACCT
                     where ACCT_NUM = DM_CONTACT_INFO_TAB(i).ACCOUNT_NUMBER)
@@ -110,7 +114,13 @@ BEGIN
           DM_CONTACT_INFO_tab(i).DOB:=NULL;
         when others then null;
           DM_CONTACT_INFO_tab(i).DOB:=NULL;
-          DBMS_OUTPUT.PUT_LINE(i||') ACCOUNT_NUMBER : '||DM_CONTACT_INFO_TAB(i).ACCOUNT_NUMBER);
+--          DBMS_OUTPUT.PUT_LINE(i||') ACCOUNT_NUMBER : '||DM_CONTACT_INFO_TAB(i).ACCOUNT_NUMBER);
+          v_trac_etl_rec.result_code := SQLCODE;
+          v_trac_etl_rec.result_msg := SQLERRM;
+          v_trac_etl_rec.proc_end_date := SYSDATE;
+          update_track_proc(v_trac_etl_rec);
+          DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+          DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
       end;
       
       begin
@@ -134,6 +144,7 @@ BEGIN
            INSERT INTO DM_CONTACT_INFO VALUES DM_CONTACT_INFO_tab(i);
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
+    v_trac_etl_rec.end_val := v_trac_etl_rec.track_last_val;
     update_track_proc(v_trac_etl_rec);
     COMMIT;
                        

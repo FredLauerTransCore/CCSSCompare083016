@@ -245,7 +245,6 @@ BEGIN
       end if;
       
       v_trac_etl_rec.track_last_val := DM_INVOICE_HST_INFO_tab(i).ACCOUNT_NUMBER;
-      v_trac_etl_rec.end_val := DM_INVOICE_HST_INFO_tab(i).ACCOUNT_NUMBER;
 
     END LOOP;
 
@@ -257,6 +256,7 @@ BEGIN
                        
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
+    v_trac_etl_rec.end_val := v_trac_etl_rec.track_last_val;
     update_track_proc(v_trac_etl_rec);
                        
     EXIT WHEN C1%NOTFOUND;

@@ -23,7 +23,7 @@ TYPE DM_ACCOUNT_WEB_INFO_TYP IS TABLE OF DM_ACCOUNT_WEB_INFO%ROWTYPE
 DM_ACCOUNT_WEB_INFO_tab DM_ACCOUNT_WEB_INFO_TYP;
 
 
-P_ARRAY_SIZE NUMBER:=100;
+P_ARRAY_SIZE NUMBER:=1000;
 
 -- EXTRACT RULE 
 -- Join id of KS_USER to user_id of KS_USER_PA_ACCT_ASSOC to get external user acct_num
@@ -35,8 +35,8 @@ IS SELECT
     ua.PA_ACCT_NUM ETC_ACCOUNT_ID
     ,nvl(u.USERNAME,'UNDEFINED') USER_NAME
     ,nvl(u.PASSWORD,'UNDEFINED') PASSWORD  -- (Encrypted) How?
-    ,nvl(u.LAST_LOGIN_DATE, to_date('12-31-9999','MM-DD-YYYY')) LAST_LOGIN_DATETIME
-    ,nvl(u.ACCT_LOCKED_UNTIL_DATE, to_date('12-31-9999','MM-DD-YYYY')) INVALID_LOGIN_DATETIME
+    ,nvl(u.LAST_LOGIN_DATE, to_date('12319999','MMDDYYYY')) LAST_LOGIN_DATETIME
+    ,nvl(u.ACCT_LOCKED_UNTIL_DATE, to_date('12319999','MMDDYYYY')) INVALID_LOGIN_DATETIME
     ,u.LOGIN_ATTEMPT_COUNT INVALID_LOGIN_COUNT
     ,nvl2(u.ACCT_LOCKED_UNTIL_DATE,'Y','N') PASSWORD_RESET  --Derived- IF INVALID LOGIN DATETIME IS NOT NULL THEN YES ELSE NO
     ,NULL UPDATE_TS
@@ -170,8 +170,6 @@ BEGIN
       end;
 
       v_trac_etl_rec.track_last_val := DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID;
-      v_trac_etl_rec.end_val := DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID;
-
     END LOOP;
 -- ETL SECTION END
 
@@ -181,6 +179,7 @@ BEGIN
                        
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
+    v_trac_etl_rec.end_val := v_trac_etl_rec.track_last_val;
     update_track_proc(v_trac_etl_rec);
                        
     EXIT WHEN C1%NOTFOUND;

@@ -31,7 +31,7 @@ CURSOR C1
 IS SELECT 
     pp.ACCT_ACCT_NUM ACCOUNT_NUMBER
     ,pp.PUR_TRANS_DATE TX_DT  -- PA_PURCHASE
-    ,trim(nvl(pay.PAYTYPE_PAYMENT_TYPE_CODE,'UNDEFINED')) PAY_TYPE
+    ,pay.PAYTYPE_PAYMENT_TYPE_CODE PAY_TYPE
     ,'R' TRAN_TYPE  -- DETAIL  (IN ETL)  PA_PURCHASE_DETAIL.PRODUCT_PUR_PRODUCT_CODE
     ,nvl(pay.PUR_PAY_AMT,0) AMOUNT
     ,NULL REVERSED  -- Default
@@ -42,7 +42,7 @@ IS SELECT
     ,trim(pay.ABA_NUMBER) BANK_ROUTING_NUMBER
     ,trim(pay.CHECK_NUM) CHECK_NUMBER
     ,NULL NSF_FEE -- Default
-    ,decode(nvl(pay.PUR_PUR_ID,0),0,'NULL',pay.PUR_PUR_ID) PAYMENT_REFERENCE_NUM   -- unique    
+    ,decode(nvl(pp.PUR_ID,0),0,'NULL',pp.PUR_ID) PAYMENT_REFERENCE_NUM   -- unique    
     ,trim(pay.EMP_EMP_CODE) EMPLOYEE_NUMBER    
     ,nvl(pay.PUR_PAY_ID,0) TRANSACTION_ID  
     ,NULL ORG_TRANSACTION_ID -- DETAIL  (IN ETL) PA_PURCHASE_DETAIL.VES_REF_NUM
@@ -51,17 +51,7 @@ IS SELECT
     ,pay.CC_GATEWAY_REF_ID EXTERNAL_REFERENCE_NUM
     ,NULL MISS_APPLIED
     ,NULL DESCRIPTION  -- No mapping
--- If REF_APPROVED_DATE is populated, then the refund status will be populated. 
--- REF_DECLINE_REASON_ID will get the status of the refund.
-    ,(select CASE WHEN rr.REF_APPROVED_DATE IS NOT NULL THEN 
-            decode(rr.REFUND_STATUS_ID, 
-              1,'UNAPPROVED', 
-              2,'APPROVED', 
-              3,'PARTIAL', 
-              4,'REJECTED',NULL) 
-            END 
-      from PA_REFUND_REQUEST rr
-      where rr.PUR_PUR_ID = pay.PUR_PUR_ID)  REFUND_STATUS 
+    ,NULL REFUND_STATUS -- in ETL
     ,NULL REFUND_CHECK_NUM    
     ,'N/A' TOD_ID -- N/A Required
     ,pp.PUR_TRANS_DATE CREATED -- PA_PURCHASE
@@ -112,6 +102,62 @@ BEGIN
       IF i=1 then
         v_trac_etl_rec.BEGIN_VAL := DM_PAYMT_INFO_tab(i).ACCOUNT_NUMBER;
       end if;
+
+      begin
+        select PAYTYPE_PAYMENT_TYPE_CODE
+              ,nvl(PUR_PAY_AMT,0)
+              ,to_char(to_date(PUR_CREDIT_EXP_DATE,'MM/YY'),'MM')
+              ,to_char(to_date(PUR_CREDIT_EXP_DATE,'MM/YY'),'YYYY')
+              ,trim(PUR_CREDIT_ACCT_NUM)
+              ,trim(CHK_ACCT_NUM)
+              ,trim(ABA_NUMBER)
+              ,trim(CHECK_NUM)
+              ,trim(EMP_EMP_CODE)    
+              ,nvl(PUR_PAY_ID,0)
+              ,PUR_CREDIT_AUTH_NUM
+              ,CC_GATEWAY_REF_ID
+              ,EMP_EMP_CODE
+              ,CC_GATEWAY_REQ_ID
+              ,CC_TXN_REF_NUM
+        into  DM_PAYMT_INFO_tab(i).PAY_TYPE
+              ,DM_PAYMT_INFO_tab(i).AMOUNT
+              ,DM_PAYMT_INFO_tab(i).EXP_MONTH
+              ,DM_PAYMT_INFO_tab(i).EXP_YEAR
+              ,DM_PAYMT_INFO_tab(i).CREDIT_CARD_NUMBER
+              ,DM_PAYMT_INFO_tab(i).BANK_ACCOUNT_NUMBER
+              ,DM_PAYMT_INFO_tab(i).BANK_ROUTING_NUMBER
+              ,DM_PAYMT_INFO_tab(i).CHECK_NUMBER
+              ,DM_PAYMT_INFO_tab(i).EMPLOYEE_NUMBER    
+              ,DM_PAYMT_INFO_tab(i).TRANSACTION_ID  
+              ,DM_PAYMT_INFO_tab(i).CC_RESPONSE_CODE
+              ,DM_PAYMT_INFO_tab(i).EXTERNAL_REFERENCE_NUM
+              ,DM_PAYMT_INFO_tab(i).CREATED_BY
+              ,DM_PAYMT_INFO_tab(i).CC_GATEWAY_REQ_ID
+              ,DM_PAYMT_INFO_tab(i).CC_TXN_REF_NUM
+        from  PA_PURCHASE_PAYMENT
+        where PUR_PUR_ID = DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM
+        ;
+      exception 
+        when others then null;
+        DM_PAYMT_INFO_tab(i).TRAN_TYPE := NULL; -- 'UNDEFINED';
+        DM_PAYMT_INFO_tab(i).ORG_TRANSACTION_ID := NULL; -- 'UNDEFINED';
+      end;
+
+--            ,'03', 'American Express AMEX'
+--            ,'04', 'Visa VISA'
+--            ,'05', 'MasterCard MC'
+--            ,'06', 'Discover DISC'
+--            ,'99', 'Bank Draft BANK'
+      begin
+        select PAYMENT_TYPE_DESC
+        into  DM_PAYMT_INFO_tab(i).PAY_TYPE
+        from  PA_PAYMENT_TYPE_CODE
+        where PAYMENT_TYPE_CODE = DM_PAYMT_INFO_tab(i).PAY_TYPE
+        ;
+      exception 
+        when others then null;
+        DM_PAYMT_INFO_tab(i).TRAN_TYPE := 'UNDEFINED';
+      end;
       
       begin
         select PUR_DET_ID
@@ -146,9 +192,26 @@ BEGIN
         end;
       end if;
 
+-- If REF_APPROVED_DATE is populated, then the refund status will be populated. 
+-- REF_DECLINE_REASON_ID will get the status of the refund.
+      begin
+        select CASE WHEN REF_APPROVED_DATE IS NOT NULL THEN 
+                decode(REFUND_STATUS_ID, 
+                      1,'UNAPPROVED', 
+                      2,'APPROVED', 
+                      3,'PARTIAL', 
+                      4,'REJECTED',NULL) 
+                END                 --,'UNDEFINED')
+        into  DM_PAYMT_INFO_tab(i).REFUND_STATUS
+        from  PA_REFUND_REQUEST
+        where PUR_PUR_ID = DM_PAYMT_INFO_tab(i).PAYMENT_REFERENCE_NUM
+        ;
+      exception 
+        when others then null;
+        DM_PAYMT_INFO_tab(i).REFUND_STATUS := NULL; -- 'UNDEFINED';
+      end;
+      
       v_trac_etl_rec.track_last_val := DM_PAYMT_INFO_tab(i).ACCOUNT_NUMBER;
---      v_trac_etl_rec.end_val := DM_PAYMT_INFO_tab(i).ACCOUNT_NUMBER;
-
     END LOOP;
 
      /* ETL SECTION END*/

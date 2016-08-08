@@ -155,7 +155,6 @@ IS SELECT
     ,NULL X_THRUWAY_REF_NUMBER
 FROM PA_ACCT pa
     ,PA_ACCT_DETAIL pad
---    ,PATRON.KS_CHALLENGE_QUESTION
 WHERE pa.ACCT_NUM = pad.ACCT_NUM --(+)
 AND   pa.ACCT_NUM >= p_begin_acct_num AND   pa.ACCT_NUM <= p_end_acct_num
 ;
@@ -267,8 +266,6 @@ BEGIN
 --    ELSE 'N' 
 
       v_trac_etl_rec.track_last_val := DM_ACCOUNT_HST_INFO_TAB(i).ACCOUNT_NUMBER;
---      v_trac_etl_rec.end_val := DM_ACCOUNT_HST_INFO_TAB(i).ACCOUNT_NUMBER;
-
     END LOOP;
  
     /*  ETL SECTION END*/
@@ -279,6 +276,7 @@ BEGIN
                        
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
+    v_trac_etl_rec.end_val := v_trac_etl_rec.track_last_val;
     update_track_proc(v_trac_etl_rec);
     COMMIT;
     

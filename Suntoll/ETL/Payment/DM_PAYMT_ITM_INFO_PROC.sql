@@ -30,21 +30,23 @@ IS SELECT
     nvl(pd.PRODUCT_PUR_PRODUCT_CODE,'UNDEFINED') CATEGORY
     ,nvl(pd.PRODUCT_PUR_PRODUCT_CODE,'UNDEFINED') SUB_CATEGORY
     ,nvl(pd.PRODUCT_PUR_PRODUCT_CODE,'UNDEFINED') TRANS_TYPE
---    ,(select PROD_ABBRV from PA_PUR_PRODUCT where PUR_PRODUCT_CODE = pd.PRODUCT_PUR_PRODUCT_CODE) TRANS_TYPE    
+-- ,(select PROD_ABBRV from PA_PUR_PRODUCT 
+--       where PUR_PRODUCT_CODE = pd.PRODUCT_PUR_PRODUCT_CODE) TRANS_TYPE    
     ,nvl(pd.PROD_AMT,0) AMOUNT
     ,'FTE' ENDO_AGENCY
     ,'FTE' REVENUE_AGENCY
 --    ,(select pur.PUR_PRODUCT_DESC from PA_PUR_PRODUCT pur
---        where pur.PUR_PRODUCT_CODE = pd.PRODUCT_PUR_PRODUCT_CODE) DESCRIPTION   
-    ,(select pur.PUR_PRODUCT_DESC from PA_PUR_PRODUCT pur where pur.PUR_PRODUCT_CODE = pd.PRODUCT_PUR_PRODUCT_CODE) DESCRIPTION   
+--       where pur.PUR_PRODUCT_CODE = pd.PRODUCT_PUR_PRODUCT_CODE) DESCRIPTION   
+    ,pd.PRODUCT_PUR_PRODUCT_CODE DESCRIPTION
     ,NULL TRANSFER_REASON
     ,NULL NOTICE_NUMBER
     ,NULL SEQUENCE_NUMBER
     ,pp.PUR_ID PARENT_PAYMENT_ID   -- PA_PURCHASE
     ,pp.PUR_TRANS_DATE CREATED   -- PA_PURCHASE
---    ,pay.EMP_EMP_CODE CREATED_BY  -- OR below
-    ,(select pay.EMP_EMP_CODE from PA_PURCHASE_PAYMENT pay
-        where pay.PUR_PUR_ID = pp.PUR_ID) CREATED_BY   
+----    ,pay.EMP_EMP_CODE CREATED_BY  -- OR below
+--    ,(select pay.EMP_EMP_CODE from PA_PURCHASE_PAYMENT pay
+--        where pay.PUR_PUR_ID = pp.PUR_ID) CREATED_BY   
+    ,NULL CREATED_BY
     ,SYSDATE LAST_UPD  -- N/A
     ,NULL LAST_UPD_BY -- N/A
     ,pp.PUR_ID INVOICE_NUM   -- PA_PURCHASE
@@ -88,10 +90,44 @@ BEGIN
     FETCH C1 BULK COLLECT INTO DM_PAYMT_ITM_INFO_tab
     LIMIT P_ARRAY_SIZE;
 
+    /*ETL SECTION BEGIN */
+    FOR i IN 1 .. DM_PAYMT_ITM_INFO_tab.COUNT LOOP
+--      IF i=1 then
+--        v_trac_etl_rec.BEGIN_VAL := DM_PAYMT_ITM_INFO_tab(i).ACCOUNT_NUMBER;
+--      end if;
 
-    /*ETL SECTION BEGIN
-
-      ETL SECTION END*/
+--    ,(select PROD_ABBRV from PA_PUR_PRODUCT 
+--       where PUR_PRODUCT_CODE = pd.PRODUCT_PUR_PRODUCT_CODE) TRANS_TYPE    
+--    ,(select pur.PUR_PRODUCT_DESC from PA_PUR_PRODUCT pur
+--       where pur.PUR_PRODUCT_CODE = pd.PRODUCT_PUR_PRODUCT_CODE) DESCRIPTION   
+      begin
+        select nvl(PROD_ABBRV,'UNDEFINED')
+              ,PUR_PRODUCT_DESC
+        into  DM_PAYMT_ITM_INFO_tab(i).TRANS_TYPE
+              ,DM_PAYMT_ITM_INFO_tab(i).DESCRIPTION
+        from  PA_PUR_PRODUCT
+        where PUR_PRODUCT_CODE = DM_PAYMT_ITM_INFO_tab(i).CATEGORY
+        ;
+      exception 
+        when others then null;
+        DM_PAYMT_ITM_INFO_tab(i).TRANS_TYPE := 'UNDEFINED';
+        DM_PAYMT_ITM_INFO_tab(i).DESCRIPTION := NULL;
+      end;
+            
+      begin
+        select EMP_EMP_CODE                 --,'UNDEFINED')
+        into  DM_PAYMT_ITM_INFO_tab(i).CREATED_BY
+        from  PA_PURCHASE_PAYMENT
+        where PUR_PUR_ID = DM_PAYMT_ITM_INFO_tab(i).INVOICE_NUM
+        ;
+      exception 
+        when others then null;
+        DM_PAYMT_ITM_INFO_tab(i).CREATED_BY := NULL; -- 'UNDEFINED';
+      end;
+      
+--      v_trac_etl_rec.track_last_val := DM_PAYMT_ITM_INFO_tab(i).ACCOUNT_NUMBER;
+    END LOOP;
+     /* ETL SECTION END*/
 
     /*Bulk insert */ 
     FORALL i in DM_PAYMT_ITM_INFO_tab.first .. DM_PAYMT_ITM_INFO_tab.last
