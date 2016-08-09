@@ -30,8 +30,8 @@ CURSOR C1
 IS SELECT 
     aw.ACCT_NUM ACCOUNT_NUMBER 
     ,cc.CODE PAY_TYPE
-    ,'************'||substr(cc.CC_TOKEN,-4) CREDIT_CARD_NUMBER_MASK
-    ,'************'||substr(cc.CC_TOKEN,-4) CREDIT_CARD_NUMBER
+    ,rpad('*',length(REPL_NUM)-5,'*')||substr(REPL_NUM,-4) CREDIT_CARD_NUMBER_MASK
+    ,rpad('*',length(REPL_NUM)-5,'*')||substr(REPL_NUM,-4) CREDIT_CARD_NUMBER
     ,to_char(to_date(cc.EXPIRATION_DATE,'MM/YY'),'MM') CC_EXP_MONTH
     ,to_char(to_date(cc.EXPIRATION_DATE,'MM/YY'),'YYYY') CC_EXP_YEAR
     ,substr(cc.CC_TOKEN,-4) LAST_4_CC_NUMBER

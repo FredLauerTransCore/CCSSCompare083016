@@ -368,7 +368,7 @@ IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
 */ 
 
       begin
-        select distinct
+        select -- distinct
         CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 'INVOICED'
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID like '%-%'  THEN 'UTC'

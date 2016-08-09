@@ -104,13 +104,12 @@ BEGIN
       end if;
 
       begin
-        select decode(CREDITCARD_CREDIT_CARD_CODE,
-                    ,'03', 'American Express AMEX'
-                    ,'04', 'Visa VISA'
-                    ,'05', 'MasterCard MC'
-                    ,'06', 'Discover DISC'
-                    ,'99', 'Bank Draft BANK'
-                    ,PAYTYPE_PAYMENT_TYPE_CODE)
+        select decode(PAYTYPE_PAYMENT_TYPE_CODE, '05'
+                ,(select CREDIT_CARD_DESC from PA_CREDIT_CARD_CODE
+                    where CREDIT_CARD_CODE = CREDITCARD_CREDIT_CARD_CODE)
+                ,(select PAYMENT_TYPE_DESC from PA_PAYMENT_TYPE_CODE
+                    where PAYMENT_TYPE_CODE = PAYTYPE_PAYMENT_TYPE_CODE)
+                    )
               ,nvl(PUR_PAY_AMT,0)
               ,to_char(to_date(PUR_CREDIT_EXP_DATE,'MM/YY'),'MM')
               ,to_char(to_date(PUR_CREDIT_EXP_DATE,'MM/YY'),'YYYY')
@@ -147,17 +146,6 @@ BEGIN
         when others then null;
         DM_PAYMT_INFO_tab(i).TRAN_TYPE := NULL; -- 'UNDEFINED';
         DM_PAYMT_INFO_tab(i).ORG_TRANSACTION_ID := NULL; -- 'UNDEFINED';
-      end;
-
-      begin
-        select PAYMENT_TYPE_DESC
-        into  DM_PAYMT_INFO_tab(i).PAY_TYPE
-        from  PA_PAYMENT_TYPE_CODE
-        where PAYMENT_TYPE_CODE = DM_PAYMT_INFO_tab(i).PAY_TYPE
-        ;
-      exception 
-        when others then null;
---        DM_PAYMT_INFO_tab(i).TRAN_TYPE := 'UNDEFINED';
       end;
 
       begin
@@ -211,7 +199,11 @@ BEGIN
         when others then null;
         DM_PAYMT_INFO_tab(i).REFUND_STATUS := NULL; -- 'UNDEFINED';
       end;
-      
+
+      if DM_PAYMT_INFO_tab(i).PAY_TYPE is null then
+          DM_PAYMT_INFO_tab(i).PAY_TYPE:='UNDEFINED';
+      end if;
+         
       v_trac_etl_rec.track_last_val := DM_PAYMT_INFO_tab(i).ACCOUNT_NUMBER;
     END LOOP;
 
