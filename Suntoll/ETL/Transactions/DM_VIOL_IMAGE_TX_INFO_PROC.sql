@@ -212,19 +212,19 @@ BEGIN
         DM_VIOL_IMAGE_TX_INFO_tab(i).MANUAL_PLATE_COUNTRY:='**'; -- ??
       end;
 
---      begin
---        select substr(trim(PLAZA_NAME),1,15) -- Target is 15 chars
---              ,nvl(FACCODE_FACILITY_CODE,'UNDEFINED')
---        into  DM_VIOL_IMAGE_TX_INFO_tab(i).LOCATION
---              ,DM_VIOL_IMAGE_TX_INFO_tab(i).FACILITY_ID
---        from  PA_PLAZA
---        where PLAZA_ID = DM_VIOL_IMAGE_TX_INFO_tab(i).PLAZA_ID
---        ;
---      exception 
---        when others then null;
---          DM_VIOL_IMAGE_TX_INFO_tab(i).LOCATION := 'UNDEFINED';
---          DM_VIOL_IMAGE_TX_INFO_tab(i).FACILITY_ID := 'UNDEFINED';        
---      end;  
+      begin
+        select substr(trim(PLAZA_NAME),1,15) -- Target is 15 chars
+              ,nvl(FACCODE_FACILITY_CODE,'UNDEFINED')
+        into  DM_VIOL_IMAGE_TX_INFO_tab(i).LOCATION
+              ,DM_VIOL_IMAGE_TX_INFO_tab(i).FACILITY_ID
+        from  PA_PLAZA
+        where PLAZA_ID = DM_VIOL_IMAGE_TX_INFO_tab(i).PLAZA_ID
+        ;
+      exception 
+        when others then null;
+          DM_VIOL_IMAGE_TX_INFO_tab(i).LOCATION := 'UNDEFINED';
+          DM_VIOL_IMAGE_TX_INFO_tab(i).FACILITY_ID := 'UNDEFINED';        
+      end;  
 
 
       if DM_VIOL_IMAGE_TX_INFO_tab(i).OCR_CONF is null then

@@ -104,7 +104,13 @@ BEGIN
       end if;
 
       begin
-        select PAYTYPE_PAYMENT_TYPE_CODE
+        select decode(CREDITCARD_CREDIT_CARD_CODE,
+                    ,'03', 'American Express AMEX'
+                    ,'04', 'Visa VISA'
+                    ,'05', 'MasterCard MC'
+                    ,'06', 'Discover DISC'
+                    ,'99', 'Bank Draft BANK'
+                    ,PAYTYPE_PAYMENT_TYPE_CODE)
               ,nvl(PUR_PAY_AMT,0)
               ,to_char(to_date(PUR_CREDIT_EXP_DATE,'MM/YY'),'MM')
               ,to_char(to_date(PUR_CREDIT_EXP_DATE,'MM/YY'),'YYYY')
@@ -143,11 +149,6 @@ BEGIN
         DM_PAYMT_INFO_tab(i).ORG_TRANSACTION_ID := NULL; -- 'UNDEFINED';
       end;
 
---            ,'03', 'American Express AMEX'
---            ,'04', 'Visa VISA'
---            ,'05', 'MasterCard MC'
---            ,'06', 'Discover DISC'
---            ,'99', 'Bank Draft BANK'
       begin
         select PAYMENT_TYPE_DESC
         into  DM_PAYMT_INFO_tab(i).PAY_TYPE
@@ -156,9 +157,9 @@ BEGIN
         ;
       exception 
         when others then null;
-        DM_PAYMT_INFO_tab(i).TRAN_TYPE := 'UNDEFINED';
+--        DM_PAYMT_INFO_tab(i).TRAN_TYPE := 'UNDEFINED';
       end;
-      
+
       begin
         select PUR_DET_ID
               ,PRODUCT_PUR_PRODUCT_CODE   --,'UNDEFINED')
@@ -221,6 +222,7 @@ BEGIN
            INSERT INTO DM_PAYMT_INFO VALUES DM_PAYMT_INFO_tab(i);
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
+    v_trac_etl_rec.end_val := v_trac_etl_rec.track_last_val;
     update_track_proc(v_trac_etl_rec);
     COMMIT;
                        

@@ -293,9 +293,8 @@ BEGIN
           THEN 'CLEXPLANECHARGE'
 
 --**Discussed bankruptcy, deceased, court – these will be tracked as statuses 
---For ST_document_info. Acct_num joined PA_ACCT_DETAIL.DECEASED_DATE -- CRT is provided above
---          ELSE 'None'      
-          ELSE 'REGSTOP2'   -- ?
+--For ST_document_info. Acct_num joined PA_ACCT_DETAIL.DECEASED_DATE -- CRT is provided above   
+          ELSE 'INVPAYMENT'   -- ?
          END    
         into  DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY
         from  VB_ACTIVITY va

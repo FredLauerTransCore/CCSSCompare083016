@@ -44,9 +44,8 @@ IS SELECT
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM NOTE
 where (EMP_CODE like '99%' or EMP_CODE = '0100')
---and ACCT_NUM is not null
 AND  ACCT_NUM >= p_begin_acct_num AND   ACCT_NUM <= p_end_acct_num
-and  ACCT_NUM >0
+--and  ACCT_NUM >0
 ; 
 --
 
