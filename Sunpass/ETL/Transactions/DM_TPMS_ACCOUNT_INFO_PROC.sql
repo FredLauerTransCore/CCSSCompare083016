@@ -24,9 +24,8 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 CURSOR C1 IS SELECT 
     al.ACCT_NUM ETC_ACCOUNT_ID
-    ,al.LEDGER_ID LEDGER_ID
     ,'CCSS' AGENCY_ID  --Is a number in target
-    ,pa.ACCTTYPE_ACCT_TYPE_CODE ACCOUNT_TYPE
+    ,NULL ACCOUNT_TYPE
     ,al.ACCT_BALANCE CURRENT_BALANCE
     ,'0' POSTPAID_BALANCE
     ,'0' DEVICE_DEPOSIT
@@ -42,18 +41,11 @@ CURSOR C1 IS SELECT
     ,to_date('01/01/1900','MM/DD/YYYY') EVAL_END_DATE
     ,'0' USAGE_AMOUNT
     ,al.LAST_UPDATED UPDATE_TS
-    ,pa.ACCT_OPEN_DATE OPEN_DATE
+    ,NULL  OPEN_DATE
     ,'0' POSTPAID_UNBILLED_BALANCE
     ,'0' VIOL_TOLL_BALANCE
     ,'0' VIOL_FEE_BALANCE
     ,'0' VIOL_BALANCE
-    ,NULL POSTPAID_FEE
-    ,NULL COLL_TOLL
-    ,NULL COLL_FEE
-    ,NULL UTC_TOLL
-    ,NULL UTC_FEE
-    ,NULL COURT_TOLL
-    ,NULL COURT_FEE
     ,NULL LAST_TOLL_TX_DATE
     ,NULL LAST_FIN_TX_DATE
     ,'0' ACCT_FIN_STATUS
@@ -69,9 +61,15 @@ CURSOR C1 IS SELECT
     ,NULL LAST_STMT_DATE
     ,NULL ACCOUNT_CCU
     ,'SUNPASS' SOURCE_SYSTEM
-FROM  SUNPASS.ST_ACCT_LEDGER al
-     ,PA_ACCT pa
-WHERE pa.ACCT_NUM = al.ACCT_NUM;
+    ,al.LEDGER_ID LEDGER_ID
+--    ,NULL POSTPAID_FEE
+--    ,NULL COLL_TOLL
+--    ,NULL COLL_FEE
+--    ,NULL UTC_TOLL
+--    ,NULL UTC_FEE
+--    ,NULL COURT_TOLL
+--    ,NULL COURT_FEE
+FROM  ST_ACCT_LEDGER al;
 
 BEGIN
  
@@ -88,72 +86,144 @@ BEGIN
 
 
     FOR i in 1 .. DM_TPMS_ACCOUNT_INFO_tab.count loop
-    
-    /* LAST_TOLL_TX_ID, LAST_TOLL_POSTED_DATE, LAST_TOLL_TX_AMOUNT */
-    begin
-      select PA_LANE_TXN_ID
-            ,POSTED_DATE
-            ,AMOUNT
-        into DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_ID
-            ,DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_POSTED_DATE
-            ,DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_AMT
-        from (  select PA_LANE_TXN_ID, POSTED_DATE, AMOUNT
-                  from ST_LEDGER
-                 where ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
-                   and PA_LANE_TXN_ID IS NOT NULL
-              order by PA_LANE_TXN_ID DESC )
-      where rownum <= 1;
-      exception
-        when others then null;
-        DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_ID:=null;
-        DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_POSTED_DATE:=null;
-        DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_AMT:=null;
-      end;
+	
 
-    
-    /* LAST_TOLL_TX_TIMESTAMP, LAST_TOLL_TX_DATE */
+	
+	    /* get PA_ACCT.ACCTTYPE_ACCT_TYPE_CODE for ACCOUNT_TYPE */
     begin
-      select CAST(lt.EXT_DATE_TIME AS TIMESTAMP)
-            ,lt.EXT_DATE_TIME
-        into DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_TIMESTAMP
-            ,DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_DATE
-        from ( 
-              select PA_LANE_TXN_ID
-                from (  select PA_LANE_TXN_ID
-                          from ST_LEDGER
-                         where ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
-                           and PA_LANE_TXN_ID IS NOT NULL
-                      order by PA_LANE_TXN_ID DESC )
-               where rownum <= 1 )
-            ,PA_LANE_TXN lt
-      where lt.TXN_ID = PA_LANE_TXN_ID
-        and rownum <= 1;
-      exception
+      select ACCTTYPE_ACCT_TYPE_CODE, ACCT_OPEN_DATE
+      into 
+      DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_TYPE, DM_TPMS_ACCOUNT_INFO_tab(i).OPEN_DATE
+       from PA_ACCT 
+      where ACCT_NUM=DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
+            and rownum<=1;
+      exception 
         when others then null;
-        DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_ID:=null;
+        DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_TYPE:=null;
     end;
 
-
-    /* FIRST_TOLL_TIMESTAMP */
+	    /* get ST_LEDGER.POSTED_DATE for LAST_TOLL_POSTED_DATE */
     begin
-    select CAST(MIN(EXT_DATE_TIME) AS TIMESTAMP)
-      into DM_TPMS_ACCOUNT_INFO_tab(i).FIRST_TOLL_TIMESTAMP
-      from (
-              select sl.ACCT_NUM
-                    ,sl.LEDGER_ID
-                    ,sl.PA_LANE_TXN_ID pl_txn_id
-                from ST_LEDGER sl
-               where sl.ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
-                 and sl.PA_LANE_TXN_ID IS NOT NULL
-            order by sl.PA_LANE_TXN_ID)
-          ,PA_LANE_TXN lt
-     where lt.TXN_ID = pl_txn_id
-        and rownum <= 1;
-      exception
+      select POSTED_DATE, PA_LANE_TXN_ID, AMOUNT
+             into 
+             dm_tpms_account_Info_tab(i).LAST_TOLL_POSTED_DATE, 
+             dm_tpms_account_Info_tab(i).LAST_TOLL_TX_ID,
+             dm_tpms_account_Info_tab(i).LAST_TOLL_TX_AMT
+      from ST_LEDGER 
+      where ACCT_NUM=dm_tpms_account_Info_tab(i).ETC_ACCOUNT_ID
+            and PA_LANE_TXN_ID=(select max(PA_LANE_TXN_ID) from ST_LEDGER
+                                where ACCT_NUM=dm_tpms_account_Info_tab(i).ETC_ACCOUNT_ID and PA_LANE_TXN_ID>0 
+                               )
+            and rownum<=1;
+      exception 
+        when others then null;
+             dm_tpms_account_Info_tab(i).LAST_TOLL_POSTED_DATE:=null; 
+             dm_tpms_account_Info_tab(i).LAST_TOLL_TX_ID:=null;
+             dm_tpms_account_Info_tab(i).LAST_TOLL_TX_AMT:=0;
+    end;
+	
+	    /* get PA_LANE_TX.EXT_DATE_TIME for LAST_TOLL_TX_TIMESTAMP */
+    begin
+      select EXT_DATE_TIME,EXT_DATE_TIME  
+	         into 
+			 dm_tpms_account_info_tab(i).LAST_TOLL_TX_TIMESTAMP,
+			 dm_tpms_account_info_tab(i).LAST_TOLL_TX_DATE 
+	  from PA_LANE_TXN 
+      where TXN_ID=(select max(PA_LANE_TXN_ID) from ST_LEDGER
+                                where ACCT_NUM=dm_tpms_account_Info_tab(i).ETC_ACCOUNT_ID and PA_LANE_TXN_ID>0 
+                    )
+            and rownum<=1;
+      exception 
+        when others then null;
+        dm_tpms_account_info_tab(i).LAST_TOLL_TX_TIMESTAMP:=null;
+    end;
+
+	
+         /* get ST_LEDGER.POSTED_DATE for FIRST_TOLL_TIMESTAMP */
+    begin
+      select POSTED_DATE into DM_TPMS_ACCOUNT_INFO_tab(i).FIRST_TOLL_TIMESTAMP from ST_LEDGER 
+      where ACCT_NUM=DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
+        and POSTED_DATE=(select min(POSTED_DATE) from ST_LEDGER where 
+            ACCT_NUM=DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID and PA_LANE_TXN_ID>0)
+            and rownum<=1;
+      exception 
         when others then null;
         DM_TPMS_ACCOUNT_INFO_tab(i).FIRST_TOLL_TIMESTAMP:=null;
     end;
-    
+	
+	
+		    /* get ST_LEDGER.POSTED_DATE for LAST_TOLL_POSTED_DATE */
+    begin
+      select POSTED_DATE, PA_PUR_DET_ID, AMOUNT
+             into 
+             dm_tpms_account_Info_tab(i).LAST_FIN_TX_DATE, 
+             dm_tpms_account_Info_tab(i).LAST_FIN_TX_ID,
+             dm_tpms_account_Info_tab(i).LAST_FIN_TX_AMT
+      from ST_LEDGER 
+      where ACCT_NUM=dm_tpms_account_Info_tab(i).ETC_ACCOUNT_ID
+            and PA_PUR_DET_ID=(select max(PA_PUR_DET_ID) from ST_LEDGER
+                                where ACCT_NUM=dm_tpms_account_Info_tab(i).ETC_ACCOUNT_ID and PA_PUR_DET_ID>0 
+                               )
+            and rownum<=1;
+      exception 
+        when others then null;
+             dm_tpms_account_Info_tab(i).LAST_TOLL_POSTED_DATE:=null; 
+             dm_tpms_account_Info_tab(i).LAST_TOLL_TX_ID:=null;
+             dm_tpms_account_Info_tab(i).LAST_TOLL_TX_AMT:=0;
+    end;
+	
+	
+
+    /* get ST_LEDGER.POSTED_DATE for LAST_BAL_POS_DATE */
+    begin
+      select max(POSTED_DATE) into dm_TPMS_ACCOUNT_INFO_tab(i).LAST_BAL_POS_DATE from ST_LEDGER 
+      where ACCT_NUM=dm_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID and balance>0
+            and rownum<=1;
+      exception 
+        when others then null;
+        dm_TPMS_ACCOUNT_INFO_tab(i).LAST_BAL_POS_DATE:=to_date('01/01/1900','MM/DD/YYYY');
+    end;
+
+    /* get ST_LEDGER.POSTED_DATE for LAST_BAL_NEG_DATE */
+    begin
+      select POSTED_DATE into dm_TPMS_ACCOUNT_INFO_tab(i).LAST_BAL_NEG_DATE from ST_LEDGER 
+      where ACCT_NUM=dm_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID and balance<0
+            and rownum<=1;
+      exception 
+        when others then null;
+        dm_TPMS_ACCOUNT_INFO_tab(i).LAST_BAL_NEG_DATE:=to_date('01/01/1900','MM/DD/YYYY');
+    end;
+
+ 
+    /* get ST_LEDGER.POSTED_DATE, BALANCE */
+    begin
+      select POSTED_DATE,BALANCE
+	  into 
+	  dm_TPMS_ACCOUNT_INFO_tab(i).LAST_STMT_DATE,
+	  dm_TPMS_ACCOUNT_INFO_tab(i).LAST_STMT_CLOSE_BALANCE
+	  from ST_LEDGER 
+      where ACCT_NUM=dm_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
+            and posted_date=(select max(posted_date) from ST_LEDGER 
+                             where ACCT_NUM=dm_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID 
+                             and posted_date<=last_day(sysdate)
+                             )
+            and rownum<=1;
+      exception 
+        when others then null;
+        dm_TPMS_ACCOUNT_INFO_tab(i).LAST_STMT_DATE:=null;
+    end;
+	
+	
+    /* get ACCOUNTS_TO_COLLECTION.1 for ACCOUNT_CCU */
+    begin
+      select sum(1) into DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_CCU from ACCOUNTS_TO_COLLECTION 
+      where ACTNUM=DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
+            and rownum<=1;
+      exception 
+        when others then null;
+        DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_CCU:=0;
+    end;
+	
     
     end loop;
 
