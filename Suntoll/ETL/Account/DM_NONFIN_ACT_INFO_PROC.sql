@@ -106,6 +106,30 @@ BEGIN
       
       v_activity_number := v_activity_number+1;
       DM_NONFIN_ACT_INFO_tab(i).activity_number :=  v_activity_number;
+
+-- NOTE TYPE_CODE CATEGORY
+      begin
+        select NOTE_TYPE_DESC 
+        into  DM_NONFIN_ACT_INFO_tab(i).CATEGORY
+        from  PA_NOTE_TYPE_CODE
+        where NOTE_TYPE_CODE = DM_NONFIN_ACT_INFO_tab(i).CATEGORY
+        ;
+      exception
+        when others then null;
+        DM_NONFIN_ACT_INFO_tab(i).CATEGORY := NULL;
+      end;
+
+-- NOTE PROB_CODE SUB_CATEGORY
+      begin
+        select NOTES_DESC 
+        into  DM_NONFIN_ACT_INFO_tab(i).SUB_CATEGORY
+        from  PA_NOTE_PROB_CODE
+        where NOTES_PROB_CODE = DM_NONFIN_ACT_INFO_tab(i).SUB_CATEGORY
+        ;
+      exception
+        when others then null;
+        DM_NONFIN_ACT_INFO_tab(i).SUB_CATEGORY := NULL;
+      end;
       
       v_trac_etl_rec.track_last_val := DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER;
 

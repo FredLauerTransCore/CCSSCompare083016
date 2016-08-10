@@ -40,10 +40,12 @@ IS SELECT
     ,to_date('12-31-9999','MM-DD-YYYY') EVENT_TIMESTAMP -- ** Discussion in ICD.  Required defaulted to SYSDATE?
     ,NULL ETC_ACCOUNT_ID   -- Join KS_LEDGER on TXN_ID ** add to internal Xerscussion
 --    ,kl.ACCT_NUM ETC_ACCOUNT_ID   -- Join KS_LEDGER on TXN_ID ** add to internal Xerscussion
-    ,lt.VEH_LIC_NUM PLATE_NUMBER
-    ,lt.STATE_ID_CODE  PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
+    ,VEH_LIC_NUM PLATE_NUMBER
+    ,STATE_ID_CODE  PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
     ,'USA' PLATE_COUNTRY  -- default in ETL
-    ,0 MAKE_ID  -- No mapping.  Required - defaulted to 0?
+-- MAKE is char and MAKE_ID is number ISSUE
+-- ,OAVA_LINK_ID MAKE_ID  -- - Use to get in ETL 
+    ,0 MAKE_ID  -- - Use to get in ETL 
     ,0 DMV_PLATE_TYPE  -- Derived
     ,0 REVIEWED_VEHICLE_TYPE
     ,0 REVIEWED_CLASS
@@ -58,8 +60,8 @@ IS SELECT
 
  -- TOTAL_AMT_PAID JOIN WITH KS_LEDGER ON LEDGER_ID AND KS_LEDGER TO PA_LANE_TXN on PA_LANE_TXN_ID
 --    ,kl.AMOUNT AMOUNT_PAID
-    ,lt.TOLL_AMT_COLLECTED AMOUNT_PAID
-    ,lt.TOLL_AMT_CHARGED DISCOUNTED_AMOUNT
+    ,TOLL_AMT_COLLECTED AMOUNT_PAID
+    ,TOLL_AMT_CHARGED DISCOUNTED_AMOUNT
     ,0 IMAGE_BATCH_ID
     ,0 IMAGE_BATCH_SEQ_NUMBER
     ,0 RECON_STATUS_IND  -- XEROX - TO FOLLOW UP  Required, default 0?
@@ -279,6 +281,27 @@ JOIN ID of KS_LEDGER to LEDGER_ID of VB_ACTVITY for KS_LEDGER.TRANSACTION_TYPE i
           when others then null;
           DM_VIOL_TX_EVENT_INFO_tab(i).LANE_TX_ID:=null;
       end;
+
+--      begin
+--        select nvl(ev.MAKE, 0)
+--        into  DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID
+--        from  EVENT_VEHICLE ev, 
+--              EVENT_OWNER_ADDR_VEHICLE_ACCT eo
+--        where eo.ID = DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID -- OAVA_LINK_ID
+--        and   eo.VEHICLE_ID = ev.ID   -- and   rownum<=1
+--        ;
+--      exception 
+--        when no_data_found then null;
+--          DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID := 0;      
+--        when others then null;
+--          DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID := 0;      
+--          v_trac_etl_rec.result_code := SQLCODE;
+--          v_trac_etl_rec.result_msg := SQLERRM;
+--          v_trac_etl_rec.proc_end_date := SYSDATE;
+--          update_track_proc(v_trac_etl_rec);
+--           DBMS_OUTPUT.PUT_LINE('MAKE ERROR CODE: '||v_trac_etl_rec.result_code);
+--           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+--      end; 
 
       if DM_VIOL_TX_EVENT_INFO_tab(i).VIOL_TX_STATUS is null then
          DM_VIOL_TX_EVENT_INFO_tab(i).VIOL_TX_STATUS:='0';

@@ -27,6 +27,10 @@ P_ARRAY_SIZE NUMBER:=10000;
 -- EXTRACT RULE = SELECT * FROM PA_LANE_TXN WHERE TRANSPONDER_ID ENDS WITH '2010'  
 /* indicates a violation toll */ -- (rentals included) 
 
+--select * from UFM_Lane_Txn_info a, pa_lane_txn b
+--where HOST_UFM_TOKEN in( 29115611902943,24615831158258)
+--and a.txn_id =  b.txn_id;
+
 CURSOR C1
 (p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
@@ -121,17 +125,15 @@ IS SELECT
 ------ PLAN_TYPE_ID - IF ITOL_AGENCY_CODE IN (9,10,11,12,13,14,15) 
 ------ THEN RENTAL ELSE POSTPAID, 
 --  Xerox will provide numbers for  rental vs postpaid  ---------------------
---    ,CASE WHEN ITOL_AGENCY_CODE IN (9,10,11,12,13,14,15) 
---          THEN 9  --'RENTAL' 
---          ELSE 10 --'POSTPAID'
---      END PLAN_TYPE_ID
-      ,0 PLAN_TYPE_ID
+    ,CASE WHEN ITOLL_AGENCY_CODE IN (9,10,11,12,13,14,15) 
+          THEN 9  --'RENTAL' 
+          ELSE 10 --'POSTPAID'
+      END PLAN_TYPE_ID
  -- IF RENTAL THEN 9 of POSTPAID THEN 10 (From Above)  ?? Required
---    ,CASE WHEN ITOL_AGENCY_CODE IN (9,10,11,12,13,14,15) 
---          THEN 9  --'RENTAL' 
---          ELSE 10 --'POSTPAID'
---      END ETC_TX_STATUS  --   
-      ,0 ETC_TX_STATUS  --   
+    ,CASE WHEN ITOLL_AGENCY_CODE IN (9,10,11,12,13,14,15) 
+          THEN 9  --'RENTAL' 
+          ELSE 10 --'POSTPAID'
+      END ETC_TX_STATUS  --    
 
     ,'F' SPEED_VIOL_FLAG
     ,'Y' IMAGE_TAKEN

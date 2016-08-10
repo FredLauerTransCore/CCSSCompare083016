@@ -162,20 +162,7 @@ IS SELECT
     ,'000000000000' DEPOSIT_ID
 
 -------- JOIN FROM PA_LANE_TXN REQUEST_ID to EVENT_LOOKUP_ROV ROV_ID to RETURN REQUEST_DATE
---    ,nvl((select elr.REQUEST_DATE 
---        from EVENT_LOOKUP_ROV elr
---        where elr.EVENT_OAVA_LINK_ID=lt.OAVA_LINK_ID  --        and   rownum=1
---        ),SYSDATE) LOAD_DATE
-------    ,(select elr.REQUEST_DATE from EVENT_LOOKUP_ROV elr
-------        where elr.EVENT_OAVA_LINK_ID=lt.OAVA_LINK_ID  --        and   rownum=1
-------        ) LOAD_DATE
-------    ,(select elr.REQUEST_DATE from EVENT_LOOKUP_ROV elr 
-------        where elr.ID = lt.VPS_EVENT_ID) LOAD_DATE
-------    ,(select elr.REQUEST_DATE
-------        from EVENT_LOOKUP_ROV elr, EVENT_ROV er
-------        where elr.id = er.LOOKUP_Q_ID
-------        and   elr.EVENT_OAVA_LINK_ID = lt.OAVA_LINK_ID) LOAD_DATE
-    ,SYSDATE LOAD_DATE 
+    ,SYSDATE LOAD_DATE -- in ETL
     
     ,3 VIOL_TYPE
     ,0 REVIEWED_VEHICLE_TYPE
@@ -507,8 +494,9 @@ BEGIN
 
       if DM_VIOL_TX_MTCH1_INFO_tab(i).COLL_STATUS != 1 then
         begin
-          select CASE WHEN COLL_COURT_FLAG = 'COLL' AND AMT_CHARGED <> 0 THEN 2  -- 'PAID_ON_COLLECTIONS'         
-               ELSE 0
+          select CASE WHEN COLL_COURT_FLAG = 'COLL' AND AMT_CHARGED <> 0 
+              THEN 2  -- 'PAID_ON_COLLECTIONS'         
+              ELSE 0
            END 
           into  DM_VIOL_TX_MTCH1_INFO_tab(i).COLL_STATUS
           from  ST_ACTIVITY_PAID
@@ -520,49 +508,36 @@ BEGIN
         end;
       end if;
   
--------- JOIN FROM PA_LANE_TXN REQUEST_ID to EVENT_LOOKUP_ROV ROV_ID to RETURN REQUEST_DATE
---    ,nvl((select elr.REQUEST_DATE 
---        from EVENT_LOOKUP_ROV elr
---        where elr.EVENT_OAVA_LINK_ID=lt.OAVA_LINK_ID  --        and   rownum=1
---        ),SYSDATE) LOAD_DATE
-------    ,(select elr.REQUEST_DATE from EVENT_LOOKUP_ROV elr
-------        where elr.EVENT_OAVA_LINK_ID=lt.OAVA_LINK_ID  --        and   rownum=1
-------        ) LOAD_DATE
-------    ,(select elr.REQUEST_DATE from EVENT_LOOKUP_ROV elr 
-------        where elr.ID = lt.VPS_EVENT_ID) LOAD_DATE
-------    ,(select elr.REQUEST_DATE
-------        from EVENT_LOOKUP_ROV elr, EVENT_ROV er
-------        where elr.id = er.LOOKUP_Q_ID
-------        and   elr.EVENT_OAVA_LINK_ID = lt.OAVA_LINK_ID) LOAD_DATE
+---------- JOIN FROM PA_LANE_TXN REQUEST_ID to EVENT_LOOKUP_ROV ROV_ID to RETURN REQUEST_DATE
+--      begin
+--        select REQUEST_DATE
+--        into  DM_VIOL_TX_MTCH1_INFO_tab(i).LOAD_DATE
+--        from  EVENT_LOOKUP_ROV
+--        where EVENT_OAVA_LINK_ID = DM_VIOL_TX_MTCH1_INFO_tab(i).DMV_MAKE_ID  -- OAVA_LINK_ID
+--        ;
+--      exception 
+--        when no_data_found then null;
+--          DM_VIOL_TX_MTCH1_INFO_tab(i).LOAD_DATE := SYSDATE;      
+--        when others then null;
+--          DM_VIOL_TX_MTCH1_INFO_tab(i).LOAD_DATE := SYSDATE;      
+--      end;
 
+--select Plate,jurisdiction,max(response_Date) from event_lookup_rov
+-- where event_OAVA_link_id is not null
+-- group by Plate,jurisdiction
       begin
-        select REQUEST_DATE
-        into  DM_VIOL_TX_MTCH1_INFO_tab(i).LOAD_DATE
+        select max(REQUEST_DATE)
+              ,max(RESPONSE_DATE)
+        into  DM_VIOL_TX_MTCH1_INFO_tab(i).DMV_RETURN_DATE
+              ,DM_VIOL_TX_MTCH1_INFO_tab(i).LOAD_DATE
         from  EVENT_LOOKUP_ROV
         where EVENT_OAVA_LINK_ID = DM_VIOL_TX_MTCH1_INFO_tab(i).DMV_MAKE_ID  -- OAVA_LINK_ID
+        and   JURISDICTION = DM_VIOL_TX_MTCH1_INFO_tab(i).PLATE_STATE
+        and   PLATE = DM_VIOL_TX_MTCH1_INFO_tab(i).PLATE_NUMBER
         ;
       exception 
-        when no_data_found then null;
+         when others then null;
           DM_VIOL_TX_MTCH1_INFO_tab(i).LOAD_DATE := SYSDATE;      
-        when others then null;
-          DM_VIOL_TX_MTCH1_INFO_tab(i).LOAD_DATE := SYSDATE;      
-      end;
-
-------  EXTRACT RULE FOR ROV = 
-------  Join OAVA_LINK_ID of PA_LANE_TXN to ID of EVENT_OWNER_ADDR_VEHICLE_ACCT 
-------  AND OWNER_ID of EVENT_OWNER_ADDR_VEHICLE_ACCT to ID of EVENT_OWNER 
-------  AND ADDRESS_ID of EVENT_OWNER_ADDR_VEHICLE_ACCT to ID of EVENT_ADDRESS 
-------  AND VEHICLE_ID of EVENT_OWNER_ADDR_VEHICLE_ACCT to ID of EVENT_VEHICLE
-      begin
-        select CREATED_ON
-        into  DM_VIOL_TX_MTCH1_INFO_tab(i).DMV_RETURN_DATE
-        from  EVENT_OWNER_ADDR_VEHICLE_ACCT
-        where ID = DM_VIOL_TX_MTCH1_INFO_tab(i).DMV_MAKE_ID  -- OAVA_LINK_ID
-        ;
-      exception 
-        when no_data_found then null;
-          DM_VIOL_TX_MTCH1_INFO_tab(i).DMV_RETURN_DATE := to_date('12-31-9999','MM-DD-YYYY');      
-        when others then null;
           DM_VIOL_TX_MTCH1_INFO_tab(i).DMV_RETURN_DATE := to_date('12-31-9999','MM-DD-YYYY');      
       end; 
 
@@ -602,7 +577,14 @@ BEGIN
           DM_VIOL_TX_MTCH1_INFO_tab(i).LOCATION := 'UNDEFINED';
           DM_VIOL_TX_MTCH1_INFO_tab(i).FACILITY_ID := 'UNDEFINED';        
       end;  
-      
+
+      if DM_VIOL_TX_MTCH1_INFO_tab(i).LOAD_DATE is null then
+          DM_VIOL_TX_MTCH1_INFO_tab(i).LOAD_DATE := SYSDATE;      
+      end if;
+      if DM_VIOL_TX_MTCH1_INFO_tab(i).DMV_RETURN_DATE is null then
+          DM_VIOL_TX_MTCH1_INFO_tab(i).DMV_RETURN_DATE := to_date('12-31-9999','MM-DD-YYYY');      
+      end if;
+               
       v_trac_etl_rec.track_last_val := DM_VIOL_TX_MTCH1_INFO_tab(i).ETC_ACCOUNT_ID;
     END LOOP;
     /*  ETL SECTION END*/
