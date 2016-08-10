@@ -75,27 +75,26 @@ BEGIN
 
     /* get PA_ACCT_FLAGS.MAIL_RETURNED for NIXIE */
     begin
-      select MAIL_RETURNED into DM_ADDRESS_INFO_tab(i).NIXIE from PA_ACCT_FLAGS 
+      select decode(MAIL_RETURNED,0,'Y',null,'Y','N') into DM_ADDRESS_INFO_tab(i).NIXIE from PA_ACCT_FLAGS 
       where ACCT_ACCT_NUM=DM_ADDRESS_INFO_tab(i).ACCOUNT_NUMBER
             and rownum<=1;
       exception 
         when others then null;
-        DM_ADDRESS_INFO_tab(i).NIXIE:=null;
+        DM_ADDRESS_INFO_tab(i).NIXIE:='N';
     end;
-
-    if DM_ADDRESS_INFO_tab(i).STATE is null then
-       DM_ADDRESS_INFO_tab(i).STATE:='FL';
-    end if;
 
 	    /* get COUNTRY_STATE_LOOKUP.COUNTRY for COUNTRY */
     begin
-      select COUNTRY into DM_ADDRESS_INFO_tab(i).COUNTRY 
-      from  COUNTRY_STATE_LOOKUP 
-      where STATE_ABBR = DM_ADDRESS_INFO_tab(i).STATE
-        ;
+      select COUNTRY into DM_ADDRESS_INFO_tab(i).COUNTRY from COUNTRY_STATE_LOOKUP 
+      where STATE_ABBR in 
+            (select STATE_STATE_CODE_ABBR from pa_acct where acct_num=DM_ADDRESS_INFO_tab(i).account_number)
+            and rownum<=1;
       exception 
         when others then null;
         DM_ADDRESS_INFO_tab(i).COUNTRY:='USA';
+		if DM_ADDRESS_INFO_tab(i).STATE is null then
+	       DM_ADDRESS_INFO_tab(i).STATE:='FL';
+	    end if;
     end;
 
     end loop;
