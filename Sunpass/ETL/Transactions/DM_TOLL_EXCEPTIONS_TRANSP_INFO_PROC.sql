@@ -52,7 +52,7 @@ CURSOR C1 IS SELECT
     ,'1' LANE_TYPE
     ,'0' LANE_STATE
     ,'0' LANE_HEALTH
-    ,NULL PLAZA_AGENCY_ID
+    ,'FTE' PLAZA_AGENCY_ID
     ,EXT_PLAZA_ID PLAZA_ID
     ,'0' COLLECTOR_ID
     ,'0' TOUR_SEGMENT_ID
@@ -148,7 +148,7 @@ BEGIN
 
     /* get PA_PLAZA.Join ST_INTEROP_AGENCIES and PA_PLAZA on ENT_PLAZA_ID to PLAZA_ID for PLAZA_AGENCY_ID */
 	
-    BEGIN
+    /*BEGIN
       SELECT io.AGENCY_ID
       INTO DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLAZA_AGENCY_ID
       FROM PA_PLAZA pl,
@@ -161,7 +161,7 @@ BEGIN
       NULL;
       DM_TOLL_EXCEPTIONS_TRAN_tab(i).PLAZA_AGENCY_ID:=NULL;
     END;
-
+    */
 
 
     /* get PA_LANE_TXN_REJECT.JOIN PA_PLAZA ON PLAZA_ID RETURN PLAZA_NAME for LOCATION */
@@ -176,6 +176,17 @@ BEGIN
       NULL;
       DM_TOLL_EXCEPTIONS_TRAN_tab(i).LOCATION:=NULL;
     END;
+	
+	
+	/* get PA_ACCT_TRANSP.ACCT_ACCT_NUM for ETC_ACCOUNT_ID */
+    begin
+      select ACCT_ACCT_NUM into DM_TOLL_EXCEPTIONS_TRAN_tab(i).ETC_ACCOUNT_ID from PA_ACCT_TRANSP 
+      where INVTRANSP_TRANSP_TRANSP_ID=DM_TOLL_EXCEPTIONS_TRAN_tab(i).DEVICE_NO
+            and rownum<=1;
+      exception 
+        when others then null;
+        DM_TOLL_EXCEPTIONS_TRAN_tab(i).ETC_ACCOUNT_ID:=null;
+    end;
 
     end loop;
 
