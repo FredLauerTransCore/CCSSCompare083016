@@ -28,11 +28,11 @@ P_ARRAY_SIZE NUMBER:=10000;
 CURSOR C1 IS SELECT 
     ACCT_NUM ACCOUNT_NUMBER
     ,decode(ACCTSTAT_ACCT_STATUS_CODE,
-     '01','ACTIVE',
-     '02','SUSPENDED',
-     '03','RVKF',
-     '04','CLOSED',
-     '99','DO NOT USE',
+     '01','Active',
+     '02','Suspended',
+     '03','Terminated',
+     '04','Closed',
+     '99','Do Not Use',
     ACCTSTAT_ACCT_STATUS_CODE||'NO-MAPPING'
     ) ACCOUNT_STATUS
     ,NULL ACCOUNT_STATUS_DATETIME
@@ -54,10 +54,8 @@ CURSOR C1 IS SELECT
     ACCTTYPE_ACCT_TYPE_CODE||'NO-MAPPING'
     )  ACCOUNT_TYPE
     ,ACCT_OPEN_DATE ACCOUNT_OPEN_DATE
-    ,ltrim(rtrim(F_NAME))||' '||ltrim(rtrim(L_NAME)) ACCOUNT_NAME
-    ,CASE WHEN ORG IS NULL THEN ltrim(rtrim(F_NAME))||' '||ltrim(rtrim(L_NAME))
-          ELSE ltrim(rtrim(ORG))
-     END COMPANY_NAME
+    ,F_NAME||' '||L_NAME ACCOUNT_NAME
+    ,ORG COMPANY_NAME
     ,NULL DBA
     ,E_MAIL_ADDR EMAIL_ADDRESS
     ,REPL_AMT REBILL_AMOUNT
@@ -176,13 +174,8 @@ BEGIN
         DM_ACCOUNT_INFO_tab(i).TAX_EXEMPTION_ID:=null;
     end;
 
-    if trim(DM_ACCOUNT_INFO_tab(i).ACCOUNT_NAME) is null then
-	   DM_ACCOUNT_INFO_tab(i).ACCOUNT_NAME:='Undefined';
-	end if;
-    if trim(DM_ACCOUNT_INFO_tab(i).COMPANY_NAME) is null and  DM_ACCOUNT_INFO_tab(i).ACCOUNT_TYPE = 'BUSINESS' then
-	   DM_ACCOUNT_INFO_tab(i).COMPANY_NAME:=DM_ACCOUNT_INFO_tab(i).ACCOUNT_NAME;
-	end if;
-	
+    null;
+
     end loop;
 
 

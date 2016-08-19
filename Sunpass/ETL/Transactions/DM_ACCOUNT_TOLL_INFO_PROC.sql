@@ -103,7 +103,7 @@ CURSOR C1 IS SELECT
     ,'0' POST_DEVICE_STATUS
     ,'0' PRE_TXN_BALANCE
     ,'1' PLAN_TYPE_ID
-    ,NULL ETC_TX_STATUS
+    ,'9999' ETC_TX_STATUS
     ,'F' SPEED_VIOL_FLAG
     ,decode(msg_id,'ITOL','Y','N') IMAGE_TAKEN
     ,NULL PLATE_COUNTRY
@@ -265,7 +265,7 @@ BEGIN
                                                  'VI', 9,
                                                  'IC', 7,
                                                  'II', 6,
-                                                       0 )
+                                                       '9999' )
 	    into 
 	    DM_ACCOUNT_TOLL_INFO_tab(i).ETC_TX_STATUS
 	    from PA_PLAZA 
@@ -273,7 +273,7 @@ BEGIN
         and rownum<=1;
       exception 
         when others then null;
-        DM_ACCOUNT_TOLL_INFO_tab(i).ETC_TX_STATUS:=0;
+        DM_ACCOUNT_TOLL_INFO_tab(i).ETC_TX_STATUS:='9999';
     end;
 
 
@@ -313,7 +313,7 @@ BEGIN
           DM_ACCOUNT_TOLL_INFO_tab(i).DEVICE_AXLES:='0';
          end if;
 	 if DM_ACCOUNT_TOLL_INFO_tab(i).ACCOUNT_AGENCY_ID is null then
-          DM_ACCOUNT_TOLL_INFO_tab(i).ACCOUNT_AGENCY_ID:='0';
+          DM_ACCOUNT_TOLL_INFO_tab(i).ACCOUNT_AGENCY_ID:='101';
          end if;
 	 if DM_ACCOUNT_TOLL_INFO_tab(i).READ_AVI_CLASS is null then
           DM_ACCOUNT_TOLL_INFO_tab(i).READ_AVI_CLASS:='0';

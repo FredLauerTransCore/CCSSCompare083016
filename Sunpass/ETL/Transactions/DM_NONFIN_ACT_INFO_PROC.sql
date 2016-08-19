@@ -24,7 +24,7 @@ P_ARRAY_SIZE NUMBER:=10000;
 
 CURSOR C1 IS SELECT 
     ACCT_ACCT_NUM ACCOUNT_NUMBER
-    ,rownum ACTIVITY_NUMBER
+    ,NONFIN_ACT_SEQ.nextval ACTIVITY_NUMBER
     ,NOTEPROB_NOTES_PROB_CODE CATEGORY
     ,NOTEPROB_NOTES_PROB_CODE SUB_CATEGORY
     ,'Non Financial' ACTIVITY_TYPE
@@ -48,9 +48,22 @@ BEGIN
 
 
     /*ETL SECTION BEGIN */
+	
+	
+	FOR i in 1 .. DM_NONFIN_ACT_INFO_tab.count loop
 
-	    /* to default the values NOT NULL columns */
-    FOR i in 1 .. DM_NONFIN_ACT_INFO_tab.count loop
+    /* get pa_note_prob_code.Notes_desc for Category */
+    begin
+      select Notes_desc,notes_desc into 
+	  DM_NONFIN_ACT_INFO_tab(i).Category,DM_NONFIN_ACT_INFO_tab(i).sub_Category  
+	  from pa_note_prob_code 
+      where notes_prob_code=DM_NONFIN_ACT_INFO_tab(i).Category
+            and rownum<=1;
+      exception 
+        when others then null;
+        DM_NONFIN_ACT_INFO_tab(i).Category:=null;
+    end;
+
 	 if DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER is null then
           DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER:='0';
          end if;
@@ -59,10 +72,8 @@ BEGIN
          end if;
 	 if DM_NONFIN_ACT_INFO_tab(i).CATEGORY is null then
           DM_NONFIN_ACT_INFO_tab(i).CATEGORY:='0';
-         end if;
-	 if DM_NONFIN_ACT_INFO_tab(i).SUB_CATEGORY is null then
           DM_NONFIN_ACT_INFO_tab(i).SUB_CATEGORY:='0';
-         end if;
+     end if;
 	 if DM_NONFIN_ACT_INFO_tab(i).DESCRIPTION is null then
           DM_NONFIN_ACT_INFO_tab(i).DESCRIPTION:='0';
          end if;
