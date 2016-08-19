@@ -29,7 +29,7 @@ CURSOR C1 IS SELECT
     trim(F_NAME) FIRST_NAME
     ,trim(L_NAME) LAST_NAME
     ,trim(STATUS) ACTIVE_FLAG   --Indicates whether Employee is Active (A) or Inactive (I)
-    ,nvl(LEGACY_EMP_CODE,'0') EMP_NUM
+    ,LEGACY_EMP_CODE EMP_NUM
     ,nvl(USER_TYPE_CODE,0) JOB_TITLE
     ,trim(nvl(M_INITIAL,'UNDEFINED')) MID_NAME
 --    ,NULL BIRTH_DT   -- Target is required
@@ -74,10 +74,21 @@ BEGIN
     FETCH C1 BULK COLLECT INTO DM_EMPLOYEE_INFO_TAB
     LIMIT p_array_size;
 
-    /*ETL SECTION BEGIN
---    trac_rec.status = 'Processing group'||;
+    /*ETL SECTION BEGIN*/
 
-      ETL SECTION END*/
+    FOR i IN 1 .. dm_employee_info_tab.COUNT LOOP
+      begin
+        select DESCRIPTION
+        into  dm_employee_info_tab(i).STORE_NAME 
+        from  KS_LOCATION 
+        where ID = dm_employee_info_tab(i).STORE_NAME
+        ;
+      exception
+        when others then null;
+          dm_employee_info_tab(i).STORE_NAME:='UNDEFINED';
+      end;
+    END LOOP;
+     /* ETL SECTION END*/
 
     /*Bulk insert */ 
     FORALL i IN dm_employee_info_tab.FIRST .. dm_employee_info_tab.LAST
@@ -116,3 +127,4 @@ END;
 /
 SHOW ERRORS
 
+commit;

@@ -68,6 +68,7 @@ IS SELECT --distinct
     ,NULL DISMISSED_AMT
 FROM ST_DOCUMENT_INFO
 WHERE   ACCT_NUM >= p_begin_acct_num AND ACCT_NUM <= p_end_acct_num
+and     ACCT_NUM >0
 ; -- Source
 
 row_cnt          NUMBER := 0;
@@ -108,7 +109,7 @@ BEGIN
 
 --  DBMS_OUTPUT.PUT_LINE('1) DM_INVOICE_ITM_INFO_tab('||i||').SUB_CATEGORY: '||DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY);
 
-        select distinct
+        select --distinct
         CASE WHEN va.BANKRUPTCY_FLAG is NOT null 
           THEN 'BKTY'  -- Bankruptcy flag in VB_Activity to BKTY to get this status, 
     
@@ -369,7 +370,7 @@ IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
 
       begin
         select -- distinct
-        CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
+        CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'DISMISSED' --'BANKRUPTCY'
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 'INVOICED'
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID like '%-%'  THEN 'UTC'
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
@@ -387,7 +388,8 @@ IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
       exception 
         when no_data_found then
 -- WHEN COLL_COURT_FLAG is null      and DOCUMENT_ID is null     THEN 'UNBILLED'
-          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'UNBILLED';
+          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'INVPAYMENT';
+--          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'UNBILLED';
         when others then --null;
           DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'INVPAYMENT';
           v_trac_etl_rec.result_code := SQLCODE;

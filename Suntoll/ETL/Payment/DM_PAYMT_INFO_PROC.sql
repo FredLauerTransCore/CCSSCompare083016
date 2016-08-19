@@ -65,6 +65,7 @@ FROM PA_PURCHASE pp
     ,PA_PURCHASE_PAYMENT pay
 WHERE pp.PUR_ID = pay.PUR_PUR_ID
 AND   pp.ACCT_ACCT_NUM >= p_begin_acct_num AND   pp.ACCT_ACCT_NUM <= p_end_acct_num
+AND   pp.ACCT_ACCT_NUM >0
 ; -- source
 
 v_PUR_DET_ID     PA_PURCHASE_DETAIL.PUR_DET_ID%TYPE := 0;
@@ -212,6 +213,7 @@ BEGIN
     /*Bulk insert */ 
     FORALL i in DM_PAYMT_INFO_tab.first .. DM_PAYMT_INFO_tab.last
            INSERT INTO DM_PAYMT_INFO VALUES DM_PAYMT_INFO_tab(i);
+           
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
     v_trac_etl_rec.end_val := v_trac_etl_rec.track_last_val;
@@ -228,7 +230,6 @@ BEGIN
   v_trac_etl_rec.status := 'ETL Completed';
   v_trac_etl_rec.result_code := SQLCODE;
   v_trac_etl_rec.result_msg := SQLERRM;
-  v_trac_etl_rec.end_val := v_trac_rec.end_acct;
   v_trac_etl_rec.proc_end_date := SYSDATE;
   update_track_proc(v_trac_etl_rec);
   DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));

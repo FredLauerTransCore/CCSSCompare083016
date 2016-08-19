@@ -459,6 +459,7 @@ BEGIN
   
       begin
         select CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
+          WHEN DOCUMENT_ID is null THEN 'UNBILLED'
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 'INVOICED'
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID like '%-%'  THEN 'UTC'
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
@@ -483,7 +484,7 @@ BEGIN
         ;
       exception 
         when no_data_found then null;
-          DM_VIOL_TX_MTCH1_INFO_tab(i).EVENT_TYPE := 'UNBILLED';
+          DM_VIOL_TX_MTCH1_INFO_tab(i).EVENT_TYPE := 'UNDEFINED';
           DM_VIOL_TX_MTCH1_INFO_tab(i).NOTICE_FEE_AMOUNT := 0;
           DM_VIOL_TX_MTCH1_INFO_tab(i).COLL_STATUS := 0;
         when others then null;
@@ -583,6 +584,9 @@ BEGIN
       end if;
       if DM_VIOL_TX_MTCH1_INFO_tab(i).DMV_RETURN_DATE is null then
           DM_VIOL_TX_MTCH1_INFO_tab(i).DMV_RETURN_DATE := to_date('12-31-9999','MM-DD-YYYY');      
+      end if;
+      if DM_VIOL_TX_MTCH1_INFO_tab(i).DMV_MAKE_ID = '0' then
+          DM_VIOL_TX_MTCH1_INFO_tab(i).DMV_MAKE_ID := 'UNKNOWN';      
       end if;
                
       v_trac_etl_rec.track_last_val := DM_VIOL_TX_MTCH1_INFO_tab(i).ETC_ACCOUNT_ID;

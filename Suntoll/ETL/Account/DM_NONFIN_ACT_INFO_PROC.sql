@@ -45,7 +45,7 @@ IS SELECT
 FROM NOTE
 where (EMP_CODE like '99%' or EMP_CODE = '0100')
 AND  ACCT_NUM >= p_begin_acct_num AND   ACCT_NUM <= p_end_acct_num
---and  ACCT_NUM >0
+and  ACCT_NUM >0
 ; 
 --
 
@@ -104,6 +104,7 @@ BEGIN
     
       end if;
       
+--    DM_NONFIN_ACT_INFO_tab(i).activity_number := NONFIN_ACT_SEQ..NEXTVAL;;
       v_activity_number := v_activity_number+1;
       DM_NONFIN_ACT_INFO_tab(i).activity_number :=  v_activity_number;
 

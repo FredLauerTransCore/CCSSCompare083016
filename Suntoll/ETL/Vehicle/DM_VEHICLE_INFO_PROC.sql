@@ -49,7 +49,9 @@ IS SELECT
     ,'REGULAR' VEHICLE_TYPE     
     ,SUBSCRIPTION_START_DATE EFFECTIVE_START_DATE
     ,SUBSCRIPTION_END_DATE EFFECTIVE_END_DATE
-    ,CASE when VEH_MODEL_YR is NULL then '9999'
+--    ,9999 YEAR
+    ,CASE when VEH_MODEL_YR is NULL then '9999'          
+           when LENGTH(TRIM(TRANSLATE(VEH_MODEL_YR, ' +-.0123456789', ' '))) is NOT null then '9990' -- ?
            when VEH_MODEL_YR = '0' then '9000' -- ?
            when length(VEH_MODEL_YR) = 4 then VEH_MODEL_YR
            when substr(VEH_MODEL_YR,1,1) in ('0','1') THEN '20'||VEH_MODEL_YR
@@ -81,6 +83,7 @@ IS SELECT
     ,'UNDEFINED' SRC_LIC_VEH_NUM
 FROM PA_ACCT_VEHICLE
 WHERE ACCT_ACCT_NUM >= p_begin_acct_num AND   ACCT_ACCT_NUM <= p_end_acct_num
+and   ACCT_ACCT_NUM >0
 ; -- FTE source
 
 row_cnt          NUMBER := 0;

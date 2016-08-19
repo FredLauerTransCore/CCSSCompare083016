@@ -57,6 +57,7 @@ WHERE ua.USER_ID = u.ID
 --AND ACTIVE_FLAG = 'Y'
 --AND   ua.PA_ACCT_NUM = wi.ACCT_NUM (+)
 AND   ua.PA_ACCT_NUM >= p_begin_acct_num AND   ua.PA_ACCT_NUM <= p_end_acct_num
+and   ua.PA_ACCT_NUM >0
 ; -- Source SunToll
 
 --PA_WEB_LOGIN_INFO
@@ -104,8 +105,7 @@ BEGIN
         and wl.USER_AGENT = 'IVR'
         ;
       exception 
---        when others then null;
-        when others then
+        when others then null;
           DBMS_OUTPUT.PUT_LINE('1) ETC_ACCOUNT_ID: '||DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID);
           DM_ACCOUNT_WEB_INFO_tab(i).LAST_IVR_CALL_DATE := to_date('12-31-9999','MM-DD-YYYY');
           v_trac_etl_rec.result_code := SQLCODE;
@@ -127,7 +127,7 @@ BEGIN
         and wl.LOGIN_DATE = (select max(LOGIN_DATE)
                               from PA_WEB_LOGIN_INFO wl2
                               where wl2.ACCT_NUM = wl.ACCT_NUM)
-        and   rownum=1
+        and   rownum<=1
         ;
       exception 
         when no_data_found THEN
@@ -149,12 +149,13 @@ BEGIN
        into   DM_ACCOUNT_WEB_INFO_tab(i).ANI
               ,DM_ACCOUNT_WEB_INFO_tab(i).IVR_CALL_START_TIME
               ,DM_ACCOUNT_WEB_INFO_tab(i).IVR_CALL_END_TIME
-        from  IVR_CALL ic,IVR_CALL_DETAIL icd
+        from  IVR_CALL ic,
+              IVR_CALL_DETAIL icd
         WHERE icd.CALL_ID = ic.CALL_ID
         and   icd.ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID
         and   icd.CALL_ID = (select max(icd.CALL_ID) from IVR_CALL_DETAIL icd2
                             where icd2.ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID)
-        and   rownum=1
+        and   rownum<=1
         ;
 
       exception 

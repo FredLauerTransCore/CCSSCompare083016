@@ -40,6 +40,7 @@ IS SELECT
 FROM NOTE
 --where ACCT_NUM is not null
 WHERE ACCT_NUM >= p_begin_acct_num  AND   ACCT_NUM <= p_end_acct_num
+and   ACCT_NUM >0
 ;   -- Source
 
 sql_string  VARCHAR2(500);

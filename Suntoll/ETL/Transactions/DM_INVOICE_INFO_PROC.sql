@@ -54,7 +54,8 @@ IS SELECT --distinct
     ,NULL DISCOUNT_ELIGIBLE_CHARGES
     ,0 DISCOUNTS
     ,0 MILEGE
-    ,decode(NVL(DOC_TYPE_ID,0),0,'INVOICE',DOC_TYPE_ID) INVOICE_TYPE
+--    ,decode(NVL(DOC_TYPE_ID,0),0,'INVOICE',DOC_TYPE_ID) INVOICE_TYPE
+    ,DOC_TYPE_ID INVOICE_TYPE
     ,CREATED_ON CREATED
     ,'9986' CREATED_BY
     ,CREATED_ON LAST_UPD
@@ -68,7 +69,8 @@ IS SELECT --distinct
     ,REG_STOP_FLAG REGISTRATION_STOP_FLAG   -- ST_ACCOUNT_FLAGS.REGISTRATION_STOP_FLAG
     ,RED_ENVELOPE_FLAG RED_ENVELOPE_FLAG   -- ST_ACCOUNT_FLAGS.RED_ENVELOPE_FLAG  
   FROM ST_DOCUMENT_INFO
-WHERE   ACCT_NUM >= p_begin_acct_num AND   ACCT_NUM <= p_end_acct_num
+WHERE  ACCT_NUM >= p_begin_acct_num AND ACCT_NUM <= p_end_acct_num
+AND    ACCT_NUM >0
 ; -- Source
 
 row_cnt          NUMBER := 0;
@@ -106,7 +108,7 @@ BEGIN
         v_trac_etl_rec.BEGIN_VAL := DM_INVOICE_INFO_tab(i).ACCOUNT_NUMBER;
       end if;
 
-----VB_ACTIVITY table 
+---- ICD -- VB_ACTIVITY table -- ICD 
 ----FOR BANKRUPTCY_FLAG NULL and COLL_COURT_FLAG NULL
 ----IF DOCUMENT_ID is null, then 'UNBILLED'
 ----IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NULL, then 'INVOICED'
@@ -118,10 +120,23 @@ BEGIN
 ----FOR BANKRUPTCY _FLAG NOT NULL
 ----IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'     
 
+
+--        select distinct
+--        CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'DISMISSED' --'BANKRUPTCY'
+--          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 'INVOICED'
+--          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID like '%-%'  THEN 'UTC'
+--          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
+--          WHEN COLL_COURT_FLAG = 'COLL' and CHILD_DOC_ID is NOT null THEN 'COLLECTION'
+--          WHEN COLL_COURT_FLAG = 'CRT'  and CHILD_DOC_ID is NOT null THEN 'COURT'
+----          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
+----          ELSE 'REG STOP'  -- ?
+--          ELSE 'NOT MAPPED'
+--         END  
+         
       begin
 --  DOCUMENT_ID is NOT null status  -----
-        select distinct
-        CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
+        select -- distinct
+        CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY' -- 'DISMISSED' 
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 'INVOICED'
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID like '%-%'  THEN 'UTC'
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
@@ -129,7 +144,8 @@ BEGIN
           WHEN COLL_COURT_FLAG = 'CRT'  and CHILD_DOC_ID is NOT null THEN 'COURT'
 --          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
 --          ELSE 'REG STOP'  -- ?
-          ELSE '0'
+          WHEN DM_INVOICE_INFO_tab(i).INVOICE_NUMBER LIKE 'INV%' THEN 'UNBILLED'
+          ELSE 'UNDEFINED'
          END    
         into  DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL
         from  VB_ACTIVITY
@@ -140,10 +156,13 @@ BEGIN
       exception 
         when no_data_found then --null;  OCUMENT_ID is null 
 -- WHEN COLL_COURT_FLAG is null      and DOCUMENT_ID is null     THEN 'UNBILLED'
-          DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL := 'UNBILLED';
+          DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL := 'NO DATA FOUND';
+          DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL := 'UNDEFINED';
+          
+--          DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL := 'UNBILLED';
         when others then --null;
-          DBMS_OUTPUT.PUT_LINE('1) INVOICE_NUMBER: '||DM_INVOICE_INFO_tab(i).INVOICE_NUMBER);
-          insert into dup_invoice_num values (DM_INVOICE_INFO_tab(i).INVOICE_NUMBER);
+--          DBMS_OUTPUT.PUT_LINE('1) INVOICE_NUMBER: '||DM_INVOICE_INFO_tab(i).INVOICE_NUMBER);
+--          insert into dup_invoice_num values (DM_INVOICE_INFO_tab(i).INVOICE_NUMBER);
           DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL := '0';
           v_trac_etl_rec.result_code := SQLCODE;
           v_trac_etl_rec.result_msg := SQLERRM;
@@ -212,7 +231,7 @@ BEGIN
           DM_INVOICE_INFO_tab(i).PAYMENTS := 0;
         when others then --null;
           DBMS_OUTPUT.PUT_LINE('1) INVOICE_NUMBER: '||DM_INVOICE_INFO_tab(i).INVOICE_NUMBER);
-          insert into dup_invoice_pay_num values (DM_INVOICE_INFO_tab(i).INVOICE_NUMBER);
+--          insert into dup_invoice_pay_num values (DM_INVOICE_INFO_tab(i).INVOICE_NUMBER);
           DM_INVOICE_INFO_tab(i).STATUS := 'CLOSED';
           DM_INVOICE_INFO_tab(i).CREDITS := 0;
           DM_INVOICE_INFO_tab(i).PAYMENTS := 0;
@@ -249,6 +268,11 @@ BEGIN
           DM_INVOICE_INFO_tab(i).STATUS := 'CLOSED';
         end;
       end if;
+
+      IF DM_INVOICE_INFO_tab(i).INVOICE_TYPE is null then
+        DM_INVOICE_INFO_tab(i).INVOICE_TYPE := 'INVOICE';
+      end if;
+
       IF DM_INVOICE_INFO_tab(i).CREDITS is null then
         DM_INVOICE_INFO_tab(i).CREDITS := 0;
       end if;

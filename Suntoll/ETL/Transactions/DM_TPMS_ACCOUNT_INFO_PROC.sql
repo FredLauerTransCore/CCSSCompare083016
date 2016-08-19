@@ -28,12 +28,13 @@ CURSOR C1
 IS SELECT 
     ACCT_NUM ETC_ACCOUNT_ID  -- DERIVED?  from ACCOUNT_NO 
     ,0 AGENCY_ID   -- CCSS
-    ,NULL ACCOUNT_TYPE  -- PA_ACCT.ACCTTYPE_ACCT_TYPE_CODE
+    ,NULL ACCOUNT_TYPE  -- in ETL PA_ACCT.ACCTTYPE_ACCT_TYPE_CODE
     
--- Anything with a positive balance is considered prepaid, 
-    ,case when CUST_BALANCE > 0 then CUST_BALANCE
-     else 0
-     end CURRENT_BALANCE  
+---- Anything with a positive balance is considered prepaid, 
+--    ,case when CUST_BALANCE > 0 then CUST_BALANCE
+--     else 0
+--     end CURRENT_BALANCE  
+    ,CUST_BALANCE CURRENT_BALANCE  
 
 -- anything with a negative balance is considered postpaid.
     ,case when CUST_BALANCE < 0 then CUST_BALANCE
@@ -73,15 +74,7 @@ IS SELECT
     ,0 VIOL_TOLL_BALANCE
     ,0 VIOL_FEE_BALANCE
     ,0 VIOL_BALANCE
-    
-    ,0 POSTPAID_FEE
-    ,0 COLL_TOLL
-    ,0 COLL_FEE
-    ,0 UTC_TOLL
-    ,0 UTC_FEE
-    ,0 COURT_TOLL
-    ,0 COURT_FEE
-    
+        
 -- KS_ACCT_LEDGER AND KS_LEDGER to PA_LANE_TXN returns EXT_DATE_TIME (Date Portion)
     ,NULL LAST_TOLL_TX_DATE
 -- KS_ACCT_LEDGER AND KS_LEDGER returns MAX(PA_PUR_DET_ID) and POSTED_DATE (Date Portion)
@@ -118,8 +111,16 @@ IS SELECT
     ,NULL ACCOUNT_CCU       -- PA_ACCT_DETAIL.CA_AGENCY_ID
     ,'SUNTOLL' SOURCE_SYSTEM
     ,LEDGER_ID LEDGER_ID
+    ,0 POSTPAID_FEE
+    ,0 COLL_TOLL
+    ,0 COLL_FEE
+    ,0 UTC_TOLL
+    ,0 UTC_FEE
+    ,0 COURT_TOLL
+    ,0 COURT_FEE
 FROM KS_ACCT_LEDGER kal
 WHERE ACCT_NUM >= p_begin_acct_num AND ACCT_NUM <= p_end_acct_num
+and ACCT_NUM >0
 ; 
 
 row_cnt          NUMBER := 0;
@@ -163,37 +164,86 @@ BEGIN
 -- KS_ACCT_LEDGER AND KS_LEDGER to PA_LANE_TXN returns EXT_DATE_TIME (Time Portion)
 -- KS_ACCT_LEDGER AND KS_LEDGER to PA_LANE_TXN returns MIN(EXT_DATE_TIME) 
 -- ** Based on available Activity, not actual first toll in the system for account (Time Portion)
-
 --    ,NULL FIRST_TOLL_TIMESTAMP
-      
+
+
+--  KS_ACCT_LEDGER AND KS_LEDGER 
+--  returns MAX(PA_LANE_TXN_ID) POSTED_DATE and AMOUNT        
+
       begin
         select PA_LANE_TXN_ID
               ,trunc(POSTED_DATE)
               ,AMOUNT
-              ,POSTED_DATE
         into  DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_ID
               ,DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_POSTED_DATE
               ,DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_AMT
-              ,DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_TIMESTAMP
         from  KS_LEDGER
         where ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
            and PA_LANE_TXN_ID = (select max(PA_LANE_TXN_ID)
                                   from KS_LEDGER
-                                  where ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID)
+                                  where ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
+                                  and PA_LANE_TXN_ID>0 
+                                  )
+            and rownum<=1
         ;
       exception 
-        when no_data_found then
-          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_ID:=0;       
-        when others then
-          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_ID:=0;
-          DBMS_OUTPUT.PUT_LINE('ACCOUNT_NUMBER: '||DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID);
-          v_trac_etl_rec.result_code := SQLCODE;
-          v_trac_etl_rec.result_msg := SQLERRM;
-          v_trac_etl_rec.proc_end_date := SYSDATE;
-          update_track_proc(v_trac_etl_rec);
-          DBMS_OUTPUT.PUT_LINE('REB ERROR CODE: '||v_trac_etl_rec.result_code);
-          DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+        when others then null;
+             dm_tpms_account_Info_tab(i).LAST_TOLL_POSTED_DATE:=null; 
+             dm_tpms_account_Info_tab(i).LAST_TOLL_TX_ID:=null;
+             dm_tpms_account_Info_tab(i).LAST_TOLL_TX_AMT:=0;
       end;
+
+
+-- KS_ACCT_LEDGER AND KS_LEDGER to PA_LANE_TXN returns MIN(EXT_DATE_TIME) 
+-- ** Based on available Activity, not actual first toll in the system for account (Time Portion)
+--    FIRST_TOLL_TIMESTAMP
+
+      begin
+        select EXT_DATE_TIME
+        into  DM_TPMS_ACCOUNT_INFO_tab(i).FIRST_TOLL_TIMESTAMP
+        from  PA_LANE_TXN
+        where TXN_ID = (select min(PA_LANE_TXN_ID)
+                                  from KS_LEDGER
+                                  where ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
+                                  and PA_LANE_TXN_ID>0 
+                                  )
+            and rownum<=1
+        ;
+      exception 
+        when others then null;
+             dm_tpms_account_Info_tab(i).FIRST_TOLL_TIMESTAMP:=null; 
+      end;
+
+
+-- KS_ACCT_LEDGER AND KS_LEDGER to PA_LANE_TXN returns EXT_DATE_TIME (Time Portion)
+--    LAST_TOLL_TX_AMT
+-- KS_ACCT_LEDGER AND KS_LEDGER to PA_LANE_TXN returns EXT_DATE_TIME (Date Portion)
+--    LAST_TOLL_TX_DATE
+
+    begin
+      select EXT_DATE_TIME
+            ,trunc(EXT_DATE_TIME)  
+      into  dm_tpms_account_info_tab(i).LAST_TOLL_TX_TIMESTAMP
+            ,dm_tpms_account_info_tab(i).LAST_TOLL_TX_DATE 
+      from  PA_LANE_TXN 
+      where TXN_ID=(select max(PA_LANE_TXN_ID) from KS_LEDGER
+                                where ACCT_NUM=dm_tpms_account_Info_tab(i).ETC_ACCOUNT_ID 
+                                and PA_LANE_TXN_ID>0 
+                    )
+            and rownum<=1
+            ;
+      exception 
+        when others then null;
+        dm_tpms_account_info_tab(i).LAST_TOLL_TX_TIMESTAMP:=null;
+    end;
+
+
+-- KS_ACCT_LEDGER AND KS_LEDGER returns MAX(PA_PUR_DET_ID) and POSTED_DATE (Date Portion)
+--    LAST_FIN_TX_DATE
+-- KS_ACCT_LEDGER AND KS_LEDGER returns MAX(PA_PUR_DET_ID)
+--    LAST_FIN_TX_ID
+-- KS_ACCT_LEDGER AND KS_LEDGER returns MAX(PA_PUR_DET_ID) and POSTED_DATE (Date Portion)
+--    LAST_FIN_TX_AMT
 
 -- KS_ACCT_LEDGER AND KS_LEDGER returns MAX(PA_PUR_DET_ID)
 -- KS_ACCT_LEDGER AND KS_LEDGER returns MAX(PA_PUR_DET_ID) and POSTED_DATE (Date Portion)
@@ -204,7 +254,7 @@ BEGIN
               ,DM_TPMS_ACCOUNT_INFO_tab(i).LAST_FIN_TX_AMT
         from  KS_LEDGER
         where ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
-           and LEDGER_ID = DM_TPMS_ACCOUNT_INFO_tab(i).LEDGER_ID
+           and ID = DM_TPMS_ACCOUNT_INFO_tab(i).LEDGER_ID
            and PA_PUR_DET_ID = (select max(PA_PUR_DET_ID)
                                   from KS_LEDGER
                                   where ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID)
@@ -212,56 +262,60 @@ BEGIN
       exception 
         when no_data_found then
           DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_ID:=0;       
-        when others then
-          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_ID:=0;
-          DBMS_OUTPUT.PUT_LINE('ACCOUNT_NUMBER: '||DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID);
-          v_trac_etl_rec.result_code := SQLCODE;
-          v_trac_etl_rec.result_msg := SQLERRM;
-          v_trac_etl_rec.proc_end_date := SYSDATE;
-          update_track_proc(v_trac_etl_rec);
-          DBMS_OUTPUT.PUT_LINE('KS_LEDGER ERROR CODE: '||v_trac_etl_rec.result_code);
-          DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
       end;
 
 
 
--- KS_SUB_LEDGER_EVENTS and KS_LEDGER and GROUP_CODE = 1 
--- returns MAX(LEDGER_ID) WHERE EVENT_TYPE_ID IN 
--- (13, 56, 40, 26, 10, 57, 66, 115, 29, 14, 15, 67, 96)    
-    ,NULL LAST_PAYMENT_TX_ID
+------ KS_SUB_LEDGER_EVENTS and KS_LEDGER and GROUP_CODE = 1 
+------ returns MAX(LEDGER_ID) WHERE EVENT_TYPE_ID IN 
+------ (13, 56, 40, 26, 10, 57, 66, 115, 29, 14, 15, 67, 96)    
+----    ,NULL LAST_PAYMENT_TX_ID
+----
+------ POSTED_DATE OF KS_SUB_LEDGER and KS_LEDGER and GROUP_CODE = 1 
+------ returns MAX(LEDGER_ID) WHERE EVENT_TYPE_ID IN  
+------(13, 56, 40, 26, 10, 57, 66, 115, 29, 14, 15, 67, 96)    
+----    ,NULL LAST_PAYMENT_DATE
+--      begin
+--        select KS_SUB_LEDGER_EVENTS
+--              ,POSTED_DATE
+--        into  DM_TPMS_ACCOUNT_INFO_tab(i).LAST_PAYMENT_TX_ID
+--              ,DM_TPMS_ACCOUNT_INFO_tab(i).LAST_PAYMENT_DATE
+--        from  KS_SUB_LEDGER_EVENTS
+--        where COURT_ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
+--        and   EVENT_TYPE_ID IN (13, 56, 40, 26, 10, 57, 66, 115, 29, 14, 15, 67, 96) 
+--        and   EVENT_GROUP_ID = 1
+--        ;
+--      exception 
+--        when others then
+--          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_ID:=0;
+--      end;    
 
--- POSTED_DATE OF KS_SUB_LEDGER and KS_LEDGER and GROUP_CODE = 1 
--- returns MAX(LEDGER_ID) WHERE EVENT_TYPE_ID IN  
---(13, 56, 40, 26, 10, 57, 66, 115, 29, 14, 15, 67, 96)    
-    ,NULL LAST_PAYMENT_DATE
-      begin
-        select KS_SUB_LEDGER_EVENTS
-              ,POSTED_DATE
-        into  DM_TPMS_ACCOUNT_INFO_tab(i).LAST_PAYMENT_TX_ID
-              ,DM_TPMS_ACCOUNT_INFO_tab(i).LAST_PAYMENT_DATE
-        from  KS_SUB_LEDGER_EVENTS
-        where ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
-        and   EVENT_TYPE_ID IN (13, 56, 40, 26, 10, 57, 66, 115, 29, 14, 15, 67, 96) 
-        ;
+-- KS_LEDGER  BALANCE where MAX(POSTED_DATE) <= (END OF MONTH DAY YEAR)
+--    LAST_STMT_CLOSE_BALANCE
+-- KS_LEDGER POSTED_DATE where MAX(POSTED_DATE) <= (END OF MONTH DAY YEAR)
+--    LAST_STMT_DATE
+    begin
+      select POSTED_DATE
+            ,BALANCE
+      into  DM_TPMS_ACCOUNT_INFO_tab(i).LAST_STMT_DATE
+            ,DM_TPMS_ACCOUNT_INFO_tab(i).LAST_STMT_CLOSE_BALANCE
+      from  KS_LEDGER 
+      where ACCT_NUM=DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
+        and posted_date=(select max(posted_date) 
+                             from  KS_LEDGER 
+                             where ACCT_NUM=DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID 
+                             and posted_date<=last_day(sysdate)
+                             )
+            and rownum<=1;
       exception 
-        when no_data_found then
-          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_ID:=0;       
-        when others then
-          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_ID:=0;
-          DBMS_OUTPUT.PUT_LINE('ACCOUNT_NUMBER: '||DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID);
-          v_trac_etl_rec.result_code := SQLCODE;
-          v_trac_etl_rec.result_msg := SQLERRM;
-          v_trac_etl_rec.proc_end_date := SYSDATE;
-          update_track_proc(v_trac_etl_rec);
-          DBMS_OUTPUT.PUT_LINE('KS_LEDGER ERROR CODE: '||v_trac_etl_rec.result_code);
-          DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
-      end;    
-    
-    
-    
-    
---    ,NULL ACCOUNT_TYPE  -- PA_ACCT.ACCTTYPE_ACCT_TYPE_CODE
---    ,NULL OPEN_DATE     -- PA_ACCT.ACCT_OPEN_DATE
+        when others then null;
+        dm_TPMS_ACCOUNT_INFO_tab(i).LAST_STMT_DATE:=null;
+        dm_TPMS_ACCOUNT_INFO_tab(i).LAST_STMT_DATE:=null;
+      end;
+      
+      
+--   ACCOUNT_TYPE  -- PA_ACCT.ACCTTYPE_ACCT_TYPE_CODE
+--   OPEN_DATE     -- PA_ACCT.ACCT_OPEN_DATE
       begin
         select ACCTTYPE_ACCT_TYPE_CODE
               ,CREATED_ON
@@ -271,22 +325,119 @@ BEGIN
         where ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
         ;
       exception 
-        when no_data_found then null;
-          DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_TYPE:=null;
-        when others then
+        when others then null;
           DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_TYPE:=0;
-          DBMS_OUTPUT.PUT_LINE('ACCOUNT_NUMBER: '||DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID);
-          v_trac_etl_rec.result_code := SQLCODE;
-          v_trac_etl_rec.result_msg := SQLERRM;
-          v_trac_etl_rec.proc_end_date := SYSDATE;
-          update_track_proc(v_trac_etl_rec);
-          DBMS_OUTPUT.PUT_LINE('PA_ACCT ERROR CODE: '||v_trac_etl_rec.result_code);
-          DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+          DM_TPMS_ACCOUNT_INFO_tab(i).OPEN_DATE:=to_date('01/01/1900','MM/DD/YYYY');
       end;
 
-      v_trac_etl_rec.track_last_val := DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID;
-      v_trac_etl_rec.end_val := DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID;
+--  ACCOUNT_CCU --  PA_ACCT_DETAIL.CA_AGENCY_ID   
+      begin
+        select CA_AGENCY_ID
+        into  DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_CCU
+        from  PA_ACCT_DETAIL
+        where ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
+        ;
+      exception 
+        when others then null;
+          DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_CCU:=0;
+       end;
 
+-- IF NULLs
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).AGENCY_ID is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).AGENCY_ID:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_TYPE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_TYPE:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).CURRENT_BALANCE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).CURRENT_BALANCE:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_BALANCE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_BALANCE:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).DEVICE_DEPOSIT is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).DEVICE_DEPOSIT:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_PREPAYMENT is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_PREPAYMENT:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_OVERPAYMENT is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_OVERPAYMENT:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_POSTED_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_POSTED_DATE:=sysdate;
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_AMT is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_AMT:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_TIMESTAMP is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_TIMESTAMP:=sysdate;
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).FIRST_TOLL_TIMESTAMP is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).FIRST_TOLL_TIMESTAMP:=sysdate;
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).EVAL_START_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).EVAL_START_DATE:=sysdate;
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).EVAL_END_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).EVAL_END_DATE:=sysdate;
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).UPDATE_TS is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).UPDATE_TS:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).OPEN_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).OPEN_DATE:=sysdate;
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_UNBILLED_BALANCE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_UNBILLED_BALANCE:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_TOLL_BALANCE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_TOLL_BALANCE:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_FEE_BALANCE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_FEE_BALANCE:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_BALANCE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).VIOL_BALANCE:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_TOLL_TX_DATE:=sysdate;
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_FIN_TX_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_FIN_TX_DATE:=sysdate;
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_PAYMENT_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_PAYMENT_DATE:=sysdate;
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_FIN_TX_AMT is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_FIN_TX_AMT:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_BAL_POS_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_BAL_POS_DATE:=sysdate;
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_BAL_NEG_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_BAL_NEG_DATE:=sysdate;
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_VIOL_PAYMENT_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_VIOL_PAYMENT_DATE:=sysdate;
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_OVERPAYMENT is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_OVERPAYMENT:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_STMT_CLOSE_BALANCE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_STMT_CLOSE_BALANCE:='0';
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).LAST_STMT_DATE is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_STMT_DATE:=sysdate;
+         end if;
+	       if DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_CCU is null then
+          DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_CCU:='0';
+         end if;
+
+      v_trac_etl_rec.track_last_val := DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID;
     END LOOP;
 
     /* ETL SECTION END*/
@@ -297,6 +448,7 @@ BEGIN
                        
     row_cnt := row_cnt +  SQL%ROWCOUNT;
     v_trac_etl_rec.dm_load_cnt := row_cnt;
+    v_trac_etl_rec.end_val := v_trac_etl_rec.track_last_val;
     update_track_proc(v_trac_etl_rec);
     COMMIT;
                        

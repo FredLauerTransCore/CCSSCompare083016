@@ -47,6 +47,7 @@ IS SELECT
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM PA_PURCHASE 
 WHERE ACCT_ACCT_NUM >= p_begin_acct_num AND ACCT_ACCT_NUM <= p_end_acct_num
+and   ACCT_ACCT_NUM >0
 ; -- source
 
 row_cnt          NUMBER := 0;
@@ -151,7 +152,6 @@ BEGIN
   v_trac_etl_rec.status := 'ETL Completed';
   v_trac_etl_rec.result_code := SQLCODE;
   v_trac_etl_rec.result_msg := SQLERRM;
-  v_trac_etl_rec.end_val := v_trac_rec.end_acct;
   v_trac_etl_rec.proc_end_date := SYSDATE;
   update_track_proc(v_trac_etl_rec);
   DBMS_OUTPUT.PUT_LINE('END '||v_trac_etl_rec.etl_name||' load at: '||to_char(SYSDATE,'MON-DD-YYYY HH:MM:SS'));

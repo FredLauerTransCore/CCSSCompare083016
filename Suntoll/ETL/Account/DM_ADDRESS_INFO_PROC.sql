@@ -34,7 +34,7 @@ IS SELECT
     ,trim(ADDR2) STREET_2    -- ADDR_2 mapping
     ,substr(trim(CITY),1,25) CITY
     ,STATE_CODE_ABBR STATE
-    ,ZIP_CODE ZIP_CODE
+    ,SUBSTR(ZIP_CODE,1,5) ZIP_CODE
     ,SUBSTR(ZIP_CODE,7,10) ZIP_PLUS4
     ,NULL COUNTRY   -- COUNTRY_COUNTRY_CODE mapping in ETL
     ,nvl2(BAD_ADDR_DATE,'Y','N') NIXIE   -- in ETL
@@ -56,6 +56,7 @@ IS SELECT
 FROM PA_ACCT_ADDR
 WHERE DEFAULT_ADDR_FLAG = 'Y'
 and   ACCT_NUM >= p_begin_acct_num   AND   ACCT_NUM <= p_end_acct_num
+and   ACCT_NUM >0
 ;
 
 row_cnt          NUMBER := 0;

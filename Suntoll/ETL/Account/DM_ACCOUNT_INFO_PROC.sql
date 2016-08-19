@@ -46,6 +46,9 @@ ACTIVE	01 from FL gets mapped to ACTIVE
 RVKF	  03 (Terminated) from FL gets mapped to RVKF)	 
 CLOSED	04 (CLOSED) from FL gets mapped to CLOSED	 
 
+  06 (PENDING) - > Set it to CLOSEPENDING if current balance is 0
+  06 (PENDING) - > Set it to ACTIVE if current balance is > 0
+  07 (Pre paid) and 8 (Post Paid) -> set it to ACTIVE
 */
 
 CURSOR C1
@@ -57,6 +60,9 @@ IS SELECT
      '02','SUSPENDED',
      '03','RVKF',
      '04','CLOSED',
+     '06','CLOSEPENDING',
+     '07','ACTIVE',
+     '08','ACTIVE',
      '99','DO NOT USE',
     pa.ACCTSTAT_ACCT_STATUS_CODE||'NO-MAPPING'
     ) ACCOUNT_STATUS
@@ -74,10 +80,10 @@ IS SELECT
             '07','BVIDEOUNREG',
             '08','PVIOLATOR',
             '09','CVIOLATOR',
-            pa.ACCTTYPE_ACCT_TYPE_CODE||'-NOMAPPING') ACCOUNT_TYPE
+            pa.ACCTTYPE_ACCT_TYPE_CODE||'-NOMAPPING') ACCOUNT_TYPE 
     ,pa.CREATED_ON ACCOUNT_OPEN_DATE  
     ,trim(pa.L_NAME)||', '||trim(pa.F_NAME) ACCOUNT_NAME
-    ,pa.ORG COMPANY_NAME
+    ,nvl(pa.ORG,'DM_UNKNOWN') COMPANY_NAME
     ,NULL DBA
     
     ,pa.E_MAIL_ADDR EMAIL_ADDRESS
@@ -88,13 +94,13 @@ IS SELECT
     ,pa.ACCT_PIN_NUMBER PIN
     ,0 VIDEO_ACCT_STATUS
     ,NULL SUSPENDED_DATE
-    ,NULL LAST_INVOICE_DATE  -- in ETL - Sub query   ,max(ST_DOCUMENT_INFO.CREATED_ON)
+    ,NULL LAST_INVOICE_DATE  -- in ETL - max(ST_DOCUMENT_INFO.CREATED_ON)
     ,pa.CLOSED_DATE ACCOUNT_CLOSE_DATE
     ,NULL CORRESPONDENCE_DEL_MODE   -- Derived ?
     ,'ENGLISH' LANGUAGE_PREFERENCE
     ,'OPT-OUT' MOBILE_ALERTS
     ,'What is the PIN Number?' CHALLENGE_QUESTION 
-    ,pa.ACCT_PIN_NUMBER CHALLENGE_ANSWER  -- KS_USER_CHALLENGE_RESPONSE.ANSWER - KEY
+    ,pa.ACCT_PIN_NUMBER CHALLENGE_ANSWER 
     ,NULL IS_POSTPAID
     ,NULL IS_SURVEY_OPTED
     ,NULL ACC_LOCKED_DATETIME
@@ -140,6 +146,7 @@ FROM PA_ACCT pa
     ,PA_ACCT_DETAIL pad
 WHERE  pa.ACCT_NUM = pad.ACCT_NUM (+)
 AND   pa.ACCT_NUM >= p_begin_acct_num AND   pa.ACCT_NUM <= p_end_acct_num
+and   pa.ACCT_NUM>0
 ; 
 
 row_cnt          NUMBER := 0;
@@ -179,7 +186,41 @@ BEGIN
       IF i=1 then
         v_trac_etl_rec.BEGIN_VAL := DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER;
       end if;
-      
+
+--  6 (PENDING) - > Set it to CLOSEPENDING if current balance is 0
+--  6 (PENDING) - > Set it to ACTIVE if current balance is > 0
+-- Read ACCT_STATUS_CODE from PA_ACCT and 
+-- join PA_ACCT to KS_ACCT_LEDGER on ACCT_NUM for balance     
+      IF DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS = 'CLOSEPENDING' then
+        begin
+          select  case when BALANCE > 0 then 'ACTIVE' 
+                       when BALANCE < 0 then 'NEG BALANCE'
+                       else DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS
+                  end
+          into    DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS
+          from    KS_LEDGER -- k1
+          where   ACCT_NUM=DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
+  --        and     rownum<=1
+          and     ID = (select max(ID) 
+                        from    KS_LEDGER
+                        where   ACCT_NUM=DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER)
+  --        and     POSTED_DATE = (select max(POSTED_DATE) 
+  --                              from    KS_LEDGER -- k2
+  --                              where   PA_LANE_TXN_ID=DM_VIOL_TX_EVENT_INFO_tab(i).LANE_TX_ID)
+          ;
+        exception 
+        when others then null;   
+            v_trac_etl_rec.result_code := SQLCODE;
+            v_trac_etl_rec.result_msg := SQLERRM;
+            v_trac_etl_rec.proc_end_date := SYSDATE;
+            update_track_proc(v_trac_etl_rec);
+            DBMS_OUTPUT.PUT_LINE('REB ERROR CODE: '||v_trac_etl_rec.result_code);
+            DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+        end;
+
+      end if;
+
+
       begin
         select max(STATUS_CHG_DATE)
         into DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME
@@ -230,6 +271,18 @@ BEGIN
           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
       end;
 
+--COLLECTION_AGENCY =  Convert the Number into a description
+--from RETAILER_PARTNERS table; ask David to copy for you.  
+--Source PA_ACCT_DETAIL.CA_AGENCY_ID = RETAILER_PARTNERS.ACCT_NUM
+      begin
+        select PARTNER_NAME
+        into  DM_ACCOUNT_INFO_tab(i).COLLECTION_AGENCY
+        from  RETAIL_PARTNERS
+        where ACCT_NUM = DM_ACCOUNT_INFO_tab(i).COLLECTION_AGENCY
+        ;
+      exception 
+        when others then null;
+      end;
       
       begin
         select max(CREATED_ON) 
@@ -241,9 +294,6 @@ BEGIN
         when others then null;
         DM_ACCOUNT_INFO_tab(i).LAST_INVOICE_DATE:=null;
       end;
---    DBMS_OUTPUT.PUT_LINE('ACCT- '||i||' - '||DM_ACCOUNT_INFO_tab(i).ACCOUNT_NUMBER
---        ||' - '||DM_ACCOUNT_INFO_tab(i).ACCOUNT_STATUS_DATETIME
---        ||' - '||DM_ACCOUNT_INFO_tab(i).LAST_INVOICE_DATE);
            
 --    IF ACCOUNT_NUM EXISTS IN ST_REG_STOP_PAYMENT_PLAN AND NVL(PAYMENT_PLAN_END, TRUNC(SYSDATE))  >=  TRUNC(SYSDATE) 
 --    THEN 'A'    -- (if plan end date is future or null) 

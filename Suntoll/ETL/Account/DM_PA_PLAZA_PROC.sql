@@ -58,8 +58,10 @@ CURSOR C1 IS SELECT
     ,VBTOL_EFFECTIVE_DATE
     ,VR_TOLL_PARTICIPATION
     ,'SUNTOLL' SOURCE_SYSTEM
-FROM PA_PLAZA; /*Change FTE_TABLE to the actual table name*/
-
+FROM PA_PLAZA  /*Change FTE_TABLE to the actual table name*/
+where  plaza_id <> '003502'
+;
+      
 row_cnt          NUMBER := 0;
 v_trac_rec       dm_tracking%ROWTYPE;
 v_trac_etl_rec   dm_tracking_etl%ROWTYPE;

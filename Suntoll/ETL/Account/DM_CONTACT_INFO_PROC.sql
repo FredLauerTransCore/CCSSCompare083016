@@ -55,7 +55,8 @@ IS SELECT
     ,'SUNTOLL_CSC_ID' LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM PA_ACCT
-WHERE   ACCT_NUM >= p_begin_acct_num AND   ACCT_NUM <= p_end_acct_num
+WHERE ACCT_NUM >= p_begin_acct_num AND   ACCT_NUM <= p_end_acct_num
+and   ACCT_NUM >0
 ; -- Source
 
 row_cnt          NUMBER := 0;

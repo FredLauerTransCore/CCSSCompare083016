@@ -71,16 +71,10 @@ IS SELECT
     ,0 TOUR_SEGMENT_ID
     ,'0' ENTRY_DATA_SOURCE
     
---    ,ENT_LANE_ID ENTRY_LANE_ID
---    ,ENT_PLAZA_ID ENTRY_PLAZA_ID
---    ,ENT_DATE_TIME ENTRY_TIMESTAMP
---    ,TXN_ENTRY_NUMBER ENTRY_TX_SEQ_NUMBER
---    ,to_number(nvl(ENT_LANE_ID,'0')) ENTRY_LANE_ID  -- Required - If NULL default ?
---    ,to_number(nvl(ENT_PLAZA_ID,'0')) ENTRY_PLAZA_ID  -- Required - If NULL default ?
-    ,nvl(ENT_LANE_ID,'0') ENTRY_LANE_ID  -- Required - If NULL default ?
-    ,nvl(ENT_PLAZA_ID,'0') ENTRY_PLAZA_ID  -- Required - If NULL default ?
-    ,nvl(ENT_DATE_TIME, to_date('01-01-1900','MM-DD-YYYY')) ENTRY_TIMESTAMP  -- Required - If NULL default ?
-    ,nvl(TXN_ENTRY_NUMBER,0) ENTRY_TX_SEQ_NUMBER  -- Required - If NULL default ?
+    ,nvl(ENT_LANE_ID,'0') ENTRY_LANE_ID  -- Required - to number
+    ,nvl(ENT_PLAZA_ID,'0') ENTRY_PLAZA_ID  -- Required - to number
+    ,nvl(ENT_DATE_TIME, to_date('01-01-1900','MM-DD-YYYY')) ENTRY_TIMESTAMP  -- Required 
+    ,nvl(TXN_ENTRY_NUMBER,0) ENTRY_TX_SEQ_NUMBER  -- Required 
 
     ,0 ENTRY_VEHICLE_SPEED
     ,0 LANE_TX_STATUS
@@ -120,11 +114,9 @@ IS SELECT
     ,0 ETC_ACCOUNT_ID   -- ACCT_NUM ??
     
 -- SUBSTR(TRANSP_ID,9,2) JOIN ST_INTEROP_AGENCIES ON AGENCY_CODE RETURN AGENCY_ID 
--- ACCOUNT_AGENCY_ID -- SUBSTR(TRANSP_ID,9,2)
     ,SUBSTR(TRANSP_ID,9,2) ACCOUNT_AGENCY_ID  -- Use to get in ETL
  
---    ,to_number(nvl(TRANSP_CLASS,'0')) READ_AVI_CLASS
-    ,nvl(TRANSP_CLASS,'0') READ_AVI_CLASS
+    ,nvl(TRANSP_CLASS,'0') READ_AVI_CLASS  -- Required - to number
     ,0 READ_AVI_AXLES
     ,'N' DEVICE_PROGRAM_STATUS
     ,'N' BUFFERED_READ_FLAG
@@ -202,25 +194,6 @@ BEGIN
     /*ETL SECTION BEGIN*/
     FOR i IN 1 .. DM_AWAY_AGENCY_TX_IMG_INFO_tab.COUNT LOOP
 
-      begin
-        select  ACCT_NUM
-        into    DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ETC_ACCOUNT_ID
-        from    KS_LEDGER -- k1
-        where   PA_LANE_TXN_ID=DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).TX_EXTERN_REF_NO
-        and     rownum<=1
---        and     POSTED_DATE = (select max(POSTED_DATE) 
---                              from KS_LEDGER -- k2
---                              where   PA_LANE_TXN_ID=DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).TX_EXTERN_REF_NO)
-----                              where k2.id = k1.id)
-        ;
-      exception 
-        when others then null;
-        DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ETC_ACCOUNT_ID := 0;
-      end;
-      IF i=1 then
-        v_trac_etl_rec.BEGIN_VAL := DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ETC_ACCOUNT_ID;
-      end if;
-
       /* get UFM_LANE_TXN_INFO.HOST_UFM_TOKEN for TX_EXTERN_REF_NO */
 -- JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN
       begin
@@ -234,6 +207,24 @@ BEGIN
           when others then null;
           DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).TX_EXTERN_REF_NO:=0;
       end;
+      
+      begin
+        select  ACCT_NUM
+        into    DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ETC_ACCOUNT_ID
+        from    KS_LEDGER -- k1
+        where   PA_LANE_TXN_ID=DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).TX_EXTERN_REF_NO
+--        and     rownum<=1
+        and     POSTED_DATE = (select max(POSTED_DATE) 
+                              from KS_LEDGER -- k2
+                              where   PA_LANE_TXN_ID=DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).TX_EXTERN_REF_NO)
+        ;
+      exception 
+        when others then null;
+        DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ETC_ACCOUNT_ID := 0;
+      end;
+      IF i=1 then
+        v_trac_etl_rec.BEGIN_VAL := DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ETC_ACCOUNT_ID;
+      end if;
 
       /* get ST_INTEROP_AGENCIES.AGENCY_ID for PLAZA_AGENCY_ID */
 -- Agency  id to which the plaza and lane belong to where the transaction took place.

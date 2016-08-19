@@ -33,19 +33,21 @@ IS SELECT
           Write Off; Bankruptcy; Deceased; UTC (Uniform Traffic Citation); Paid;  .  
  -- Sunny will provide extract rule to determine status once the status is finalized between Xerox and FTE. 
  **/
-    0 EVENT_TYPE  -- Translation?. Required default to 0?
-    ,0 PREV_EVENT_TYPE -- no mapping. Required default to 0?
+    0 EVENT_TYPE  -- Translation?. Required
+    ,0 PREV_EVENT_TYPE -- no mapping. Required
     ,0 VIOL_TX_STATUS
-    ,0 PREV_VIOL_TX_STATUS  -- Translation?. Required default to 0?
-    ,to_date('12-31-9999','MM-DD-YYYY') EVENT_TIMESTAMP -- ** Discussion in ICD.  Required defaulted to SYSDATE?
+    ,0 PREV_VIOL_TX_STATUS  -- Translation?. Required
+    ,nvl(EXT_DATE_TIME,to_date('12319999','MMDDYYYY')) EVENT_TIMESTAMP -- Required
     ,NULL ETC_ACCOUNT_ID   -- Join KS_LEDGER on TXN_ID ** add to internal Xerscussion
 --    ,kl.ACCT_NUM ETC_ACCOUNT_ID   -- Join KS_LEDGER on TXN_ID ** add to internal Xerscussion
     ,VEH_LIC_NUM PLATE_NUMBER
     ,STATE_ID_CODE  PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
     ,'USA' PLATE_COUNTRY  -- default in ETL
+    
 -- MAKE is char and MAKE_ID is number ISSUE
 -- ,OAVA_LINK_ID MAKE_ID  -- - Use to get in ETL 
     ,0 MAKE_ID  -- - Use to get in ETL 
+    
     ,0 DMV_PLATE_TYPE  -- Derived
     ,0 REVIEWED_VEHICLE_TYPE
     ,0 REVIEWED_CLASS
@@ -59,22 +61,16 @@ IS SELECT
     ,0 NOTICE_FEE_AMOUNT  -- Derived    
 
  -- TOTAL_AMT_PAID JOIN WITH KS_LEDGER ON LEDGER_ID AND KS_LEDGER TO PA_LANE_TXN on PA_LANE_TXN_ID
---    ,kl.AMOUNT AMOUNT_PAID
+ --    ,kl.AMOUNT AMOUNT_PAID ?
     ,TOLL_AMT_COLLECTED AMOUNT_PAID
     ,TOLL_AMT_CHARGED DISCOUNTED_AMOUNT
     ,0 IMAGE_BATCH_ID
     ,0 IMAGE_BATCH_SEQ_NUMBER
     ,0 RECON_STATUS_IND  -- XEROX - TO FOLLOW UP  Required, default 0?
     ,'SUNTOLL' SOURCE_SYSTEM
-    ,lt.txn_id LANE_TX_ID
+    ,txn_id LANE_TX_ID
 FROM PA_LANE_TXN  lt
---    ,KS_LEDGER kl
---    ,VB_ACTIVITY va
---WHERE lt.txn_id = kl.PA_LANE_TXN_ID
---  AND kl.ID = va.LEDGER_ID (+)
---  AND kl.ACCT_NUM >= p_begin_acct_num AND   kl.ACCT_NUM <= p_end_acct_num
---;   -- source
-where lt.txn_id = (select PA_LANE_TXN_ID
+where txn_id = (select PA_LANE_TXN_ID
                 from   KS_LEDGER kl2
                 WHERE kl2.PA_LANE_TXN_ID = lt.txn_id
                 AND   kl2.ACCT_NUM >= p_begin_acct_num AND   kl2.ACCT_NUM <= p_end_acct_num
@@ -125,7 +121,7 @@ BEGIN
                ,DM_VIOL_TX_EVENT_INFO_tab(i).ETC_ACCOUNT_ID
         from    KS_LEDGER -- k1
         where   PA_LANE_TXN_ID=DM_VIOL_TX_EVENT_INFO_tab(i).LANE_TX_ID
---        and     rownum<=1
+        and     rownum<=1
         and     POSTED_DATE = (select max(POSTED_DATE) 
                               from    KS_LEDGER -- k2
                               where   PA_LANE_TXN_ID=DM_VIOL_TX_EVENT_INFO_tab(i).LANE_TX_ID)
@@ -194,21 +190,21 @@ JOIN ID of KS_LEDGER to LEDGER_ID of VB_ACTVITY for KS_LEDGER.TRANSACTION_TYPE i
 --  THEN 'REG STOP'
 
       begin
-        select CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 607  --  'BANKRUPTCY'
-              WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 602  -- 'INVOICED'
-              WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID like '%-%'  THEN 604  -- 'UTC'
-              WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 603  -- 'ESCALATED'
-              WHEN COLL_COURT_FLAG = 'COLL' and CHILD_DOC_ID is NOT null THEN 605  -- 'COLLECTION'
-              WHEN COLL_COURT_FLAG = 'CRT'  and CHILD_DOC_ID is NOT null THEN 606  -- 'COURT'
-    --          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
-              ELSE 0
-         END    
-         
-          ,CASE WHEN BANKRUPTCY_FLAG is NOT NULL then 607  -- 'BANKRUPTCY'
-              WHEN COLL_COURT_FLAG = 'COLL' and DOCUMENT_ID IS NOT NULL and CHILD_DOC_ID IS NOT NULL then 605  -- 'COLLECTION'
-              WHEN COLL_COURT_FLAG = 'CRT' and DOCUMENT_ID IS NOT NULL and CHILD_DOC_ID IS NOT NULL then 606  -- 'COURT'
-              WHEN COLL_COURT_FLAG is NOT NULL then NULL
+        select 
+--        CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 607  --  'BANKRUPTCY'
+--              WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 602  -- 'INVOICED'
+--              WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID like '%-%'  THEN 604  -- 'UTC'
+--              WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 603  -- 'ESCALATED'
+--              WHEN COLL_COURT_FLAG = 'COLL' and CHILD_DOC_ID is NOT null THEN 605  -- 'COLLECTION'
+--              WHEN COLL_COURT_FLAG = 'CRT'  and CHILD_DOC_ID is NOT null THEN 606  -- 'COURT'
+--    --          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
+--              ELSE 0
+--         END    ,
+          CASE WHEN BANKRUPTCY_FLAG is NOT NULL then 607  -- 'BANKRUPTCY'
               WHEN DOCUMENT_ID IS NULL THEN 601  -- 'UNBILLED'
+              WHEN DOCUMENT_ID IS NOT NULL and COLL_COURT_FLAG = 'COLL' and CHILD_DOC_ID IS NOT NULL then 605  -- 'COLLECTION'
+              WHEN DOCUMENT_ID IS NOT NULL and COLL_COURT_FLAG = 'CRT' and CHILD_DOC_ID IS NOT NULL then 606  -- 'COURT'
+              WHEN COLL_COURT_FLAG is NOT NULL then NULL
               WHEN CHILD_DOC_ID IS NULL THEN 602  -- 'INVOICED'
               WHEN CHILD_DOC_ID LIKE '%-%' THEN 604  -- 'UTC'
               WHEN CHILD_DOC_ID IS NOT NULL THEN 603  -- 'ESCALATED'
@@ -216,14 +212,18 @@ JOIN ID of KS_LEDGER to LEDGER_ID of VB_ACTVITY for KS_LEDGER.TRANSACTION_TYPE i
           END  
      
         ,CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 607 -- 'BANKRUPTCY'
-              WHEN COLL_COURT_FLAG is null and DOCUMENT_ID is null THEN 601 -- 'UNBILLED'
-              WHEN COLL_COURT_FLAG is null and DOCUMENT_ID is NOT null and CHILD_DOC_ID is null THEN 602 -- 'INVOICED'
-              WHEN COLL_COURT_FLAG is null and DOCUMENT_ID is NOT null and CHILD_DOC_ID is NOT null THEN 603 -- 'ESCALATED'
-              WHEN COLL_COURT_FLAG is null and DOCUMENT_ID is NOT null and CHILD_DOC_ID like '%-%' THEN 604 -- 'UTC'
-              WHEN DOCUMENT_ID is NOT null and 
-                  CHILD_DOC_ID is NOT null and COLL_COURT_FLAG = 'COLL' THEN 605 -- 'COLLECTION'
-              WHEN DOCUMENT_ID is NOT null and
-                  CHILD_DOC_ID is NOT null and COLL_COURT_FLAG = 'CRT' THEN 606 -- 'COURT'
+              WHEN DOCUMENT_ID is null     and COLL_COURT_FLAG is null  
+              THEN 601 -- 'UNBILLED'
+              WHEN DOCUMENT_ID is NOT null and COLL_COURT_FLAG is null and CHILD_DOC_ID is null 
+              THEN 602 -- 'INVOICED'
+              WHEN DOCUMENT_ID is NOT null and COLL_COURT_FLAG is null and CHILD_DOC_ID is NOT null 
+              THEN 603 -- 'ESCALATED'
+              WHEN DOCUMENT_ID is NOT null and COLL_COURT_FLAG is null and CHILD_DOC_ID like '%-%' 
+              THEN 604 -- 'UTC'
+              WHEN DOCUMENT_ID is NOT null and CHILD_DOC_ID is NOT null and COLL_COURT_FLAG = 'COLL' 
+              THEN 605 -- 'COLLECTION'
+              WHEN DOCUMENT_ID is NOT null and CHILD_DOC_ID is NOT null and COLL_COURT_FLAG = 'CRT' 
+              THEN 606 -- 'COURT'
               ELSE 0  --   -- NULL  Required Default 0?
           END
       
@@ -245,8 +245,8 @@ JOIN ID of KS_LEDGER to LEDGER_ID of VB_ACTVITY for KS_LEDGER.TRANSACTION_TYPE i
               THEN 25
               ELSE 0
           END 
-        into  DM_VIOL_TX_EVENT_INFO_tab(i).EVENT_TYPE
-              ,DM_VIOL_TX_EVENT_INFO_tab(i).VIOL_TX_STATUS              
+        into  -- DM_VIOL_TX_EVENT_INFO_tab(i).EVENT_TYPE,
+              DM_VIOL_TX_EVENT_INFO_tab(i).VIOL_TX_STATUS              
               ,DM_VIOL_TX_EVENT_INFO_tab(i).DMV_PLATE_TYPE             
               ,DM_VIOL_TX_EVENT_INFO_tab(i).CITATION_LEVEL
               ,DM_VIOL_TX_EVENT_INFO_tab(i).CITATION_STATUS
@@ -256,14 +256,12 @@ JOIN ID of KS_LEDGER to LEDGER_ID of VB_ACTVITY for KS_LEDGER.TRANSACTION_TYPE i
         ;
       exception 
         when no_data_found then null;
-          DM_VIOL_TX_EVENT_INFO_tab(i).EVENT_TYPE := 601;  -- 'UNBILLED'
           DM_VIOL_TX_EVENT_INFO_tab(i).VIOL_TX_STATUS := 0; -- 601;  -- 'UNBILLED'
           DM_VIOL_TX_EVENT_INFO_tab(i).DMV_PLATE_TYPE := 0; -- 601;  -- 'UNBILLED'
           DM_VIOL_TX_EVENT_INFO_tab(i).CITATION_LEVEL := 0;
           DM_VIOL_TX_EVENT_INFO_tab(i).CITATION_STATUS := 0;
           DM_VIOL_TX_EVENT_INFO_tab(i).NOTICE_FEE_AMOUNT := 0;
         when others then null;
-          DM_VIOL_TX_EVENT_INFO_tab(i).EVENT_TYPE := 0;
           DM_VIOL_TX_EVENT_INFO_tab(i).VIOL_TX_STATUS := 0;
           DM_VIOL_TX_EVENT_INFO_tab(i).DMV_PLATE_TYPE := 0;
           DM_VIOL_TX_EVENT_INFO_tab(i).CITATION_LEVEL := 0;

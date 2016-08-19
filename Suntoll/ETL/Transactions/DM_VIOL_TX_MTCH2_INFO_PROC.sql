@@ -338,14 +338,6 @@ IS SELECT
 --    ,NULL EXT_DATE_TIME  -- Not in DM_VIOL_TX_MTCH2_INFO
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM PA_LANE_TXN lt
---    ,KS_LEDGER kl
---    ,VB_ACTIVITY va
---    ,ST_ACTIVITY_PAID ap
---WHERE lt.txn_id = kl.PA_LANE_TXN_ID
---  AND kl.ID = va.LEDGER_ID (+)
---  AND kl.ID = ap.LEDGER_ID (+)
---AND lt.TRANSP_ID like '%2010'  --WHERE TRANSPONDER_ID ENDS WITH '2010'
-----AND   kl.ACCT_NUM >= p_begin_acct_num AND   kl.ACCT_NUM <= p_end_acct_num
 where lt.txn_id = (select PA_LANE_TXN_ID
                 from  KS_LEDGER kl2
                 WHERE kl2.PA_LANE_TXN_ID = lt.txn_id
@@ -403,7 +395,7 @@ BEGIN
                ,DM_VIOL_TX_MTCH2_INFO_tab(i).DISPUTED_ETC_ACCT_ID
         from    KS_LEDGER -- k1
         where   PA_LANE_TXN_ID=DM_VIOL_TX_MTCH2_INFO_tab(i).TX_EXTERN_REF_NO
---        and     rownum<=1
+        and     rownum<=1
         and     POSTED_DATE = (select max(POSTED_DATE) 
                               from    KS_LEDGER -- k2
                               where   PA_LANE_TXN_ID=DM_VIOL_TX_MTCH2_INFO_tab(i).TX_EXTERN_REF_NO)
@@ -546,12 +538,13 @@ BEGIN
   
       begin
         select CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY'
+          WHEN DOCUMENT_ID is null THEN 'UNBILLED'
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 'INVOICED'
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID like '%-%'  THEN 'UTC'
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
           WHEN COLL_COURT_FLAG = 'COLL' and CHILD_DOC_ID is NOT null THEN 'COLLECTION'
           WHEN COLL_COURT_FLAG = 'CRT'  and CHILD_DOC_ID is NOT null THEN 'COURT'
---          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
+--  WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
           ELSE 'UNDEFINED'
          END    
         ,CASE WHEN COLL_COURT_FLAG is null and  DOCUMENT_ID is NOT null and CHILD_DOC_ID like '%-%' 
@@ -559,7 +552,7 @@ BEGIN
               ELSE 0
          END 
         ,CASE WHEN COLL_COURT_FLAG = 'COLL' THEN 1 -- 'SEND_TO_COLLECTION' 
---             WHEN ap.COLL_COURT_FLAG = 'COLL' AND ap.AMT_CHARGED <> 0 THEN 2  -- 'PAID_ON_COLLECTIONS'         
+--  WHEN ap.COLL_COURT_FLAG = 'COLL' AND ap.AMT_CHARGED <> 0 THEN 2  -- 'PAID_ON_COLLECTIONS'         
              ELSE 0
          END 
         into  DM_VIOL_TX_MTCH2_INFO_tab(i).EVENT_TYPE
