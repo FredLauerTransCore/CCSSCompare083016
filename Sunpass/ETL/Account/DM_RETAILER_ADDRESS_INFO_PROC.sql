@@ -30,7 +30,16 @@ CURSOR C1 IS SELECT
     ,ADDR_2 STREET_2
     ,CITY CITY
     ,STATE_STATE_CODE_ABBR STATE
-    ,ZIP_CODE ZIP_CODE
+    ,CASE
+    WHEN zip_code LIKE '%-%'
+    THEN SUBSTR(zip_code,1,5)
+    ELSE
+      CASE LENGTH(zip_code)
+        WHEN 5 THEN zip_code
+        WHEN 6 then upper(zip_code)
+        ELSE SUBSTR(zip_code,1,5)
+      END
+    END zip_code
     ,SUBSTR(ZIP_CODE,7,4) ZIP_PLUS4
     ,COUNTRY_COUNTRY_CODE COUNTRY
     ,NULL NIXIE
@@ -44,7 +53,7 @@ CURSOR C1 IS SELECT
     ,'SUNPASS_CSC_ID' LAST_UPD_BY
     ,'SUNPASS' SOURCE_SYSTEM
     ,COUNTY_COUNTY_CODE COUNTY_CODE
-FROM PA_ACCT where ACCTTYPE_ACCT_TYPE_CODE='07';
+FROM PA_ACCT where ACCTTYPE_ACCT_TYPE_CODE in ('07','08');
 
 BEGIN
  
@@ -70,6 +79,15 @@ BEGIN
         when others then null;
         DM_RETAILER_ADDRESS_INFO_tab(i).NIXIE:=null;
     end;
+	
+	begin
+      select COUNTRY into DM_RETAILER_ADDRESS_INFO_tab(i).COUNTRY from COUNTRY_STATE_LOOKUP 
+      where STATE_ABBR=DM_RETAILER_ADDRESS_INFO_tab(i).STATE
+            and rownum<=1;
+      exception 
+        when others then null;
+        DM_RETAILER_ADDRESS_INFO_tab(i).COUNTRY:='USA';
+    end;
 
     end loop;
 
@@ -77,6 +95,20 @@ BEGIN
 
     /*ETL SECTION END   */
 
+	
+     /* Bulk delete *****************************************/
+
+     begin
+       FORALL i in 1 .. DM_RETAILER_ADDRESS_INFO_tab.count
+             delete DM_RETAILER_ADDRESS_INFO where  
+              ACCOUNT_NUMBER=DM_RETAILER_ADDRESS_INFO_tab(i).ACCOUNT_NUMBER and 
+              ADDR_TYPE=DM_RETAILER_ADDRESS_INFO_tab(i).ADDR_TYPE;
+       exception 
+       when others then null;
+     end;
+
+    /* Bulk delete *****************************************/
+	
     /*Bulk insert */ 
     FORALL i in DM_RETAILER_ADDRESS_INFO_tab.first .. DM_RETAILER_ADDRESS_INFO_tab.last
            INSERT INTO DM_RETAILER_ADDRESS_INFO VALUES DM_RETAILER_ADDRESS_INFO_tab(i);
