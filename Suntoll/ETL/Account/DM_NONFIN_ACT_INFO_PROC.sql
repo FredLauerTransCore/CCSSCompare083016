@@ -75,19 +75,19 @@ BEGIN
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 
-  begin
-    select nvl(max(ACTIVITY_NUMBER),0) into  v_activity_number
-    from DM_NONFIN_ACT_INFO
-    ;
-  exception 
-    when no_data_found then --null;
-      v_activity_number :=  0;
-    when others then --null;
-      v_activity_number :=  0;
-      DBMS_OUTPUT.PUT_LINE('activity_number ERROR CODE: '||SQLCODE);
-      DBMS_OUTPUT.PUT_LINE('activity_number ERROR MSG: '||SQLERRM);
-  end;    
-    
+--  begin
+--    select nvl(max(ACTIVITY_NUMBER),0) into  v_activity_number
+--    from DM_NONFIN_ACT_INFO
+--    ;
+--  exception 
+--    when no_data_found then --null;
+--      v_activity_number :=  0;
+--    when others then --null;
+--      v_activity_number :=  0;
+--      DBMS_OUTPUT.PUT_LINE('activity_number ERROR CODE: '||SQLCODE);
+--      DBMS_OUTPUT.PUT_LINE('activity_number ERROR MSG: '||SQLERRM);
+--  end;    
+--    
   LOOP
 
     /*Bulk select */
@@ -104,9 +104,9 @@ BEGIN
     
       end if;
       
---    DM_NONFIN_ACT_INFO_tab(i).activity_number := NONFIN_ACT_SEQ..NEXTVAL;;
-      v_activity_number := v_activity_number+1;
-      DM_NONFIN_ACT_INFO_tab(i).activity_number :=  v_activity_number;
+--      v_activity_number := v_activity_number+1;
+--      DM_NONFIN_ACT_INFO_tab(i).activity_number :=  v_activity_number;
+      DM_NONFIN_ACT_INFO_tab(i).activity_number := NONFIN_ACT_SEQ.NEXTVAL;
 
 -- NOTE TYPE_CODE CATEGORY
       begin

@@ -278,7 +278,7 @@ BEGIN
         select PARTNER_NAME
         into  DM_ACCOUNT_INFO_tab(i).COLLECTION_AGENCY
         from  RETAIL_PARTNERS
-        where ACCT_NUM = DM_ACCOUNT_INFO_tab(i).COLLECTION_AGENCY
+        where ACCT_NUM = DM_ACCOUNT_INFO_tab(i).COLLECTION_AGENCY -- PA_ACCT_DETAIL.CA_AGENCY_ID
         ;
       exception 
         when others then null;

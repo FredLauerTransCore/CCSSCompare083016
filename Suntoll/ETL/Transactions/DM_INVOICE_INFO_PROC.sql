@@ -135,16 +135,16 @@ BEGIN
          
       begin
 --  DOCUMENT_ID is NOT null status  -----
-        select -- distinct
+        select 
         CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY' -- 'DISMISSED' 
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 'INVOICED'
           WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID like '%-%'  THEN 'UTC'
-          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
           WHEN COLL_COURT_FLAG = 'COLL' and CHILD_DOC_ID is NOT null THEN 'COLLECTION'
           WHEN COLL_COURT_FLAG = 'CRT'  and CHILD_DOC_ID is NOT null THEN 'COURT'
+          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
 --          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
 --          ELSE 'REG STOP'  -- ?
-          WHEN DM_INVOICE_INFO_tab(i).INVOICE_NUMBER LIKE 'INV%' THEN 'UNBILLED'
+--          WHEN DM_INVOICE_INFO_tab(i).INVOICE_NUMBER LIKE 'INV%' THEN 'UNBILLED'
           ELSE 'UNDEFINED'
          END    
         into  DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL
@@ -156,10 +156,12 @@ BEGIN
       exception 
         when no_data_found then --null;  OCUMENT_ID is null 
 -- WHEN COLL_COURT_FLAG is null      and DOCUMENT_ID is null     THEN 'UNBILLED'
-          DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL := 'NO DATA FOUND';
           DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL := 'UNDEFINED';
           
---          DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL := 'UNBILLED';
+          if substr(DM_INVOICE_INFO_tab(i).INVOICE_NUMBER,1,3) = INV then
+            DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL := 'UNBILLED';
+          end if;
+            
         when others then --null;
 --          DBMS_OUTPUT.PUT_LINE('1) INVOICE_NUMBER: '||DM_INVOICE_INFO_tab(i).INVOICE_NUMBER);
 --          insert into dup_invoice_num values (DM_INVOICE_INFO_tab(i).INVOICE_NUMBER);
@@ -199,8 +201,7 @@ BEGIN
           select --distinct
                   CASE WHEN sum(nvl(AMT_CHARGED,0) - nvl(TOTAL_AMT_PAID,0)) > 0 
                       THEN 'OPEN'
---                    WHEN (select nvl(AMOUNT,0) from KS_LEDGER where id = ap.LEDGER_ID)
---                - (nvl(ap.AMT_CHARGED,0) - nvl(ap.TOTAL_AMT_PAID,0)) >0  THEN 'DISPUTED'
+-- WHEN (select nvl(AMOUNT,0) from KS_LEDGER where id = ap.LEDGER_ID) - (nvl(ap.AMT_CHARGED,0) - nvl(ap.TOTAL_AMT_PAID,0)) >0  THEN 'DISPUTED'
                       ELSE 'CLOSED'
                   END
                 ,sum(nvl(AMT_CHARGED,0) - nvl(TOTAL_AMT_PAID,0)) 
@@ -248,7 +249,7 @@ BEGIN
 --  Use idfference to determine if dismissed or not 
 --  (IF 0 THEN 'DISPUTED' ELSE 'CLOSED') 
 ---- DISPUTED_AMT ??
-----          WHEN (select nvl(AMOUNT,0) from KS_LEDGER where id = ap.LEDGER_ID)
+---- WHEN (select nvl(AMOUNT,0) from KS_LEDGER where id = ap.LEDGER_ID)
 ----                - (nvl(ap.AMT_CHARGED,0) - nvl(ap.TOTAL_AMT_PAID,0)) >0  THEN 'DISPUTED'
 
       if DM_INVOICE_INFO_tab(i).STATUS != 'OPEN' then

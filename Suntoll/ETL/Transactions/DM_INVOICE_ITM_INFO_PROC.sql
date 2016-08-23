@@ -31,42 +31,33 @@ REG_STOP_THRESHOLD_AMT_CENTS NUMBER := 100000000; -- TODO: Need to get actual th
 CURSOR C1
 (p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT --distinct
-    ACCT_NUM ACCOUNT_NUMBER -- ST_DOCUMENT_MAILING_EXCEPTION
-    ,DOCUMENT_ID INVOICE_NUMBER
+    ACCT_NUM ACCOUNT_NUMBER
+    ,NULL INVOICE_NUMBER  -- in ETL
     ,'POSTPAID' CATEGORY  -- DEFAULT to 'Postpaid'
-    ,DOC_TYPE_ID  SUB_CATEGORY  -- to use in ETL and get actual value
+    ,NULL  SUB_CATEGORY   -- in ETL 
+    ,'CLOSED' STATUS      -- in ETL
+    ,NULL INVOICE_DATE    -- in ETL
 
---    ,CASE WHEN (va.AMT_CHARGED-va.TOTAL_AMT_PAID)>0 THEN 'OPEN'
---          WHEN st.TOTAL_AMT_PAID = 0 THEN 'DISPUTED'
---          ELSE 'CLOSED' END STATUS
-    ,'CLOSED' STATUS  -- in ETL
-
-    ,trunc(NVL(CREATED_ON,SYSDATE)) INVOICE_DATE
-
--- ,nvl((select kl.AMOUNT from KS_LEDGER kl where kl.ID = va.LEDGER_ID),0) PAYABLE 
-    ,(nvl(PREV_DUE,0) +
-      nvl(TOLL_CHARGED,0) +
-      nvl(FEE_CHARGED,0) +
-      nvl(PAYMT_ADJS,0)) PAYABLE
---    ,0 PAYABLE
-
-    ,0 INVOICE_ITEM_NUMBER
-    ,0 LANE_TX_ID  -- in ETL
-
-    ,'Open' LEVEL_INFO  -- in ETL
-    ,nvl(PROMOTION_status,'UNDEFINED') REASON_CODE  --PROMOTION_CODE in ICD
+/*
+Join ST_Document_info.document_id with VB_Activity.document_id  and for same record 
+join KS_LEDGER.ID to VB_activity.LEDGER_ID to get the KS_LEDGER.Amount( Original amount)
+*/
+--    ,(nvl(PREV_DUE,0) + nvl(TOLL_CHARGED,0) + nvl(FEE_CHARGED,0) + nvl(PAYMT_ADJS,0)) PAYABLE ??
+    ,nvl(AMOUNT,0) PAYABLE 
+    ,ID INVOICE_ITEM_NUMBER
+    ,PA_LANE_TXN_ID LANE_TX_ID
+    ,'Open' LEVEL_INFO      -- in ETL
+    ,NULL REASON_CODE  --PROMOTION_CODE in ICD
     ,'INVOICE-ITEM' INVOICE_TYPE
-
---    ,nvl(st.TOTAL_AMT_PAID,0) PAID_AMOUNT
-    ,0 PAID_AMOUNT  -- (IN ETL)
-
-    ,NULL CREATED   -- IN ETL
+    ,0 PAID_AMOUNT        -- (IN ETL)
+    ,NULL CREATED         -- IN ETL
     ,'SUNTOLL_CSC_ID' CREATED_BY
-    ,NULL LAST_UPD  -- IN ETL
+    ,NULL LAST_UPD        -- IN ETL
     ,'SUNTOLL_CSC_ID' LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
     ,NULL DISMISSED_AMT
-FROM ST_DOCUMENT_INFO
+FROM    KS_LEDGER
+--FROM    ST_DOCUMENT_INFO
 WHERE   ACCT_NUM >= p_begin_acct_num AND ACCT_NUM <= p_end_acct_num
 and     ACCT_NUM >0
 ; -- Source
@@ -106,7 +97,75 @@ BEGIN
         IF i=1 then
           v_trac_etl_rec.BEGIN_VAL := DM_INVOICE_ITM_INFO_tab(i).ACCOUNT_NUMBER;
         end if;
+        
+--JOIN DOCUMENT_INFO_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of VB_ACTIVITY 
+--  returns UNPAID_TXN_DETAILS 
+--UNION ALL 
+--JOIN DOCUMENT_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of ST_ACTIVITY_PAID 
+--  returns PAID_TXN_DETAILS 
+--IF UNPAID_AMT > 0 THEN 'OPEN' ELSE 'CLOSED'  (Need PAID_TXN_DETAILS definition from FTE); 
+        
+        begin
+          select DOCUMENT_ID
+                ,CASE WHEN sum(DM_INVOICE_ITM_INFO_TAB(i).PAYABLE - nvl(TOTAL_AMT_PAID,0)) > 0 
+                      THEN 'OPEN'
+                      ELSE 'CLOSED'
+                  END
 
+-- SET LEVEL_INFO = 'BILLED' if INVOICE_NUMBER LIKE 'INV%' ELSE 'BANKRUPTCY'
+                ,decode(substr(INVOICE_NUMBER,1,3), 'INV', 'BILLED', 'BANKRUPTCY')
+                ,sum(nvl(TOTAL_AMT_PAID,0))
+          into  DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER
+                ,DM_INVOICE_ITM_INFO_TAB(i).STATUS
+                ,DM_INVOICE_ITM_INFO_TAB(i).LEVEL_INFO
+                ,DM_INVOICE_ITM_INFO_TAB(i).PAID_AMOUNT
+          from  
+          ((select DOCUMENT_ID
+                  ,AMT_CHARGED 
+                  ,TOTAL_AMT_PAID
+          from  VB_ACTIVITY
+          where LEDGER_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_ITEM_NUMBER)
+          union all
+          (select DOCUMENT_ID
+                  ,AMT_CHARGED 
+                  ,TOTAL_AMT_PAID
+          from  ST_ACTIVITY_PAID
+          where LEDGER_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_ITEM_NUMBER))
+          ;
+        exception 
+          when others then null;
+          DM_INVOICE_ITM_INFO_TAB(i).STATUS := 'CLOSED';
+          DM_INVOICE_ITM_INFO_TAB(i).PAID_AMOUNT := 0;
+          v_trac_etl_rec.result_code := SQLCODE;
+          v_trac_etl_rec.result_msg := SQLERRM;
+          v_trac_etl_rec.proc_end_date := SYSDATE;
+          update_track_proc(v_trac_etl_rec);
+           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+        end;    
+
+        begin
+          select DOC_TYPE_ID
+                ,trunc(NVL(CREATED_ON,SYSDATE))
+                ,nvl(PROMOTION_status,'UNDEFINED')
+          into  DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY -- Use to get actual value
+                ,DM_INVOICE_ITM_INFO_tab(i).INVOICE_DATE
+                ,DM_INVOICE_ITM_INFO_tab(i).REASON_CODE
+          from  ST_DOCUMENT_INFO
+          where DOCUMENT_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER
+          ;
+        exception 
+          when others then null;
+          DM_INVOICE_ITM_INFO_TAB(i).STATUS := 'CLOSED';
+          DM_INVOICE_ITM_INFO_TAB(i).PAID_AMOUNT := 0;
+          v_trac_etl_rec.result_code := SQLCODE;
+          v_trac_etl_rec.result_msg := SQLERRM;
+          v_trac_etl_rec.proc_end_date := SYSDATE;
+          update_track_proc(v_trac_etl_rec);
+           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+        end;      
+             
 --  DBMS_OUTPUT.PUT_LINE('1) DM_INVOICE_ITM_INFO_tab('||i||').SUB_CATEGORY: '||DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY);
 
         select --distinct
@@ -300,7 +359,8 @@ BEGIN
         into  DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY
         from  VB_ACTIVITY va
               ,VB_ACTIVITY vac  -- Child
-        where va.DOCUMENT_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER
+        where va.LEDGER_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_ITEM_NUMBER
+--        where va.DOCUMENT_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER
         and   va.CHILD_DOC_ID = vac.DOCUMENT_ID (+)
         and   rownum<=1  -- Verify what record to get ??
         ;
@@ -310,7 +370,7 @@ BEGIN
           DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY := 'INVPAYMENT';
           when others then null;
           DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY := 'Multi-value';
-          DBMS_OUTPUT.PUT_LINE('2) INVOICE_NUMBER: '||DM_INVOICE_ITM_INFO_TAB(i).INVOICE_NUMBER);
+          DBMS_OUTPUT.PUT_LINE('2) INVOICE_ITEM_NUMBER: '||DM_INVOICE_ITM_INFO_TAB(i).INVOICE_ITEM_NUMBER);
           v_trac_etl_rec.result_code := SQLCODE;
           v_trac_etl_rec.result_msg := SQLERRM;
           v_trac_etl_rec.proc_end_date := SYSDATE;
@@ -326,29 +386,6 @@ BEGIN
 -- Join ST_Document_info.document_id with VB_Activity.document_id  
 -- and for same record 
 -- join KS_LEDGER.ID to VB_activity.LEDGER_ID to get the KS_LEDGER.Amount( Original amount)
-
---    ,nvl((select kl.AMOUNT 
---          from KS_LEDGER kl
---           where kl.ID = va.LEDGER_ID),0) PAYABLE -- di.PREV_DUE + di.TOLL_CHARGED + di.FEE_CHARGED + di.PAYMT_ADJS) PAYABLE
---    ,nvl((select unique kl.PA_LANE_TXN_ID from KS_LEDGER kl
---        where kl.ID = va.LEDGER_ID),0) LANE_TX_ID
-
-        begin
-          select --sum(nvl(kl.AMOUNT,0)),
-                distinct kl.PA_LANE_TXN_ID
-          into  --DM_INVOICE_ITM_INFO_tab(i).PAYABLE,
-                DM_INVOICE_ITM_INFO_tab(i).LANE_TX_ID
-          from  ST_ACTIVITY_PAID sap,
-                KS_LEDGER kl
-          where sap.DOCUMENT_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER
-          and   sap.LEDGER_ID = kl.id
---          group by kl.PA_LANE_TXN_ID
-          ;
-        exception 
-          when others then null;
---          DM_INVOICE_ITM_INFO_tab(i).PAYABLE := 0;
-          DM_INVOICE_ITM_INFO_tab(i).LANE_TX_ID := 0;
-        end;
         
 
 -- LEVEL_INFO SET TO ----
@@ -368,101 +405,65 @@ FOR BANKRUPTCY _FLAG NOT NULL
 IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
 */ 
 
-      begin
-        select -- distinct
-        CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'DISMISSED' --'BANKRUPTCY'
-          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 'INVOICED'
-          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID like '%-%'  THEN 'UTC'
-          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
-          WHEN COLL_COURT_FLAG = 'COLL' and CHILD_DOC_ID is NOT null THEN 'COLLECTION'
-          WHEN COLL_COURT_FLAG = 'CRT'  and CHILD_DOC_ID is NOT null THEN 'COURT'
---          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
---          ELSE 'REG STOP'
-          ELSE 'INVPAYMENT'
-         END    
-        into  DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO
-        from  VB_ACTIVITY
-        where DOCUMENT_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER
-        and rownum<=1  -- Verify what record to get ??
-        ;
-      exception 
-        when no_data_found then
--- WHEN COLL_COURT_FLAG is null      and DOCUMENT_ID is null     THEN 'UNBILLED'
-          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'INVPAYMENT';
---          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'UNBILLED';
-        when others then --null;
-          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'INVPAYMENT';
-          v_trac_etl_rec.result_code := SQLCODE;
-          v_trac_etl_rec.result_msg := SQLERRM;
-          v_trac_etl_rec.proc_end_date := SYSDATE;
-          update_track_proc(v_trac_etl_rec);
-           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
-           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
-      end;
-
-
---JOIN DOCUMENT_INFO_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of VB_ACTIVITY 
---  returns UNPAID_TXN_DETAILS 
---UNION ALL 
---JOIN DOCUMENT_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of ST_ACTIVITY_PAID 
---  returns PAID_TXN_DETAILS 
---IF UNPAID_AMT > 0 THEN 'OPEN' ELSE 'CLOSED'  (Need PAID_TXN_DETAILS definition from FTE); 
-        
-        begin
-          select  CASE WHEN sum(nvl(AMT_CHARGED,0) - nvl(TOTAL_AMT_PAID,0)) > 0 
-                      THEN 'OPEN'
---                    WHEN (select nvl(AMOUNT,0) from KS_LEDGER where id = ap.LEDGER_ID)
---                - (nvl(ap.AMT_CHARGED,0) - nvl(ap.TOTAL_AMT_PAID,0)) >0  THEN 'DISPUTED'
-                      ELSE 'CLOSED'
-                  END
---                ,sum(nvl(AMT_CHARGED,0) - nvl(TOTAL_AMT_PAID,0)) 
-                ,sum(nvl(TOTAL_AMT_PAID,0))
-          into  DM_INVOICE_ITM_INFO_TAB(i).STATUS
- --               ,DM_INVOICE_ITM_INFO_TAB(i).CREDITS
-                ,DM_INVOICE_ITM_INFO_TAB(i).PAID_AMOUNT
-          from  
-          ((select AMT_CHARGED 
-                  ,TOTAL_AMT_PAID
-          from  VB_ACTIVITY
-          where DOCUMENT_ID = DM_INVOICE_ITM_INFO_TAB(i).INVOICE_NUMBER)
-          union all
-          (select AMT_CHARGED 
-                  ,TOTAL_AMT_PAID
-          from  ST_ACTIVITY_PAID
-          where DOCUMENT_ID = DM_INVOICE_ITM_INFO_TAB(i).INVOICE_NUMBER))
-          ;
-        exception 
-          when others then null;
-          DBMS_OUTPUT.PUT_LINE('2) INVOICE_NUMBER: '||DM_INVOICE_ITM_INFO_TAB(i).INVOICE_NUMBER);
-          DM_INVOICE_ITM_INFO_TAB(i).STATUS := 'CLOSED';
-          DM_INVOICE_ITM_INFO_TAB(i).PAID_AMOUNT := 0;
-          v_trac_etl_rec.result_code := SQLCODE;
-          v_trac_etl_rec.result_msg := SQLERRM;
-          v_trac_etl_rec.proc_end_date := SYSDATE;
-          update_track_proc(v_trac_etl_rec);
-           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
-           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
-        end;        
+--      begin
+--        select
+--        CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'DISMISSED' --'BANKRUPTCY'
+--          WHEN COLL_COURT_FLAG is null  and DOCUMENT_ID is null      THEN 'UNBILLED'
+--          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 'INVOICED'
+--          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID like '%-%'  THEN 'UTC'
+--          WHEN COLL_COURT_FLAG = 'COLL' and CHILD_DOC_ID is NOT null THEN 'COLLECTION'
+--          WHEN COLL_COURT_FLAG = 'CRT'  and CHILD_DOC_ID is NOT null THEN 'COURT'
+--          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
+----          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop  ??
+----          ELSE 'REG STOP'
+--          ELSE 'INVPAYMENT'
+--         END    
+--        into  DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO
+--        from  VB_ACTIVITY
+--        where LEDGER_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_ITEM_NUMBER
+--        and rownum<=1  -- Verify what record to get ??
+--        ;
+--      exception 
+--        when no_data_found then
+--          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'INVPAYMENT';
+----          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'UNBILLED';
+--        when others then --null;
+--          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'INVPAYMENT';
+--          v_trac_etl_rec.result_code := SQLCODE;
+--          v_trac_etl_rec.result_msg := SQLERRM;
+--          v_trac_etl_rec.proc_end_date := SYSDATE;
+--          update_track_proc(v_trac_etl_rec);
+--           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+--           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+--      end;
+    
 
 --JOIN LEDGER_ID OF ST_ACTIVITY_PAID to ID OF KS_LEDGER 
 --  returns ORIGINAL_AMT from KS_LEDGER AND DISPUTED_AMT FROM ST_ACTIVITY_PAID; 
 --  Use idfference to determine if dismissed or not (IF 0 THEN 'DISPUTED' ELSE 'CLOSED') 
 
+--IF ST_DOCUMENT_INFO.ACCT_NUM IN (select A.ACCT_NUM from patron.ST_Document_info a, PATRON.ST_ACTIVITY_PAID b
+--where A.DOCUMENT_ID = B.DOCUMENT_ID
+--and B.AMT_CHARGED - B.TOTAL_AMT_PAID > 0) THEN B.AMT_CHARGED - B.TOTAL_AMT_PAID ELSE 0
+
+
       if DM_INVOICE_ITM_INFO_tab(i).STATUS != 'OPEN' then
         begin
-          select CASE WHEN sum(nvl(kl.AMOUNT,0) - (nvl(sap.AMT_CHARGED,0) - nvl(sap.TOTAL_AMT_PAID,0))) > 0
+          select CASE WHEN sum(DM_INVOICE_ITM_INFO_TAB(i).PAYABLE - (nvl(AMT_CHARGED,0) - nvl(TOTAL_AMT_PAID,0))) > 0
                       THEN 'DISPUTED'         
                       ELSE 'CLOSED'
-                  END 
+                  END
+--                ,TOTAL_AMT_PAID
           into  DM_INVOICE_ITM_INFO_tab(i).STATUS
-          from  ST_ACTIVITY_PAID sap,
-                KS_LEDGER kl
-          where sap.DOCUMENT_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER
-          and   sap.LEDGER_ID = kl.id
+--                ,DM_INVOICE_ITM_INFO_tab(i).PAID_AMOUNT
+          from  ST_ACTIVITY_PAID
+          where DOCUMENT_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER
+          and   LEDGER_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_ITEM_NUMBER
           ;
         exception 
           when others then null;
           DM_INVOICE_ITM_INFO_tab(i).STATUS := 'CLOSED';
+--          DM_INVOICE_ITM_INFO_tab(i).PAID_AMOUNT := 0;
         end;
       end if;
       IF DM_INVOICE_ITM_INFO_tab(i).PAID_AMOUNT is null then

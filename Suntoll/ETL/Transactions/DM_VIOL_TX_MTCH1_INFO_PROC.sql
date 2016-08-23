@@ -76,8 +76,8 @@ IS SELECT
     ,0 LANE_HEALTH
     ,'0' PLAZA_AGENCY_ID   -- in ETL
         
-----    ,to_number(nvl(lt.EXT_PLAZA_ID,'0')) PLAZA_ID
-    ,to_number(EXT_PLAZA_ID) PLAZA_ID
+    ,to_number(nvl(EXT_PLAZA_ID,'0')) PLAZA_ID
+--    ,to_number(EXT_PLAZA_ID) PLAZA_ID
     ,0 COLLECTOR_ID
     ,0 TOUR_SEGMENT_ID
     ,'0' ENTRY_DATA_SOURCE
@@ -113,7 +113,6 @@ IS SELECT
 
 ---- JOIN WITH JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN AND 
 ---- JOIN UFM_TOKEN TO UFM_ID FOR EVENT_ROV       
----- -    ,(select HOST_UFM_TOKEN from UFM_LANE_TXN_INFO where TXN_ID=lt.TXN_ID)   HOST_UFM_TOKEN
     ,'***'   DEVICE_NO  -- in ETL
 
     ,NULL  ACCOUNT_TYPE -- PA_ACCT  -- KS_LEDGER  ---- in ETL
@@ -172,7 +171,6 @@ IS SELECT
     ,0 IMAGE_BATCH_SEQ_NUMBER
     
 -- Source is NUMBER(20) and target is NUMBER(5)
---    ,to_number(substr(nvl(lt.VPS_EVENT_ID,'0'),1,5)) IMAGE_INDEX  
     ,to_number(substr(VPS_EVENT_ID,1,5)) IMAGE_INDEX  -- check for null
 
     ,0 ADJUSTED_AMOUNT
@@ -223,12 +221,7 @@ IS SELECT
           ELSE 'N'
       END IS_CLOSED 
       
-------  EXTRACT RULE FOR ROV = 
-------  Join OAVA_LINK_ID of PA_LANE_TXN to ID of EVENT_OWNER_ADDR_VEHICLE_ACCT 
-------  AND OWNER_ID of EVENT_OWNER_ADDR_VEHICLE_ACCT to ID of EVENT_OWNER 
-------  AND ADDRESS_ID of EVENT_OWNER_ADDR_VEHICLE_ACCT to ID of EVENT_ADDRESS 
-------  AND VEHICLE_ID of EVENT_OWNER_ADDR_VEHICLE_ACCT to ID of EVENT_VEHICLE
-     ,to_date('12-31-9999','MM-DD-YYYY') DMV_RETURN_DATE
+     ,to_date('12-31-9999','MM-DD-YYYY') DMV_RETURN_DATE  -- in ETL section
         
 ----  IF VB_ACTIVITY.COLL_COURT_FLAG = 'COLL' THEN 'SEND_TO_COLLECTION' 
 ----  IF ST_ACTIVITY_PAID.COLL_COURT_FLAG = 'COLL'  AND AMT_CHARGED <> 0 THEN PAID_ON_COLLECTIONS    
@@ -246,7 +239,7 @@ IS SELECT
     ,'UNDEFINED'  LOCATION  --   -- in ETL section  ,lt.EXT_PLAZA_ID LOCATION
 --        
 ---- -- EVENT_VEHICLE - REFER TO EXTRACT RULE ABOVE (#2)
-    ,OAVA_LINK_ID DMV_MAKE_ID  -- - Use to get in ETL 
+    ,OAVA_LINK_ID DMV_MAKE_ID  -- - Use to get in ETL from EVENT_VEHICLE
 
     ,0 PAR_LANE_TX_ID 
     ,'UNDEFINED' FACILITY_ID  -- in ETL section
@@ -263,7 +256,7 @@ FROM PA_LANE_TXN lt
 where lt.txn_id = (select PA_LANE_TXN_ID
                 from  KS_LEDGER kl2
                 WHERE kl2.PA_LANE_TXN_ID = lt.txn_id
-                AND   kl2.ACCT_NUM >= p_begin_acct_num AND   kl2.ACCT_NUM <= p_end_acct_num
+                AND   kl2.ACCT_NUM >= p_begin_acct_num AND kl2.ACCT_NUM <= p_end_acct_num
                 and   rownum<=1
                 )
 and TRANSP_ID like '%2010'  --WHERE TRANSPONDER_ID ENDS WITH '2010'  
@@ -332,30 +325,32 @@ BEGIN
         v_trac_etl_rec.BEGIN_VAL := DM_VIOL_TX_MTCH1_INFO_tab(i).ETC_ACCOUNT_ID;
       end if;
       
---select agency_id  --  PLAZA_AGENCY_ID
---from PA_LANE_TXN a, PA_PLAZA b, ST_INTEROP_AGENCIES c
---Where a.ext_plaza_id  = b.plaza_id
---And AUTHCODE_AUTHORITY_CODE = AUTHORITY_CODE
 -- Agency  id to which the plaza and lane belong to where the transaction took place.
       begin
         select sia.AGENCY_ID 
         into  DM_VIOL_TX_MTCH1_INFO_tab(i).PLAZA_AGENCY_ID 
-        from  PA_PLAZA pp, ST_INTEROP_AGENCIES sia
+        from  PA_PLAZA pp, 
+              ST_INTEROP_AGENCIES sia
         Where pp.plaza_id  = DM_VIOL_TX_MTCH1_INFO_tab(i).PLAZA_ID
         and   pp.AUTHCODE_AUTHORITY_CODE = sia.AUTHORITY_CODE
         and   rownum<=1
         ;
       exception
-        when no_data_found then null;
-          DM_VIOL_TX_MTCH1_INFO_tab(i).PLAZA_AGENCY_ID:='0'; 
         when others then null;
-          DM_VIOL_TX_MTCH1_INFO_tab(i).PLAZA_AGENCY_ID:='0'; 
-          v_trac_etl_rec.result_code := SQLCODE;
-          v_trac_etl_rec.result_msg := SQLERRM;
-          v_trac_etl_rec.proc_end_date := SYSDATE;
-          update_track_proc(v_trac_etl_rec);
-           DBMS_OUTPUT.PUT_LINE('PLAZA_AGENCY_ID ERROR CODE: '||v_trac_etl_rec.result_code);
-           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+--if the FTE_PLAZA = ‘Y’ in PA_Plaza then default the agency to FTE 
+          begin  
+            select sia.AGENCY_ID 
+            into  DM_VIOL_TX_MTCH1_INFO_tab(i).PLAZA_AGENCY_ID 
+            from  PA_PLAZA pp, 
+                  ST_INTEROP_AGENCIES sia
+            Where pp.plaza_id  = DM_VIOL_TX_MTCH1_INFO_tab(i).PLAZA_ID
+            and   pp.FTE_PLAZA = 'Y'
+            and   sia.AGENCY_NAME = 'FTE'
+            ;
+          exception 
+            when others then null;
+             DM_VIOL_TX_MTCH1_INFO_tab(i).PLAZA_AGENCY_ID:='0'; 
+          end;
       end;
 
 ---- JOIN WITH JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN AND 
@@ -380,24 +375,16 @@ BEGIN
 ----RETURN AGENCY_ID [XEROX TO LOOKUP INTERNAL ID]
 ----Only bring in two digit location. Lookup will occur after staging by Xerox.
 --      begin
---        select distinct AGENCY_ID 
+--        select AGENCY_ID 
 --        into  DM_VIOL_TX_MTCH1_INFO_tab(i).ACCOUNT_AGENCY_ID 
 --        from  ST_INTEROP_AGENCIES sia
 --        Where AGENCY_CODE  = DM_VIOL_TX_MTCH1_INFO_tab(i).ACCOUNT_AGENCY_ID
---        -- and   rownum<=1
+--        and   rownum<=1
 --        ;
 --      exception
---        when no_data_found then null;
---          DM_VIOL_TX_MTCH1_INFO_tab(i).PLAZA_AGENCY_ID:='0'; 
 --        when others then null;
 --          DM_VIOL_TX_MTCH1_INFO_tab(i).ACCOUNT_AGENCY_ID:='0'; 
 --           DBMS_OUTPUT.PUT_LINE('AGENCY_CODE: '||DM_VIOL_TX_MTCH1_INFO_tab(i).ACCOUNT_AGENCY_ID);
---          v_trac_etl_rec.result_code := SQLCODE;
---          v_trac_etl_rec.result_msg := SQLERRM;
---          v_trac_etl_rec.proc_end_date := SYSDATE;
---          update_track_proc(v_trac_etl_rec);
---           DBMS_OUTPUT.PUT_LINE('ACCOUNT_AGENCY_ID ERROR CODE: '||v_trac_etl_rec.result_code);
---           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
 --      end;
       
 --LOOKUP PA_STATE_CODE. Xerox - internal lookup in DM_ADDRESS_INFO and assign country correctly. 
@@ -430,8 +417,7 @@ BEGIN
         when others then null;
         DM_VIOL_TX_MTCH1_INFO_tab(i).ACCOUNT_TYPE:=NULL;
       end;        
-        
-        
+    
 --VB_ACTIVITY table 
 --FOR BANKRUPTCY_FLAG NULL and COLL_COURT_FLAG NULL
 --IF DOCUMENT_ID is null, then 'UNBILLED'
@@ -476,7 +462,7 @@ BEGIN
 --             WHEN ap.COLL_COURT_FLAG = 'COLL' AND ap.AMT_CHARGED <> 0 THEN 2  -- 'PAID_ON_COLLECTIONS'         
              ELSE 0
          END 
-        into  DM_VIOL_TX_MTCH1_INFO_tab(i).EVENT_TYPE
+        into  DM_VIOL_TX_MTCH1_INFO_tab(i).EVENT_TYPE -- 
               ,DM_VIOL_TX_MTCH1_INFO_tab(i).NOTICE_FEE_AMOUNT
               ,DM_VIOL_TX_MTCH1_INFO_tab(i).COLL_STATUS
         from  VB_ACTIVITY
@@ -523,6 +509,11 @@ BEGIN
 --          DM_VIOL_TX_MTCH1_INFO_tab(i).LOAD_DATE := SYSDATE;      
 --      end;
 
+------  EXTRACT RULE FOR ROV = 
+------  Join OAVA_LINK_ID of PA_LANE_TXN to ID of EVENT_OWNER_ADDR_VEHICLE_ACCT 
+------  AND OWNER_ID of EVENT_OWNER_ADDR_VEHICLE_ACCT to ID of EVENT_OWNER 
+------  AND ADDRESS_ID of EVENT_OWNER_ADDR_VEHICLE_ACCT to ID of EVENT_ADDRESS 
+------  AND VEHICLE_ID of EVENT_OWNER_ADDR_VEHICLE_ACCT to ID of EVENT_VEHICLE
 --select Plate,jurisdiction,max(response_Date) from event_lookup_rov
 -- where event_OAVA_link_id is not null
 -- group by Plate,jurisdiction
@@ -564,7 +555,7 @@ BEGIN
            DBMS_OUTPUT.PUT_LINE('MAKE ERROR CODE: '||v_trac_etl_rec.result_code);
            DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
       end; 
-        
+
       begin
         select substr(trim(PLAZA_NAME),1,15) -- Target is 15 chars
               ,nvl(FACCODE_FACILITY_CODE,'UNDEFINED')
