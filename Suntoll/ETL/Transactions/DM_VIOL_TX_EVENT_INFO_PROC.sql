@@ -46,21 +46,17 @@ IS SELECT
        Write Off; Bankruptcy; Deceased; UTC (Uniform Traffic Citation); Paid;  .  
  Sunny will provide extract rule to determine status once the status is finalized between Xerox and FTE. 
  **/
-    0 EVENT_TYPE  -- Required
-    ,0 PREV_EVENT_TYPE -- Required
-    ,0 VIOL_TX_STATUS
-    ,0 PREV_VIOL_TX_STATUS  -- Required
+    0 EVENT_TYPE
+    ,0 PREV_EVENT_TYPE
+    ,NULL VIOL_TX_STATUS  -- in ETL
+    ,0 PREV_VIOL_TX_STATUS
     ,EXT_DATE_TIME EVENT_TIMESTAMP -- Required
     ,NULL ETC_ACCOUNT_ID   -- Join KS_LEDGER on TXN_ID  in ETL
     ,VEH_LIC_NUM PLATE_NUMBER
     ,STATE_ID_CODE  PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
     ,'USA' PLATE_COUNTRY  -- default in ETL
-    
--- MAKE is char and MAKE_ID is number ISSUE
--- ,OAVA_LINK_ID MAKE_ID  -- - Use to get in ETL 
-    ,0 MAKE_ID  -- - Use to get in ETL 
-    
-    ,0 DMV_PLATE_TYPE  -- Derived  ?? VERIFY
+    ,OAVA_LINK_ID MAKE_ID -- Use to get actual value in ETL  
+    ,0 DMV_PLATE_TYPE     -- Derived  ?? VERIFY
     ,0 REVIEWED_VEHICLE_TYPE
     ,0 REVIEWED_CLASS
     ,3 VIOL_TYPE
@@ -68,8 +64,8 @@ IS SELECT
     ,'**' OUTPUT_FILE_TYPE
     ,EXT_DATE_TIME TX_TIMESTAMP   -- time only
     ,trunc(EXT_DATE_TIME) TX_DATE -- date only
-    ,0 CITATION_LEVEL  -- Derived  
-    ,0 CITATION_STATUS  -- Derived  
+    ,0 CITATION_LEVEL     -- Derived  
+    ,0 CITATION_STATUS    -- Derived  
     ,0 NOTICE_FEE_AMOUNT  -- Derived    
 
  -- TOTAL_AMT_PAID JOIN WITH KS_LEDGER ON LEDGER_ID AND KS_LEDGER TO PA_LANE_TXN on PA_LANE_TXN_ID
@@ -90,7 +86,7 @@ where txn_id = (select PA_LANE_TXN_ID
                 )
 ;
 
-v_ks_ledger_id    KS_LEDGER.ID%TYPE:= 0;
+v_ks_ledger_id   KS_LEDGER.ID%TYPE:= 0;
 row_cnt          NUMBER := 0;
 v_trac_rec       dm_tracking%ROWTYPE;
 v_trac_etl_rec   dm_tracking_etl%ROWTYPE;
@@ -174,15 +170,33 @@ IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
 "
 **Translation for action values, convert to translated values below
 */
-          CASE WHEN BANKRUPTCY_FLAG is NOT NULL then 'BANKRUPTCY'
-              WHEN DOCUMENT_ID IS NULL      THEN 'UNBILLED'
-              WHEN CHILD_DOC_ID IS NULL     THEN 'INVOICED'
-              WHEN COLL_COURT_FLAG = 'COLL' then 'COLLECTION'
-              WHEN COLL_COURT_FLAG = 'CRT'  then 'COURT'
-              WHEN CHILD_DOC_ID LIKE '%-%'  THEN 'UTC'
-              WHEN CHILD_DOC_ID IS NOT NULL THEN 'ESCALATED'
+--   UNBILLED      |  601
+--   INVOICED      |  602
+--   ESCALATED     |  603
+--   UTC           |  604
+--   COLLECTION    |  605
+--   COURT         |  606
+--   BANKRUPTCY    |  607
+
+          CASE WHEN BANKRUPTCY_FLAG is NOT NULL then 607 -- 'BANKRUPTCY'
+              WHEN DOCUMENT_ID IS NULL      THEN 601 -- 'UNBILLED'
+              WHEN CHILD_DOC_ID IS NULL     THEN 602 -- 'INVOICED'
+              WHEN COLL_COURT_FLAG = 'COLL' then 605 -- 'COLLECTION'
+              WHEN COLL_COURT_FLAG = 'CRT'  then 606 -- 'COURT'
+              WHEN CHILD_DOC_ID LIKE '%-%'  THEN 604 -- 'UTC'
+              WHEN CHILD_DOC_ID IS NOT NULL THEN 603 -- 'ESCALATED'
               ELSE 0    -- NULL  Required Default 0?
           END  
+
+--          CASE WHEN BANKRUPTCY_FLAG is NOT NULL then 'BANKRUPTCY'
+--              WHEN DOCUMENT_ID IS NULL      THEN 'UNBILLED'
+--              WHEN CHILD_DOC_ID IS NULL     THEN 'INVOICED'
+--              WHEN COLL_COURT_FLAG = 'COLL' then 'COLLECTION'
+--              WHEN COLL_COURT_FLAG = 'CRT'  then 'COURT'
+--              WHEN CHILD_DOC_ID LIKE '%-%'  THEN 'UTC'
+--              WHEN CHILD_DOC_ID IS NOT NULL THEN 'ESCALATED'
+--              ELSE 0    -- NULL  Required Default 0?
+--          END  
 
 /*
 -- Also include from previous comment --
@@ -245,7 +259,28 @@ JOIN PLAZA_ID of PA_PLAZA to EXT_PLAZA_ID for PA_Lane_txn
           DM_VIOL_TX_EVENT_INFO_tab(i).NOTICE_FEE_AMOUNT := 0;
       end;
 
-      /* get PA_LANE_TXN_REJECT.TXN_ID for LANE_TX_ID */
+      begin
+        select nvl(ev.MAKE, 0)
+        into  DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID
+        from  EVENT_VEHICLE ev, 
+              EVENT_OWNER_ADDR_VEHICLE_ACCT eo
+        where eo.ID = DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID -- OAVA_LINK_ID
+        and   eo.VEHICLE_ID = ev.ID   -- and   rownum<=1
+        ;
+      exception 
+        when no_data_found then null;
+          DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID := 0;      
+        when others then null;
+          DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID := 0;      
+          v_trac_etl_rec.result_code := SQLCODE;
+          v_trac_etl_rec.result_msg := SQLERRM;
+          v_trac_etl_rec.proc_end_date := SYSDATE;
+          update_track_proc(v_trac_etl_rec);
+           DBMS_OUTPUT.PUT_LINE('MAKE ERROR CODE: '||v_trac_etl_rec.result_code);
+           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+      end; 
+
+      /* get PA_LANE_TXN_REJECT.TXN_ID for LANE_TX_ID */  -- No Records in table
       begin
         select TXN_ID into DM_VIOL_TX_EVENT_INFO_tab(i).LANE_TX_ID
         from  PA_LANE_TXN_REJECT
@@ -255,33 +290,16 @@ JOIN PLAZA_ID of PA_PLAZA to EXT_PLAZA_ID for PA_Lane_txn
           when others then null;
           DM_VIOL_TX_EVENT_INFO_tab(i).LANE_TX_ID:=null;
       end;
-
---      begin
---        select nvl(ev.MAKE, 0)
---        into  DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID
---        from  EVENT_VEHICLE ev, 
---              EVENT_OWNER_ADDR_VEHICLE_ACCT eo
---        where eo.ID = DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID -- OAVA_LINK_ID
---        and   eo.VEHICLE_ID = ev.ID   -- and   rownum<=1
---        ;
---      exception 
---        when others then null;
---          DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID := 0;      
---          v_trac_etl_rec.result_code := SQLCODE;
---          v_trac_etl_rec.result_msg := SQLERRM;
---          v_trac_etl_rec.proc_end_date := SYSDATE;
---          update_track_proc(v_trac_etl_rec);
---           DBMS_OUTPUT.PUT_LINE('MAKE ERROR CODE: '||v_trac_etl_rec.result_code);
---           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
---      end; 
-
+      
       if DM_VIOL_TX_EVENT_INFO_tab(i).EVENT_TIMESTAMP is null then
          DM_VIOL_TX_EVENT_INFO_tab(i).EVENT_TIMESTAMP:=to_date('12319999','MMDDYYYY');
       end if;
       if DM_VIOL_TX_EVENT_INFO_tab(i).VIOL_TX_STATUS is null then
          DM_VIOL_TX_EVENT_INFO_tab(i).VIOL_TX_STATUS:='0';
       end if;
-         
+      if DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID is null then
+         DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID:='0';
+      end if;        
       v_trac_etl_rec.track_last_val := DM_VIOL_TX_EVENT_INFO_tab(i).ETC_ACCOUNT_ID;
     end loop;
     

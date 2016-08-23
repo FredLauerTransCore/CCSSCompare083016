@@ -32,7 +32,7 @@ CURSOR C1
 (p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
 IS SELECT 
     ACCT_NUM ACCOUNT_NUMBER
-    ,0 ACTIVITY_NUMBER  -- In ETL
+    ,NONFIN_ACT_SEQ.NEXTVAL ACTIVITY_NUMBER  -- In ETL
     ,TYPE_CODE CATEGORY
     ,PROB_CODE SUB_CATEGORY
     ,TYPE_ID ACTIVITY_TYPE
@@ -75,19 +75,6 @@ BEGIN
   v_trac_etl_rec.status := 'ETL Processing ';
   update_track_proc(v_trac_etl_rec);
 
---  begin
---    select nvl(max(ACTIVITY_NUMBER),0) into  v_activity_number
---    from DM_NONFIN_ACT_INFO
---    ;
---  exception 
---    when no_data_found then --null;
---      v_activity_number :=  0;
---    when others then --null;
---      v_activity_number :=  0;
---      DBMS_OUTPUT.PUT_LINE('activity_number ERROR CODE: '||SQLCODE);
---      DBMS_OUTPUT.PUT_LINE('activity_number ERROR MSG: '||SQLERRM);
---  end;    
---    
   LOOP
 
     /*Bulk select */
@@ -99,14 +86,10 @@ BEGIN
 
     FOR i IN 1 .. DM_NONFIN_ACT_INFO_tab.COUNT LOOP
       IF i=1 then
-        v_trac_etl_rec.BEGIN_VAL := DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER;
-        DBMS_OUTPUT.PUT_LINE('activity_number: '||v_activity_number);
-    
+        v_trac_etl_rec.BEGIN_VAL := DM_NONFIN_ACT_INFO_tab(i).ACCOUNT_NUMBER;    
       end if;
-      
---      v_activity_number := v_activity_number+1;
---      DM_NONFIN_ACT_INFO_tab(i).activity_number :=  v_activity_number;
-      DM_NONFIN_ACT_INFO_tab(i).activity_number := NONFIN_ACT_SEQ.NEXTVAL;
+
+--      DM_NONFIN_ACT_INFO_tab(i).activity_number := NONFIN_ACT_SEQ.NEXTVAL;
 
 -- NOTE TYPE_CODE CATEGORY
       begin

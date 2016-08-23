@@ -41,12 +41,12 @@ IS SELECT
     ,nvl2(u.ACCT_LOCKED_UNTIL_DATE,'Y','N') PASSWORD_RESET  --Derived- IF INVALID LOGIN DATETIME IS NOT NULL THEN YES ELSE NO
     ,NULL UPDATE_TS
     ,sysdate LAST_LOGOUT_DATETIME
-    ,NULL LOGIN_IP_ADDRESS  -- In ETL - LOGIN_IP ADDRESS of MAX(LOGIN_DATE) from PA_WEB_LOGIN_INFO
-    ,NULL USER_AGENT  -- In ETL - PA_WEB_LOGIN_INFO
-    ,NULL ANI  -- In ETL - IVR_CALL
+    ,NULL LOGIN_IP_ADDRESS     -- In ETL - LOGIN_IP ADDRESS of MAX(LOGIN_DATE) from PA_WEB_LOGIN_INFO
+    ,NULL USER_AGENT           -- In ETL - PA_WEB_LOGIN_INFO
+    ,NULL ANI                  -- In ETL - IVR_CALL
     ,NULL IVR_CALL_START_TIME  -- In ETL - IVR_CALL ic.START_TIME
-    ,NULL IVR_CALL_END_TIME  -- In ETL - VR_CALL ic.END_TIME
-    ,NULL LAST_IVR_CALL_DATE  -- In ETL - SELECT MAX(LAST_LOGIN_DATE) from PA_WEB_LOGIN_INFO WHERE USER AGENT = 'IVR'
+    ,NULL IVR_CALL_END_TIME    -- In ETL - VR_CALL ic.END_TIME
+    ,NULL LAST_IVR_CALL_DATE   -- In ETL - SELECT MAX(LAST_LOGIN_DATE) from PA_WEB_LOGIN_INFO WHERE USER AGENT = 'IVR'
     ,'SUNTOLL' SOURCE_SYSTEM
 FROM KS_USER_PA_ACCT_ASSOC ua
     ,KS_USER u
@@ -122,11 +122,11 @@ BEGIN
               USER_AGENT 
         into  DM_ACCOUNT_WEB_INFO_tab(i).LOGIN_IP_ADDRESS, 
               DM_ACCOUNT_WEB_INFO_tab(i).USER_AGENT
-        from  PA_WEB_LOGIN_INFO wl
-        where wl.ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID
-        and wl.LOGIN_DATE = (select max(LOGIN_DATE)
-                              from PA_WEB_LOGIN_INFO wl2
-                              where wl2.ACCT_NUM = wl.ACCT_NUM)
+        from  PA_WEB_LOGIN_INFO
+        where ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID
+        and   LOGIN_DATE = (select max(LOGIN_DATE)
+                              from PA_WEB_LOGIN_INFO
+                              where ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID)
         and   rownum<=1
         ;
       exception 
@@ -144,8 +144,9 @@ BEGIN
       end;
 
       begin
-       select --distinct 
-              ic.ANI, ic.START_TIME, ic.END_TIME 
+       select ic.ANI, 
+              ic.START_TIME, 
+              ic.END_TIME 
        into   DM_ACCOUNT_WEB_INFO_tab(i).ANI
               ,DM_ACCOUNT_WEB_INFO_tab(i).IVR_CALL_START_TIME
               ,DM_ACCOUNT_WEB_INFO_tab(i).IVR_CALL_END_TIME
@@ -153,8 +154,8 @@ BEGIN
               IVR_CALL_DETAIL icd
         WHERE icd.CALL_ID = ic.CALL_ID
         and   icd.ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID
-        and   icd.CALL_ID = (select max(icd.CALL_ID) from IVR_CALL_DETAIL icd2
-                            where icd2.ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID)
+        and   icd.CALL_ID = (select max(CALL_ID) from IVR_CALL_DETAIL
+                            where ACCT_NUM = DM_ACCOUNT_WEB_INFO_tab(i).ETC_ACCOUNT_ID)
         and   rownum<=1
         ;
 
