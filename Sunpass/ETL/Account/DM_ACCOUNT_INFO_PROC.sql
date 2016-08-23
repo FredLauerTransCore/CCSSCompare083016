@@ -28,34 +28,36 @@ P_ARRAY_SIZE NUMBER:=10000;
 CURSOR C1 IS SELECT 
     ACCT_NUM ACCOUNT_NUMBER
     ,decode(ACCTSTAT_ACCT_STATUS_CODE,
-     '01','Active',
-     '02','Suspended',
-     '03','Terminated',
-     '04','Closed',
-     '99','Do Not Use',
+     '01','ACTIVE',
+     '02','SUSPENDED',
+     '03','RVKF',
+     '04','CLOSED',
+     '99','DO NOT USE',
     ACCTSTAT_ACCT_STATUS_CODE||'NO-MAPPING'
     ) ACCOUNT_STATUS
     ,NULL ACCOUNT_STATUS_DATETIME
     ,'NONE' STATEMENT_DELIVERY_MODE
     ,'NONE' STATEMENT_PERIOD
-    ,decode(ACCTTYPE_ACCT_TYPE_CODE,
-     '01','PRIVATE',
-     '02','BUSINESS',
-     '03','PVIDEOREG',
-     '04','PVIDEOUNREG',
-     '05','SHORTTERMVIDEO',
-     '06','BVIDEOREG',
-     '07','BVIDEOUNREG',
-     '08','PVIOLATOR',
-     '09','CVIOLATOR',
-     '10','10-NOMAPPING',
-     '11','11-NOMAPPING',
-     '12','12-NOMAPPING',
-    ACCTTYPE_ACCT_TYPE_CODE||'NO-MAPPING'
+    ,decode(ACCTTYPE_ACCT_TYPE_CODE
+            ,'01','PRIVATE'
+            ,'03','GOVT'
+            ,'04','NONREVUNREST'
+            ,'07','RETAILER'
+            ,'08','PACK_ACCT'
+            ,'09','VES_COURT_PAY'
+            ,'10','VES_VIOL_PAY'
+            ,'11','FDOT_WAREH'
+            ,'12','3RD_PARTY_REP'
+            ,'15','COURT_ACCT'
+            ,'16','VIOLACCT'
+            ,'02','FLEET',
+                ACCTTYPE_ACCT_TYPE_CODE||'NO-MAPPING'
     )  ACCOUNT_TYPE
     ,ACCT_OPEN_DATE ACCOUNT_OPEN_DATE
-    ,F_NAME||' '||L_NAME ACCOUNT_NAME
-    ,ORG COMPANY_NAME
+    ,ltrim(rtrim(F_NAME))||' '||ltrim(rtrim(L_NAME)) ACCOUNT_NAME
+    ,CASE WHEN ORG IS NULL THEN ltrim(rtrim(F_NAME))||' '||ltrim(rtrim(L_NAME))
+          ELSE ltrim(rtrim(ORG))
+     END COMPANY_NAME
     ,NULL DBA
     ,E_MAIL_ADDR EMAIL_ADDRESS
     ,REPL_AMT REBILL_AMOUNT
@@ -69,8 +71,8 @@ CURSOR C1 IS SELECT
     ,NULL CORRESPONDENCE_DEL_MODE
     ,'ENGLISH' LANGUAGE_PREFERENCE
     ,'OPT-OUT' MOBILE_ALERTS
-    ,NULL CHALLENGE_QUESTION
-    ,NULL CHALLENGE_ANSWER
+    ,'What is the PIN Number?' CHALLENGE_QUESTION
+    ,ACCT_PIN_NUMBER CHALLENGE_ANSWER
     ,NULL IS_POSTPAID
     ,'Y' IS_SURVEY_OPTED
     ,NULL ACC_LOCKED_DATETIME
@@ -108,7 +110,12 @@ CURSOR C1 IS SELECT
    ,NULL COLL_ASSIGN_DATE
    ,NULL DECEASE_NOTIFY_BY
    ,NULL INIT_COLL_ASSIGN_DATE
-FROM PA_ACCT;
+FROM PA_ACCT where ACCTTYPE_ACCT_TYPE_CODE not in ('07','08');
+
+cursor c2 is select acct_num from  ISP_ACCTS;
+cursor c3 is select acct_num from PA_RENTAL_AGENCY;
+v_count number;
+
 BEGIN
  
   OPEN C1;  
@@ -174,8 +181,15 @@ BEGIN
         DM_ACCOUNT_INFO_tab(i).TAX_EXEMPTION_ID:=null;
     end;
 
-    null;
-
+    if trim(DM_ACCOUNT_INFO_tab(i).ACCOUNT_NAME) is null then
+	   DM_ACCOUNT_INFO_tab(i).ACCOUNT_NAME:='Undefined';
+	end if;
+    if trim(DM_ACCOUNT_INFO_tab(i).COMPANY_NAME) is null and  DM_ACCOUNT_INFO_tab(i).ACCOUNT_TYPE = 'BUSINESS' then
+	   DM_ACCOUNT_INFO_tab(i).COMPANY_NAME:=DM_ACCOUNT_INFO_tab(i).ACCOUNT_NAME;
+	end if;
+	if rtrim(ltrim(DM_ACCOUNT_INFO_tab(i).COMPANY_NAME)) is null then
+	  DM_ACCOUNT_INFO_tab(i).COMPANY_NAME:='DM_UNKNOWN';
+	end if;
     end loop;
 
 
@@ -191,13 +205,40 @@ BEGIN
   COMMIT;
 
   CLOSE C1;
+  
+    --Post process for the account type=02
+  --
+  -- Follow the below rule for 02(FLEET)
+  --a) if account found in ISP_ACCTS table set it to ISP
+  --b) if account found in PA_RENTAL_AGENCY set it to RCSP
+  --c) else set it to FLEET
 
-  COMMIT;
+   for e2 in c2 loop
+     begin
+       select sum(1) into v_count from dm_account_info where account_number=e2.acct_num and ACCOUNT_TYPE='FLEET' and rownum<=1;
+       update dm_account_info set ACCOUNT_TYPE='ISP' where account_number=e2.acct_num and v_count=1;
+	 exception
+	 when others then null;
+	 end;
+   end loop; 
+   commit;
+   
+   for e3 in c3 loop
+     begin
+       select sum(1) into v_count from dm_account_info where account_number=e3.acct_num and ACCOUNT_TYPE='FLEET' and rownum<=1;
+       update dm_account_info set ACCOUNT_TYPE='RCSP' where account_number=e3.acct_num and v_count=1;
+	 exception
+	 when others then null;
+	 end;
+   end loop; 
+   commit;
+   
 
   EXCEPTION
   WHEN OTHERS THEN
      DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||SQLCODE);
      DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||SQLERRM);
+
 
 END;
 /
