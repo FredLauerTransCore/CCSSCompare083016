@@ -410,25 +410,32 @@ BEGIN
         v_trac_etl_rec.BEGIN_VAL := DM_VIOL_TX_MTCH2_INFO_tab(i).ETC_ACCOUNT_ID;
       end if;
 
+-- Agency  id to which the plaza and lane belong to where the transaction took place.
       begin
         select sia.AGENCY_ID 
         into  DM_VIOL_TX_MTCH2_INFO_tab(i).PLAZA_AGENCY_ID 
-        from  PA_PLAZA pp, ST_INTEROP_AGENCIES sia
+        from  PA_PLAZA pp, 
+              ST_INTEROP_AGENCIES sia
         Where pp.plaza_id  = DM_VIOL_TX_MTCH2_INFO_tab(i).PLAZA_ID
         and   pp.AUTHCODE_AUTHORITY_CODE = sia.AUTHORITY_CODE
         and   rownum<=1
         ;
       exception
-        when no_data_found then null;
-          DM_VIOL_TX_MTCH2_INFO_tab(i).PLAZA_AGENCY_ID:='0'; 
         when others then null;
-          DM_VIOL_TX_MTCH2_INFO_tab(i).PLAZA_AGENCY_ID:='0'; 
-          v_trac_etl_rec.result_code := SQLCODE;
-          v_trac_etl_rec.result_msg := SQLERRM;
-          v_trac_etl_rec.proc_end_date := SYSDATE;
-          update_track_proc(v_trac_etl_rec);
-           DBMS_OUTPUT.PUT_LINE('PLAZA_AGENCY_ID ERROR CODE: '||v_trac_etl_rec.result_code);
-           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+--if the FTE_PLAZA = ‘Y’ in PA_Plaza then default the agency to FTE 
+          begin  
+            select sia.AGENCY_ID 
+            into  DM_VIOL_TX_MTCH2_INFO_tab(i).PLAZA_AGENCY_ID 
+            from  PA_PLAZA pp, 
+                  ST_INTEROP_AGENCIES sia
+            Where pp.plaza_id  = DM_VIOL_TX_MTCH2_INFO_tab(i).PLAZA_ID
+            and   pp.FTE_PLAZA = 'Y'
+            and   sia.AGENCY_NAME = 'FTE'
+            ;
+          exception 
+            when others then null;
+             DM_VIOL_TX_MTCH2_INFO_tab(i).PLAZA_AGENCY_ID:='0'; 
+          end;
       end;
 
 ---- JOIN WITH JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN AND 

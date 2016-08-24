@@ -71,6 +71,11 @@ IS SELECT --distinct
   FROM ST_DOCUMENT_INFO
 WHERE  ACCT_NUM >= p_begin_acct_num AND ACCT_NUM <= p_end_acct_num
 AND    ACCT_NUM >0
+--and     id = (select documaent_id
+--              from ((select documaent_id from VB_ACTIVITY)
+--                    union all
+--                    (select documaent_id from ST_ACTIVITY_PAID)) a
+--              where a.documaent_id = sdi.id)    
 ; -- Source
 
 row_cnt          NUMBER := 0;
@@ -145,21 +150,66 @@ BEGIN
 --          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop 
 --          ELSE 'REG STOP'  -- ?
 --          WHEN DM_INVOICE_INFO_tab(i).INVOICE_NUMBER LIKE 'INV%' THEN 'UNBILLED'
-          ELSE 'UNDEFINED'
+          ELSE 'OTHER'
          END    
         into  DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL
         from  VB_ACTIVITY
         where DOCUMENT_ID = DM_INVOICE_INFO_tab(i).INVOICE_NUMBER
-        and rownum<=1  -- Verify what record to get ??
-        ;
-        
+--        and rownum<=1  -- Verify what record to get ??
+
+--CASE WHEN B.BANKRUPTCY_FLAG = 'Y' and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0  THEN 'BANKRUPTCY'
+--WHEN B.COLL_COURT_FLAG is null and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0  THEN 'CUST'
+--WHEN B.COLL_COURT_FLAG = 'COLL' and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 THEN 'COLLECTION'
+--WHEN B.COLL_COURT_FLAG = 'INTP' and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 THEN 'INTEROP-CCSS EXCLUDED'
+--WHEN B.COLL_COURT_FLAG = 'CRT' and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0  THEN 'COURT'
+--WHEN B.COLL_COURT_FLAG is null and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and B.CHILD_DOC_ID like '%-%' THEN 'UTC' -- and C.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4) 
+----WHEN B.COLL_COURT_FLAG is null and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and B.DOCUMENT_ID like '%-%' and B.CHILD_DOC_ID is null and C.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4) THEN 'UTC_NON_TOLL'
+--ELSE  'OTHER' 
+--END   --)
+----,sum(B.AMT_CHARGED - B.TOTAL_AMT_PAID) as amount
+--into  DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL
+--from  --KS_LEDGER a,
+--      VB_ACTIVITY b,
+----      KS_SUB_LEDGER_EVENTS c
+----WHERE a.acct_num in (select acct_num from pa_acct) 
+--where b.DOCUMENT_ID = DM_INVOICE_INFO_tab(i).INVOICE_NUMBER
+----and a.id = b.ledger_id 
+----and a.transaction_type = C.event_id
+--and rownum<=1  -- Verify what record to get ??
+--;
+
+--CASE WHEN B.BANKRUPTCY_FLAG = 'Y' and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)   THEN 'BANKRUPTCY_TOLL'
+--WHEN B.BANKRUPTCY_FLAG = 'Y' and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)   THEN 'BANKRUPTCY_NON_TOLL'
+--WHEN B.COLL_COURT_FLAG is null and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'CUST_TOLL'
+--WHEN B.COLL_COURT_FLAG is null and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'CUST_NON_TOLL'
+--WHEN B.COLL_COURT_FLAG = 'COLL' and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COLLECTION_TOLL'
+--WHEN B.COLL_COURT_FLAG = 'COLL' and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COLLECTION_NON_TOLL'
+--WHEN B.COLL_COURT_FLAG = 'INTP' and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'INTEROP_TOLL-CCSS EXCLUDED'
+--WHEN B.COLL_COURT_FLAG = 'INTP' and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'INTEROP_NON_TOLL-CCSS EXCLUDED'
+--WHEN B.COLL_COURT_FLAG = 'CRT' and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COURT_TOLL'
+--WHEN B.COLL_COURT_FLAG = 'CRT' and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COURT_NON_TOLL'
+--WHEN B.COLL_COURT_FLAG is null and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and B.CHILD_DOC_ID like '%-%' and C.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'UTC_TOLL'
+--WHEN B.COLL_COURT_FLAG is null and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and B.DOCUMENT_ID like '%-%' and B.CHILD_DOC_ID is null and C.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4) THEN 'UTC_NON_TOLL'
+--ELSE  'OTHER' 
+--END   --)
+----,sum(B.AMT_CHARGED - B.TOTAL_AMT_PAID) as amount
+--into  DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL
+--from  KS_LEDGER a,
+--      VB_ACTIVITY b,
+--      KS_SUB_LEDGER_EVENTS c
+----WHERE a.acct_num in (select acct_num from pa_acct) 
+--where b.DOCUMENT_ID = DM_INVOICE_INFO_tab(i).INVOICE_NUMBER
+--and a.id = b.ledger_id 
+--and a.transaction_type = C.event_id
+and rownum<=1  -- Verify what record to get ??
+;
       exception 
         when no_data_found then --null;  OCUMENT_ID is null 
 -- WHEN COLL_COURT_FLAG is null      and DOCUMENT_ID is null     THEN 'UNBILLED'
           DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL := 'UNDEFINED';
           
-          if substr(DM_INVOICE_INFO_tab(i).INVOICE_NUMBER,1,3) = INV then
-            DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL := 'UNBILLED';
+          if substr(DM_INVOICE_INFO_tab(i).INVOICE_NUMBER,1,3) = 'INV' then
+            DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL := 'INV-UNBILLED';
           end if;
             
         when others then --null;
@@ -198,7 +248,7 @@ BEGIN
 
         begin
                 
-          select --distinct
+          select 
                   CASE WHEN sum(nvl(AMT_CHARGED,0) - nvl(TOTAL_AMT_PAID,0)) > 0 
                       THEN 'OPEN'
 -- WHEN (select nvl(AMOUNT,0) from KS_LEDGER where id = ap.LEDGER_ID) - (nvl(ap.AMT_CHARGED,0) - nvl(ap.TOTAL_AMT_PAID,0)) >0  THEN 'DISPUTED'

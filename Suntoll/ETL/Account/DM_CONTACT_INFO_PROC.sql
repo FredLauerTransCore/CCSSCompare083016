@@ -35,7 +35,13 @@ CURSOR C1
 IS SELECT 
     ACCT_NUM ACCOUNT_NUMBER
     ,'Y' IS_PRIMARY
-    ,TITLE_TITLE_CODE TITLE
+    ,decode(TITLE_TITLE_CODE,
+        '01', 'Mr.',
+        '02', 'Mrs.',
+        '03', 'Ms.',
+        '04', 'Dr.', 
+        '05', 'Rev.',
+        '00', NULL, TITLE_TITLE_CODE) TITLE
     ,trim(nvl(F_NAME,'UNDEFINED')) FIRST_NAME
     ,trim(nvl(L_NAME,'UNDEFINED')) LAST_NAME
     ,trim(M_INITIAL) MIDDLE_NAME

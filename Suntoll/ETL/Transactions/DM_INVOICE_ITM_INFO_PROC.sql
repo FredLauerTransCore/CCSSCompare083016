@@ -30,7 +30,7 @@ REG_STOP_THRESHOLD_AMT_CENTS NUMBER := 100000000; -- TODO: Need to get actual th
 
 CURSOR C1
 (p_begin_acct_num  pa_acct.acct_num%TYPE, p_end_acct_num    pa_acct.acct_num%TYPE)
-IS SELECT --distinct
+IS SELECT 
     ACCT_NUM ACCOUNT_NUMBER
     ,NULL INVOICE_NUMBER  -- in ETL
     ,'POSTPAID' CATEGORY  -- DEFAULT to 'Postpaid'
@@ -56,10 +56,15 @@ join KS_LEDGER.ID to VB_activity.LEDGER_ID to get the KS_LEDGER.Amount( Original
     ,'SUNTOLL_CSC_ID' LAST_UPD_BY
     ,'SUNTOLL' SOURCE_SYSTEM
     ,NULL DISMISSED_AMT
-FROM    KS_LEDGER
---FROM    ST_DOCUMENT_INFO
+FROM    KS_LEDGER kl
+--        ,ST_DOCUMENT_INFO sdi
 WHERE   ACCT_NUM >= p_begin_acct_num AND ACCT_NUM <= p_end_acct_num
 and     ACCT_NUM >0
+and     id = (select ledger_id
+              from ((select ledger_id from VB_ACTIVITY)
+                    union all
+                    (select ledger_id from ST_ACTIVITY_PAID)) a
+              where a.ledger_id = kl.id)              
 ; -- Source
 
 row_cnt          NUMBER := 0;
@@ -107,14 +112,17 @@ BEGIN
         
         begin
           select DOCUMENT_ID
-                ,CASE WHEN sum(DM_INVOICE_ITM_INFO_TAB(i).PAYABLE - nvl(TOTAL_AMT_PAID,0)) > 0 
+--                ,CASE WHEN sum(DM_INVOICE_ITM_INFO_TAB(i).PAYABLE - nvl(TOTAL_AMT_PAID,0)) > 0 
+                ,CASE WHEN (DM_INVOICE_ITM_INFO_TAB(i).PAYABLE - nvl(TOTAL_AMT_PAID,0)) > 0 
                       THEN 'OPEN'
                       ELSE 'CLOSED'
                   END
 
 -- SET LEVEL_INFO = 'BILLED' if INVOICE_NUMBER LIKE 'INV%' ELSE 'BANKRUPTCY'
-                ,decode(substr(INVOICE_NUMBER,1,3), 'INV', 'BILLED', 'BANKRUPTCY')
-                ,sum(nvl(TOTAL_AMT_PAID,0))
+                ,decode(substr(DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER,1,3), 
+                      'INV', 'BILLED', 'BANKRUPTCY')
+--                ,sum(nvl(TOTAL_AMT_PAID,0))
+                ,nvl(TOTAL_AMT_PAID,0)
           into  DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER
                 ,DM_INVOICE_ITM_INFO_TAB(i).STATUS
                 ,DM_INVOICE_ITM_INFO_TAB(i).LEVEL_INFO

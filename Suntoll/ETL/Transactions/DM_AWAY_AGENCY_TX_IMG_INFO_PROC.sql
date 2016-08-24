@@ -212,11 +212,11 @@ BEGIN
         select  ACCT_NUM
         into    DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ETC_ACCOUNT_ID
         from    KS_LEDGER -- k1
-        where   PA_LANE_TXN_ID=DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).TX_EXTERN_REF_NO
+        where   PA_LANE_TXN_ID=DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).LANE_TX_ID
 --        and     rownum<=1
         and     POSTED_DATE = (select max(POSTED_DATE) 
-                              from KS_LEDGER -- k2
-                              where   PA_LANE_TXN_ID=DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).TX_EXTERN_REF_NO)
+                              from    KS_LEDGER -- k2
+                              where   PA_LANE_TXN_ID=DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).LANE_TX_ID)
         ;
       exception 
         when others then null;
@@ -227,27 +227,33 @@ BEGIN
       end if;
 
       /* get ST_INTEROP_AGENCIES.AGENCY_ID for PLAZA_AGENCY_ID */
--- Agency  id to which the plaza and lane belong to where the transaction took place.
+-- Agency  id to which the plaza and lane belong to where the transaction took place. 
       begin
         select sia.AGENCY_ID 
         into  DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).PLAZA_AGENCY_ID 
-        from  PA_PLAZA pp, ST_INTEROP_AGENCIES sia
+        from  PA_PLAZA pp, 
+              ST_INTEROP_AGENCIES sia
         Where pp.plaza_id  = DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).PLAZA_ID
         and   pp.AUTHCODE_AUTHORITY_CODE = sia.AUTHORITY_CODE
         and   rownum<=1
         ;
       exception
-        when no_data_found then null;
-          DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).PLAZA_AGENCY_ID:='0'; 
         when others then null;
-          DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).PLAZA_AGENCY_ID:='0';
-          v_trac_etl_rec.result_code := SQLCODE;
-          v_trac_etl_rec.result_msg := SQLERRM;
-          v_trac_etl_rec.proc_end_date := SYSDATE;
-          update_track_proc(v_trac_etl_rec);
-           DBMS_OUTPUT.PUT_LINE('PLAZA_AGENCY_ID ERROR CODE: '||v_trac_etl_rec.result_code);
-           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
-      end;     
+--if the FTE_PLAZA = ‘Y’ in PA_Plaza then default the agency to FTE 
+          begin  
+            select sia.AGENCY_ID 
+            into  DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).PLAZA_AGENCY_ID 
+            from  PA_PLAZA pp, 
+                  ST_INTEROP_AGENCIES sia
+            Where pp.plaza_id  = DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).PLAZA_ID
+            and   pp.FTE_PLAZA = 'Y'
+            and   sia.AGENCY_NAME = 'FTE'
+            ;
+          exception 
+            when others then null;
+             DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).PLAZA_AGENCY_ID:='0'; 
+          end;
+      end;
       
 ------ JOIN WITH JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN AND 
 ------ JOIN UFM_TOKEN TO UFM_ID FOR EVENT_ROV       
@@ -283,29 +289,21 @@ BEGIN
 --      end;
 
 
------------- ACCOUNT_AGENCY_ID - SUBSTR(TRANSP_ID,9,2) 
-----SUBSTR(TRANSP_ID,9,2) JOIN ST_INTEROP_AGENCIES ON AGENCY_CODE 
-----RETURN AGENCY_ID 
---      begin
---        select AGENCY_ID 
---        into  DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ACCOUNT_AGENCY_ID 
---        from  ST_INTEROP_AGENCIES sia
---        Where AGENCY_CODE  = DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ACCOUNT_AGENCY_ID
---        and   rownum<=1
---        ;
---      exception
---        when no_data_found then null;
---          DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ACCOUNT_AGENCY_ID:='0'; 
---        when others then null;
---          DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ACCOUNT_AGENCY_ID:='0'; 
---          v_trac_etl_rec.result_code := SQLCODE;
---          v_trac_etl_rec.result_msg := SQLERRM;
---          v_trac_etl_rec.proc_end_date := SYSDATE;
---          update_track_proc(v_trac_etl_rec);
---           DBMS_OUTPUT.PUT_LINE('ACCOUNT_AGENCY_ID ERROR CODE: '||v_trac_etl_rec.result_code);
---           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
---      end;
+---------- ACCOUNT_AGENCY_ID - SUBSTR(TRANSP_ID,9,2) 
+--SUBSTR(TRANSP_ID,9,2) JOIN ST_INTEROP_AGENCIES ON AGENCY_CODE 
+--RETURN AGENCY_ID 
+      begin
+        select AGENCY_ID 
+        into  DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ACCOUNT_AGENCY_ID 
+        from  ST_INTEROP_AGENCIES sia
+        Where AGENCY_CODE  = DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ACCOUNT_AGENCY_ID
+        and   rownum<=1
+        ;
+      exception
+        when others then null;
+          DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ACCOUNT_AGENCY_ID:='0'; 
 
+      end;
 
 --LOOKUP PA_STATE_CODE. Xerox - internal lookup in DM_ADDRESS_INFO and assign country correctly. 
       begin

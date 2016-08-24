@@ -120,7 +120,7 @@ BEGIN
         select CODE    
               ,lpad(substr(CC_TOKEN,-4),length(CC_TOKEN),'*')
               ,lpad(substr(CC_TOKEN,-4),length(CC_TOKEN),'*')
-              ,to_char(to_date(EXPIRATION_DATE,'MM/YY'),'MM')
+              ,ltrim(to_char(to_date(EXPIRATION_DATE,'MM/YY'),'MM'),'0')
               ,to_char(to_date(EXPIRATION_DATE,'MM/YY'),'YYYY')
               ,substr(CC_TOKEN,-4)
               ,CREATED_DATE --  NOT NULL Default ?
