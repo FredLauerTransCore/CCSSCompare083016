@@ -94,7 +94,7 @@ CURSOR C1 IS SELECT
     ,'0' DEVICE_AXLES
     ,NULL ETC_ACCOUNT_ID
 	--,'FTE' ACCOUNT_AGENCY_ID
-    ,NULL ACCOUNT_AGENCY_ID
+    ,'101' ACCOUNT_AGENCY_ID
     ,TRANSP_CLASS READ_AVI_CLASS
     ,'0' READ_AVI_AXLES
     ,'N' DEVICE_PROGRAM_STATUS
@@ -134,8 +134,8 @@ CURSOR C1 IS SELECT
     ,TXN_ID LANE_TX_ID
     ,TRANSP_INTERNAL_NUM DEVICE_INTERNAL_NUMBER
 FROM PA_LANE_TXN
-WHERE TRANSP_ID like  '%0110' or 
-   TRANSP_ID like '%0210' AND ( EXT_PLAZA_ID NOT LIKE '200%' AND EXT_PLAZA_ID NOT LIKE '008%');
+WHERE (TRANSP_ID like  '%0110' or 
+   TRANSP_ID like '%0210') AND ( EXT_PLAZA_ID NOT LIKE '200%' AND EXT_PLAZA_ID NOT LIKE '0008%'  OR ENT_PLAZA_ID not LIKE '30001%');
 
 BEGIN
  
@@ -154,8 +154,7 @@ BEGIN
 
     FOR i in 1 .. DM_ACCOUNT_TOLL_INFO_tab.count loop
 
-    /* get UFM_LANE_TXN_INFO.HOST_UFM_TOKEN for TX_EXTERN_REF_NO */
-   /* get UFM_LANE_TXN_INFO.HOST_UFM_TOKEN for TX_EXTERN_REF_NO */
+
     begin
       select HOST_UFM_TOKEN into DM_ACCOUNT_TOLL_INFO_tab(i).TX_EXTERN_REF_NO from UFM_LANE_TXN_INFO 
       where TXN_ID=DM_ACCOUNT_TOLL_INFO_tab(i).LANE_TX_ID
@@ -176,8 +175,19 @@ BEGIN
       AND pl.AUTHCODE_AUTHORITY_CODE             = io.AUTHORITY_CODE
       AND rownum                                <=1;
     EXCEPTION
+	when no_data_found then
+	 begin
+		 SELECT io.AGENCY_ID
+         INTO DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID
+         FROM PA_PLAZA pl,
+          ST_INTEROP_AGENCIES io
+         WHERE DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID = pl.plaza_id
+	     AND io.AGENCY_NAME='FTE' and pl.FTE_PLAZA='Y'
+         AND rownum                                <=1;
+	  exception when others then null;
+	     DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID:=NULL;
+	  end;
     WHEN OTHERS THEN
-      NULL;
       DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID:=NULL;
     END;
 
@@ -224,18 +234,7 @@ BEGIN
         DM_ACCOUNT_TOLL_INFO_tab(i).FACILITY_ID:=null;
     end;
 
-    
-    /* this is for the TX_SUBTYPE_IND
-    IF TX_TYPE_IND = 'E' THEN 'Z' 
-    ELSE IF TX_TYPE_IND = 'V' THEN 
-     IF  TRANSP_ID ENDS WITH '0210' THEN 'I' 
-         ELSE 'T' ELSE IF TX_TYPE_IND = 'I' THEN 
-         IF MSG_ID = 'TTOL' THEN 'C' 
-         ELSE 'I'
 
-    */
-
-    /* derive TX_SUBTYPE_IND */
     begin
       select case WHEN DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND = 'E' THEN 'Z'
                   WHEN DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND = 'V' THEN 
