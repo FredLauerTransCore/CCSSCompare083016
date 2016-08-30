@@ -133,7 +133,7 @@ BEGIN
                   ,TOTAL_AMT_PAID
           from  VB_ACTIVITY
           where LEDGER_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_ITEM_NUMBER)
-          union all
+          union -- all
           (select DOCUMENT_ID
                   ,AMT_CHARGED 
                   ,TOTAL_AMT_PAID
@@ -413,37 +413,56 @@ FOR BANKRUPTCY _FLAG NOT NULL
 IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
 */ 
 
---      begin
---        select
---        CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'DISMISSED' --'BANKRUPTCY'
---          WHEN COLL_COURT_FLAG is null  and DOCUMENT_ID is null      THEN 'UNBILLED'
---          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 'INVOICED'
---          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID like '%-%'  THEN 'UTC'
---          WHEN COLL_COURT_FLAG = 'COLL' and CHILD_DOC_ID is NOT null THEN 'COLLECTION'
---          WHEN COLL_COURT_FLAG = 'CRT'  and CHILD_DOC_ID is NOT null THEN 'COURT'
---          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
-----          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop  ??
-----          ELSE 'REG STOP'
+      begin
+        select
+        CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 'BANKRUPTCY' -- 'DISMISSED' --
+          WHEN COLL_COURT_FLAG is null  and DOCUMENT_ID is null      THEN 'UNBILLED'
+          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 'INVOICED'
+          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID like '%-%'  THEN 'UTC'
+          WHEN COLL_COURT_FLAG = 'COLL' and CHILD_DOC_ID is NOT null THEN 'COLLECTION'
+          WHEN COLL_COURT_FLAG = 'CRT'  and CHILD_DOC_ID is NOT null THEN 'COURT'
+          WHEN COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 'ESCALATED'
+--          WHEN BANKRUPTCY_FLAG is NULL THEN 'REG STOP' -- TODO: Need to add criteria for reg stop  ??
+--          ELSE 'REG STOP'
+          ELSE 'OTHER'
 --          ELSE 'INVPAYMENT'
---         END    
---        into  DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO
+         END    
+        into  DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO
 --        from  VB_ACTIVITY
 --        where LEDGER_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_ITEM_NUMBER
---        and rownum<=1  -- Verify what record to get ??
---        ;
---      exception 
---        when no_data_found then
---          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'INVPAYMENT';
-----          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'UNBILLED';
---        when others then --null;
---          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'INVPAYMENT';
---          v_trac_etl_rec.result_code := SQLCODE;
---          v_trac_etl_rec.result_msg := SQLERRM;
---          v_trac_etl_rec.proc_end_date := SYSDATE;
---          update_track_proc(v_trac_etl_rec);
---           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
---           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
---      end;
+          from  
+        (SELECT
+          COLL_COURT_FLAG,
+          BANKRUPTCY_FLAG,
+          'Unpaid'         STATUS,
+          document_id,
+          child_doc_id
+        FROM vb_activity
+        WHERE ledger_id = DM_INVOICE_ITM_INFO_tab(i).INVOICE_ITEM_NUMBER
+        UNION
+        SELECT 
+          COLL_COURT_FLAG,
+          BANKRUPTCY_FLAG,
+          'Paid'          STATUS,
+          document_id,
+          child_doc_id
+        FROM st_activity_paid
+        WHERE ledger_id = DM_INVOICE_ITM_INFO_tab(i).INVOICE_ITEM_NUMBER)      
+--          and rownum<=1  -- Verify what record to get ??
+        ;
+      exception 
+        when no_data_found then
+          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'INVPAYMENT';
+--          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'UNBILLED';
+        when others then --null;
+          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'INVPAYMENT';
+          v_trac_etl_rec.result_code := SQLCODE;
+          v_trac_etl_rec.result_msg := SQLERRM;
+          v_trac_etl_rec.proc_end_date := SYSDATE;
+          update_track_proc(v_trac_etl_rec);
+           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
+           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+      end;
     
 
 --JOIN LEDGER_ID OF ST_ACTIVITY_PAID to ID OF KS_LEDGER 
@@ -465,8 +484,8 @@ IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
           into  DM_INVOICE_ITM_INFO_tab(i).STATUS
 --                ,DM_INVOICE_ITM_INFO_tab(i).PAID_AMOUNT
           from  ST_ACTIVITY_PAID
-          where DOCUMENT_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER
-          and   LEDGER_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_ITEM_NUMBER
+          where LEDGER_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_ITEM_NUMBER
+--          and DOCUMENT_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER
           ;
         exception 
           when others then null;

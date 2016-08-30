@@ -196,7 +196,7 @@ BEGIN
 
       /* get UFM_LANE_TXN_INFO.HOST_UFM_TOKEN for TX_EXTERN_REF_NO */
 -- JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN
-      begin
+      begin 
         select HOST_UFM_TOKEN 
         into  DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).TX_EXTERN_REF_NO 
         from  UFM_LANE_TXN_INFO 
@@ -213,7 +213,7 @@ BEGIN
         into    DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).ETC_ACCOUNT_ID
         from    KS_LEDGER -- k1
         where   PA_LANE_TXN_ID=DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).LANE_TX_ID
---        and     rownum<=1
+        and     rownum<=1
         and     POSTED_DATE = (select max(POSTED_DATE) 
                               from    KS_LEDGER -- k2
                               where   PA_LANE_TXN_ID=DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).LANE_TX_ID)
@@ -254,16 +254,15 @@ BEGIN
              DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).PLAZA_AGENCY_ID:='0'; 
           end;
       end;
-      
+
+-- EVENT_ROV.TRANSP_ID
 ------ JOIN WITH JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN AND 
 ------ JOIN UFM_TOKEN TO UFM_ID FOR EVENT_ROV       
       begin
-        select nvl(er.TRANSP_ID, '***')
+        select nvl(TRANSP_ID, '***')
         into  DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).DEVICE_NO
-        from  EVENT_ROV er, 
-              UFM_LANE_TXN_INFO ult
-        where er.UFM_ID = ult.HOST_UFM_TOKEN 
-        and   ult.TXN_ID = DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).TX_EXTERN_REF_NO   
+        from  EVENT_ROV
+        where UFM_ID = DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).TX_EXTERN_REF_NO 
         and   rownum<=1
         ;
       exception
@@ -271,18 +270,26 @@ BEGIN
         DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).DEVICE_NO := '***';
       end;
 
--------- VIOLATIONS_EVENTS_AUX.TT_ID
+--------Source table.column -  VIOLATIONS_EVENTS_AUX.TT_ID
 ----JOIN WITH JOIN TO TXN_ID OF PA_LANE_TXN RETURN HOST TO UFM_TOKEN AND 
 ----JOIN UFM_TOKEN TO UFM_ID FOR VIOLATIONS_EVENTS_AUX
 --      begin
 --        select TT_ID
 --        into  DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).DEVICE_NO
+--        from  VIOLATIONS_EVENTS_AUX
+--        where UFM_ID = DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).TX_EXTERN_REF_NO 
+--        and   rownum<=1
+--        ;
+
+--        select TT_ID
+--        into  DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).DEVICE_NO
 --        from  VIOLATIONS_EVENTS_AUX er, 
 --              UFM_LANE_TXN_INFO ult
 --        where er.UFM_ID = ult.HOST_UFM_TOKEN 
---        and   ult.TXN_ID = DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).TX_EXTERN_REF_NO   
+--        and   ult.TXN_ID = DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).LANE_TX_ID   
 --        and   rownum<=1
 --        ;
+
 --      exception
 --        when others then null;
 --        DM_AWAY_AGENCY_TX_IMG_INFO_tab(i).DEVICE_NO := '***';

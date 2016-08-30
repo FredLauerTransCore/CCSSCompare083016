@@ -14,19 +14,6 @@ set echo on
 
 -- 6/20/2016 RH Added Tracking and acct num parameters
 
---   VIOL_TX_STATUS mapping:
---   =======================
---   DOCUMENT_ID   |  Value
---   -----------------------
---   UNBILLED      |  601
---   INVOICED      |  602
---   ESCALATED     |  603
---   UTC           |  604
---   COLLECTION    |  605
---   COURT         |  606
---   BANKRUPTCY    |  607
---   -----------------------
-
 CREATE OR REPLACE PROCEDURE DM_VIOL_TX_EVENT_INFO_PROC 
 (i_trac_id dm_tracking_etl.track_etl_id%TYPE)
 IS
@@ -51,7 +38,7 @@ IS SELECT
     ,NULL VIOL_TX_STATUS  -- in ETL
     ,0 PREV_VIOL_TX_STATUS
     ,EXT_DATE_TIME EVENT_TIMESTAMP -- Required
-    ,NULL ETC_ACCOUNT_ID   -- Join KS_LEDGER on TXN_ID  in ETL
+    ,0 ETC_ACCOUNT_ID   -- Join KS_LEDGER on TXN_ID  in ETL
     ,VEH_LIC_NUM PLATE_NUMBER
     ,STATE_ID_CODE  PLATE_STATE  -- JOIN TO PA_STATE_CODE RETURN STATE_CODE_ABBR
     ,'USA' PLATE_COUNTRY  -- default in ETL
@@ -150,11 +137,11 @@ BEGIN
         when others then null;
         DM_VIOL_TX_EVENT_INFO_tab(i).PLATE_COUNTRY:='USA';
       end;
-    
+ 
       begin
         select 
 /*
-VB_ACTIVITY table 
+VB_ACTIVITY table (Now uses UNION of VB_ACTIVITY and 
 FOR BANKRUPTCY_FLAG NULL and COLL_COURT_FLAG NULL
 IF DOCUMENT_ID is null, then 'UNBILLED'
 IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NULL, then 'INVOICED'
@@ -170,6 +157,10 @@ IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
 "
 **Translation for action values, convert to translated values below
 */
+--   VIOL_TX_STATUS mapping:
+--   =======================
+--   DOCUMENT_ID   |  Value
+--   -----------------------
 --   UNBILLED      |  601
 --   INVOICED      |  602
 --   ESCALATED     |  603
@@ -177,29 +168,21 @@ IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
 --   COLLECTION    |  605
 --   COURT         |  606
 --   BANKRUPTCY    |  607
+--   -----------------------
 
-          CASE WHEN BANKRUPTCY_FLAG is NOT NULL then 607 -- 'BANKRUPTCY'
-              WHEN DOCUMENT_ID IS NULL      THEN 601 -- 'UNBILLED'
-              WHEN CHILD_DOC_ID IS NULL     THEN 602 -- 'INVOICED'
-              WHEN COLL_COURT_FLAG = 'COLL' then 605 -- 'COLLECTION'
-              WHEN COLL_COURT_FLAG = 'CRT'  then 606 -- 'COURT'
-              WHEN CHILD_DOC_ID LIKE '%-%'  THEN 604 -- 'UTC'
-              WHEN CHILD_DOC_ID IS NOT NULL THEN 603 -- 'ESCALATED'
-              ELSE 0    -- NULL  Required Default 0?
-          END  
-
---          CASE WHEN BANKRUPTCY_FLAG is NOT NULL then 'BANKRUPTCY'
---              WHEN DOCUMENT_ID IS NULL      THEN 'UNBILLED'
---              WHEN CHILD_DOC_ID IS NULL     THEN 'INVOICED'
---              WHEN COLL_COURT_FLAG = 'COLL' then 'COLLECTION'
---              WHEN COLL_COURT_FLAG = 'CRT'  then 'COURT'
---              WHEN CHILD_DOC_ID LIKE '%-%'  THEN 'UTC'
---              WHEN CHILD_DOC_ID IS NOT NULL THEN 'ESCALATED'
+--          CASE WHEN BANKRUPTCY_FLAG is NOT NULL then 607 -- 'BANKRUPTCY'
+--              WHEN DOCUMENT_ID IS NULL      THEN 601 -- 'UNBILLED'
+--              WHEN CHILD_DOC_ID IS NULL     THEN 602 -- 'INVOICED'
+--              WHEN COLL_COURT_FLAG = 'COLL' then 605 -- 'COLLECTION'
+--              WHEN COLL_COURT_FLAG = 'CRT'  then 606 -- 'COURT'
+--              WHEN CHILD_DOC_ID LIKE '%-%'  THEN 604 -- 'UTC'
+--              WHEN CHILD_DOC_ID IS NOT NULL THEN 603 -- 'ESCALATED'
 --              ELSE 0    -- NULL  Required Default 0?
 --          END  
 
 /*
--- Also include from previous comment --
+-- From ICD
+-- Also includes from previous comment --
 
 JOIN ID of KS_LEDGER to LEDGER_ID of VB_ACTVITY for KS_LEDGER.TRANSACTION_TYPE in ('38','42') and 
 JOIN PA_LANE_TXN_ID of KS_LEDGER to TXN_ID of PA_LANE_LANE_TXN and 
@@ -214,7 +197,8 @@ JOIN PLAZA_ID of PA_PLAZA to EXT_PLAZA_ID for PA_Lane_txn
       VB_ACTIVITY.BANKRUPTCY_flag is null
   THEN 'REG STOP'     
 */
-        ,CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 607 -- 'BANKRUPTCY'
+--        ,
+        CASE WHEN BANKRUPTCY_FLAG is NOT null THEN 607 -- 'BANKRUPTCY'
               WHEN DOCUMENT_ID is null     and COLL_COURT_FLAG is null  THEN 601 -- 'UNBILLED'
               WHEN DOCUMENT_ID is NOT null and COLL_COURT_FLAG is null  and CHILD_DOC_ID is null     THEN 602 -- 'INVOICED'
               WHEN DOCUMENT_ID is NOT null and COLL_COURT_FLAG is null  and CHILD_DOC_ID is NOT null THEN 603 -- 'ESCALATED'
@@ -226,8 +210,7 @@ JOIN PLAZA_ID of PA_PLAZA to EXT_PLAZA_ID for PA_Lane_txn
       
 ---- JOIN DOCUMENT_ID OF ST_DOCUMENT_INFO WITH CHILD_DOC_ID
 ---- JOIN ST_DOCUMENT_INFO.DOCUMENT_ID = CHILD_DOC_ID
---IF STATUS = 'UTC' SET STATUS TO UTC_MAIL  GO TO MAILON ACTIVITY FOR MAILED_ON_DATE
---ELSE 0
+--IF STATUS = 'UTC' SET STATUS TO UTC_MAIL  GO TO MAILON ACTIVITY FOR MAILED_ON_DATE ELSE 0
         ,CASE WHEN COLL_COURT_FLAG is null and DOCUMENT_ID is NOT null and CHILD_DOC_ID like '%-%' 
               THEN 1  -- UTC_MAIL
               ELSE 0
@@ -242,8 +225,8 @@ JOIN PLAZA_ID of PA_PLAZA to EXT_PLAZA_ID for PA_Lane_txn
               THEN 25
               ELSE 0
           END 
-        into  DM_VIOL_TX_EVENT_INFO_tab(i).VIOL_TX_STATUS              
-              ,DM_VIOL_TX_EVENT_INFO_tab(i).DMV_PLATE_TYPE             
+        into  --DM_VIOL_TX_EVENT_INFO_tab(i).VIOL_TX_STATUS              --,
+              DM_VIOL_TX_EVENT_INFO_tab(i).DMV_PLATE_TYPE             
               ,DM_VIOL_TX_EVENT_INFO_tab(i).CITATION_LEVEL
               ,DM_VIOL_TX_EVENT_INFO_tab(i).CITATION_STATUS
               ,DM_VIOL_TX_EVENT_INFO_tab(i).NOTICE_FEE_AMOUNT
@@ -252,26 +235,95 @@ JOIN PLAZA_ID of PA_PLAZA to EXT_PLAZA_ID for PA_Lane_txn
         ;
       exception 
         when others then null;
-          DM_VIOL_TX_EVENT_INFO_tab(i).VIOL_TX_STATUS := 0;
+--          DM_VIOL_TX_EVENT_INFO_tab(i).VIOL_TX_STATUS := 0;
           DM_VIOL_TX_EVENT_INFO_tab(i).DMV_PLATE_TYPE := 0;
           DM_VIOL_TX_EVENT_INFO_tab(i).CITATION_LEVEL := 0;
           DM_VIOL_TX_EVENT_INFO_tab(i).CITATION_STATUS := 0;
           DM_VIOL_TX_EVENT_INFO_tab(i).NOTICE_FEE_AMOUNT := 0;
       end;
 
+/*
+UNION of VB_ACTIVITY and 
+FOR BANKRUPTCY_FLAG NULL and COLL_COURT_FLAG NULL
+IF DOCUMENT_ID is null, then 'UNBILLED'
+IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NULL, then 'INVOICED'
+IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NOT NULL, then 'ESCALATED'
+IF DOCUMENT_ID is not null and CHILD_DOC_ID like '%-%', then 'UTC'
+
+FOR BANKRUPTCY_FLAG NULL and COLL_COURT_FLAG NOT NULL
+IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NOT NULL  and COLL_COURT_FLAG is 'COLL' THEN 'COLLECTION'
+IF DOCUMENT_ID is not null and CHILD_DOC_ID IS NOT NULL  and COLL_COURT_FLAG is 'CRT' THEN 'COURT'
+
+FOR BANKRUPTCY _FLAG NOT NULL
+IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
+"
+**Translation for action values, convert to translated values below
+*/
+--   VIOL_TX_STATUS mapping:
+--   =======================
+--   DOCUMENT_ID   |  Value
+--   -----------------------
+--   UNBILLED      |  601
+--   INVOICED      |  602
+--   ESCALATED     |  603
+--   UTC           |  604
+--   COLLECTION    |  605
+--   COURT         |  606
+--   BANKRUPTCY    |  607
+--   -----------------------
       begin
-        select nvl(ev.MAKE, 0)
+        select 
+          CASE WHEN BANKRUPTCY_FLAG is NOT NULL then 607 -- 'BANKRUPTCY'
+              WHEN DOCUMENT_ID IS NULL      THEN 601 -- 'UNBILLED'
+              WHEN CHILD_DOC_ID IS NULL     THEN 602 -- 'INVOICED'
+              WHEN COLL_COURT_FLAG = 'COLL' then 605 -- 'COLLECTION'
+              WHEN COLL_COURT_FLAG = 'CRT'  then 606 -- 'COURT'
+              WHEN CHILD_DOC_ID LIKE '%-%'  THEN 604 -- 'UTC'
+              WHEN CHILD_DOC_ID IS NOT NULL THEN 603 -- 'ESCALATED'
+              ELSE 0    -- NULL  Required Default 0?
+          END  
+        into  DM_VIOL_TX_EVENT_INFO_tab(i).VIOL_TX_STATUS              
+--        from  ST_ACTIVITY_V 
+--        where LEDGER_ID = v_ks_ledger_id
+        from      
+        (SELECT
+          COLL_COURT_FLAG,
+          BANKRUPTCY_FLAG,
+          'Unpaid'         STATUS,
+          document_id,
+          child_doc_id
+        FROM vb_activity
+        WHERE ledger_id = v_ks_ledger_id
+        UNION
+        SELECT 
+          COLL_COURT_FLAG,
+          BANKRUPTCY_FLAG,
+          'Paid'          STATUS,
+          document_id,
+          child_doc_id
+        FROM st_activity_paid
+        WHERE ledger_id = v_ks_ledger_id)
+        ;
+      exception 
+        when others then null;
+          DM_VIOL_TX_EVENT_INFO_tab(i).VIOL_TX_STATUS := 0;
+      end;
+
+
+      begin
+        select nvl(ev.MAKE, 'UNDEFINED')
         into  DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID
         from  EVENT_VEHICLE ev, 
               EVENT_OWNER_ADDR_VEHICLE_ACCT eo
-        where eo.ID = DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID -- OAVA_LINK_ID
-        and   eo.VEHICLE_ID = ev.ID   -- and   rownum<=1
+        where ev.ID = eo.VEHICLE_ID
+        and   eo.ID = DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID -- OAVA_LINK_ID   
+        -- and   rownum<=1
         ;
       exception 
         when no_data_found then null;
-          DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID := 0;      
+          DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID := 'UNDEFINED';      
         when others then null;
-          DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID := 0;      
+          DM_VIOL_TX_EVENT_INFO_tab(i).MAKE_ID := 'UNDEFINED';      
           v_trac_etl_rec.result_code := SQLCODE;
           v_trac_etl_rec.result_msg := SQLERRM;
           v_trac_etl_rec.proc_end_date := SYSDATE;
@@ -279,7 +331,7 @@ JOIN PLAZA_ID of PA_PLAZA to EXT_PLAZA_ID for PA_Lane_txn
            DBMS_OUTPUT.PUT_LINE('MAKE ERROR CODE: '||v_trac_etl_rec.result_code);
            DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
       end; 
-
+      
       /* get PA_LANE_TXN_REJECT.TXN_ID for LANE_TX_ID */  -- No Records in table
       begin
         select TXN_ID into DM_VIOL_TX_EVENT_INFO_tab(i).LANE_TX_ID

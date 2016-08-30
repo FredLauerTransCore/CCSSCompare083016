@@ -337,6 +337,12 @@ BEGIN
         ;
       exception
         when others then null;
+--PLAZA.PLAZA_AGENCY_ID - David -For FTE PLAZA <> ‘Y’,
+--follow the mapping for ST_interop_agencies( highlighted yellow in email from seth below).
+
+--You still find plaza that does not match(like airports – ‘200%’ or 008%’) , 
+--however for such plazas you will not find txns in PA_Lane_txn table in SunToll
+
 --if the FTE_PLAZA = ‘Y’ in PA_Plaza then default the agency to FTE 
           begin  
             select sia.AGENCY_ID 

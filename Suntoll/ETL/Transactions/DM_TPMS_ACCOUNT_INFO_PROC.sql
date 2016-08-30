@@ -29,7 +29,8 @@ IS SELECT
     ACCT_NUM ETC_ACCOUNT_ID  -- DERIVED?  from ACCOUNT_NO 
     ,0 AGENCY_ID   -- CCSS
     ,NULL ACCOUNT_TYPE  -- in ETL PA_ACCT.ACCTTYPE_ACCT_TYPE_CODE
-    
+
+--(va.AMT_CHARGED - va.TOTAL_AMT_PAID)    ?
 ---- Anything with a positive balance is considered prepaid, 
 --    ,case when CUST_BALANCE > 0 then CUST_BALANCE
 --     else 0
@@ -122,6 +123,9 @@ FROM KS_ACCT_LEDGER kal
 WHERE ACCT_NUM >= p_begin_acct_num AND ACCT_NUM <= p_end_acct_num
 and ACCT_NUM >0
 ; 
+
+TYPE event_id_typ IS TABLE OF NUMBER;
+event_type_list event_id_typ;
 
 row_cnt          NUMBER := 0;
 v_trac_rec       dm_tracking%ROWTYPE;
@@ -270,17 +274,42 @@ BEGIN
 ------ returns MAX(LEDGER_ID) WHERE EVENT_TYPE_ID IN 
 ------ (13, 56, 40, 26, 10, 57, 66, 115, 29, 14, 15, 67, 96)    
 ----    ,NULL LAST_PAYMENT_TX_ID
-----
------- POSTED_DATE OF KS_SUB_LEDGER and KS_LEDGER and GROUP_CODE = 1 
------- returns MAX(LEDGER_ID) WHERE EVENT_TYPE_ID IN  
-------(13, 56, 40, 26, 10, 57, 66, 115, 29, 14, 15, 67, 96)    
-----    ,NULL LAST_PAYMENT_DATE
---      begin
+      begin
+        select MAX(kl.ID)
+        into  DM_TPMS_ACCOUNT_INFO_tab(i).LAST_PAYMENT_TX_ID
+        from  KS_LEDGER kl  --
+              ,KS_SUB_LEDGER_EVENTS ksle
+        where ksle.COURT_ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
+        and   kl.ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
+        and   kl.transaction_type = ksle.event_id
+        and   ksle.EVENT_TYPE_ID IN (13, 56, 40, 26, 10, 57, 66, 115, 29, 14, 15, 67, 96) 
+        and   ksle.EVENT_GROUP_ID = 1
+        ;
+
+--        WHERE kl.acct_num = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID -- in (select acct_num from pa_acct) 
+----        and kl.id = DM_TPMS_ACCOUNT_INFO_tab(i).LEDGER_ID 
+--        and kl.transaction_type = ksle.event_id
+
 --        select KS_SUB_LEDGER_EVENTS
---              ,POSTED_DATE
 --        into  DM_TPMS_ACCOUNT_INFO_tab(i).LAST_PAYMENT_TX_ID
---              ,DM_TPMS_ACCOUNT_INFO_tab(i).LAST_PAYMENT_DATE
 --        from  KS_SUB_LEDGER_EVENTS
+--        where COURT_ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
+--        and   EVENT_TYPE_ID IN (13, 56, 40, 26, 10, 57, 66, 115, 29, 14, 15, 67, 96) 
+--        and   EVENT_GROUP_ID = 1
+--        ;
+      exception 
+        when others then
+          DM_TPMS_ACCOUNT_INFO_tab(i).LAST_PAYMENT_TX_ID:=0;
+      end; 
+      
+-------- POSTED_DATE OF KS_SUB_LEDGER and KS_LEDGER and GROUP_CODE = 1 
+-------- returns MAX(LEDGER_ID) WHERE EVENT_TYPE_ID IN  
+--------(13, 56, 40, 26, 10, 57, 66, 115, 29, 14, 15, 67, 96)    
+------    ,NULL LAST_PAYMENT_DATE
+--      begin
+--        select POSTED_DATE
+--        into  DM_TPMS_ACCOUNT_INFO_tab(i).LAST_PAYMENT_DATE
+--        from  KS_SUB_LEDGER
 --        where COURT_ACCT_NUM = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID
 --        and   EVENT_TYPE_ID IN (13, 56, 40, 26, 10, 57, 66, 115, 29, 14, 15, 67, 96) 
 --        and   EVENT_GROUP_ID = 1
@@ -341,6 +370,193 @@ BEGIN
         when others then null;
           DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_CCU:=0;
        end;
+
+--      begin
+--CASE WHEN va.BANKRUPTCY_FLAG = 'Y' and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0  THEN 'BANKRUPTCY_TOLL'
+--WHEN va.COLL_COURT_FLAG is null and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0  THEN 'CUST_TOLL'
+--WHEN va.COLL_COURT_FLAG = 'COLL' and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 THEN 'COLLECTION_TOLL'
+--WHEN va.COLL_COURT_FLAG = 'INTP' and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 THEN 'INTEROP_TOLL-CCSS EXCLUDED'
+--WHEN va.COLL_COURT_FLAG = 'CRT' and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0  THEN 'COURT_TOLL'
+--WHEN va.COLL_COURT_FLAG is null and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0  THEN 'UTC_TOLL'
+--ELSE  'OTHER' END) status,
+--sum(va.AMT_CHARGED - va.TOTAL_AMT_PAID) as amount
+--from  KS_LEDGER kl,
+--      VB_ACTIVITY va,
+--      KS_SUB_LEDGER_EVENTS ksle
+--WHERE kl.acct_num in (select acct_num from pa_acct) 
+--and kl.id = va.ledger_id 
+--and kl.transaction_type = ksle.event_id
+--and ksle.event_type_id in (89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)
+--and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0
+--;
+--      exception 
+--        when others then null;
+--          DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_CCU:=0;
+--       end;
+
+--'CUST_TOLL'	 POSTPAID_BALANCE
+--'CUST_NON_TOLL'	 POSTPAID_FEE
+--'COLLECTION_TOLL'	COLL_TOLL
+--'COLLECTION_NON_TOLL'	COLL_FEE
+--'INTEROP_TOLL-CCSS EXCLUDED'	 
+--'INTEROP_NON_TOLL-CCSS EXCLUDED'	 
+--'COURT_TOLL'	COURT_TOLL
+--'COURT_NON_TOLL'	COURT_FEE
+--'UTC_TOLL'	UTC_TOLL
+--'UTC_NON_TOLL'	UTC_FEE
+
+--    ,0 POSTPAID_BALANCE   'CUST_TOLL'  mapped above 
+
+--    ,0 POSTPAID_FEE   'CUST_NON_TOLL'
+--    ,0 COLL_TOLL      'COLLECTION_TOLL'
+--    ,0 COLL_FEE       'COLLECTION_NON_TOLL'
+--    ,0 UTC_TOLL       'UTC_TOLL'
+--    ,0 UTC_FEE        'UTC_NON_TOLL'
+--    ,0 COURT_TOLL
+--    ,0 COURT_FEE      'COURT_NON_TOLL'
+ 
+-- (select * from table(MyList));   
+-- (select * from table(event_type_list));   
+      event_type_list := event_id_typ(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4) ;
+
+      begin
+        select 
+
+----WHEN va.BANKRUPTCY_FLAG = 'Y' and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)   THEN 'BANKRUPTCY_TOLL'
+----WHEN va.BANKRUPTCY_FLAG = 'Y' and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)   THEN 'BANKRUPTCY_NON_TOLL'
+--
+--         CASE WHEN va.COLL_COURT_FLAG is null and va.BANKRUPTCY_FLAG is null -- and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 
+----  and ksle.event_type_id MEMBER of event_itype_list
+----  and ksle.event_type_id in (select event_type_id from table(event_type_list))
+--    and ksle.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  
+--              THEN sum(va.AMT_CHARGED - va.TOTAL_AMT_PAID)  -- POSTPAID_BALANCE   'CUST_TOLL'
+--              ELSE 0
+--          END 
+--          
+--          ,
+          CASE WHEN va.COLL_COURT_FLAG is null and va.BANKRUPTCY_FLAG is null -- and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 
+--                and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 
+--                      and ksle.event_type_id not in (select * from table(event_type_list))
+                and ksle.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  
+                THEN sum(va.AMT_CHARGED - va.TOTAL_AMT_PAID)  -- POSTPAID_FEE 'CUST_NON_TOLL'
+                ELSE 0
+          END
+          
+--WHEN va.COLL_COURT_FLAG = 'COLL' and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COLLECTION_TOLL'
+          ,CASE WHEN va.COLL_COURT_FLAG = 'COLL' and va.BANKRUPTCY_FLAG is null -- and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 
+--              and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 
+--                      and ksle.event_type_id in (select * from table(event_type_list))
+                and ksle.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  
+                THEN sum(va.AMT_CHARGED - va.TOTAL_AMT_PAID)  -- COLL_TOLL      'COLLECTION_TOLL'
+                ELSE 0
+          END
+          
+--WHEN va.COLL_COURT_FLAG = 'COLL' and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COLLECTION_NON_TOLL'
+          ,CASE WHEN va.COLL_COURT_FLAG = 'COLL' and va.BANKRUPTCY_FLAG is null 
+--                and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 
+--                      and ksle.event_type_id not in (select * from table(event_type_list))
+                and ksle.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  
+                THEN sum(va.AMT_CHARGED - va.TOTAL_AMT_PAID)  -- COLL_FEE       'COLLECTION_NON_TOLL'
+                ELSE 0
+          END
+
+----WHEN va.COLL_COURT_FLAG = 'INTP' and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'INTEROP_TOLL-CCSS EXCLUDED'
+----WHEN va.COLL_COURT_FLAG = 'INTP' and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'INTEROP_NON_TOLL-CCSS EXCLUDED'
+
+--WHEN va.COLL_COURT_FLAG is null and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and va.CHILD_DOC_ID like '%-%' and ksle.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'UTC_TOLL'
+          ,CASE WHEN va.COLL_COURT_FLAG is null and va.BANKRUPTCY_FLAG is null -- and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 
+--                and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 
+                and va.CHILD_DOC_ID like '%-%'
+--                      and ksle.event_type_id in (select * from table(event_type_list))
+                and ksle.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  
+                THEN sum(va.AMT_CHARGED - va.TOTAL_AMT_PAID)  -- UTC_TOLL       'UTC_TOLL'
+                ELSE 0
+          END
+
+--WHEN va.COLL_COURT_FLAG is null and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and va.DOCUMENT_ID like '%-%' and va.CHILD_DOC_ID is null and ksle.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4) THEN 'UTC_NON_TOLL'
+          ,CASE WHEN va.COLL_COURT_FLAG is null and va.BANKRUPTCY_FLAG is null -- and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 
+--                and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 
+                and va.DOCUMENT_ID like '%-%' and va.CHILD_DOC_ID is null
+--                      and ksle.event_type_id not in (select * from table(event_type_list))
+                and ksle.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  
+                THEN sum(va.AMT_CHARGED - va.TOTAL_AMT_PAID)  -- UTC_FEE        'UTC_NON_TOLL'
+                ELSE 0
+          END
+
+--WHEN va.COLL_COURT_FLAG = 'CRT' and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COURT_TOLL'
+          ,CASE WHEN va.COLL_COURT_FLAG = 'CRT' and va.BANKRUPTCY_FLAG is null -- and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 
+--                      and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 
+--                      and ksle.event_type_id in (select * from table(event_type_list))
+                      and ksle.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  
+                THEN sum(va.AMT_CHARGED - va.TOTAL_AMT_PAID)  -- COURT_TOLL 
+                ELSE 0
+          END
+
+--WHEN va.COLL_COURT_FLAG = 'CRT' and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COURT_NON_TOLL'
+          ,CASE WHEN va.COLL_COURT_FLAG = 'CRT' and va.BANKRUPTCY_FLAG is null -- and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 
+--                      and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 
+--                      and ksle.event_type_id not in (select * from table(event_type_list))
+                and ksle.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  
+                THEN sum(va.AMT_CHARGED - va.TOTAL_AMT_PAID)  -- COURT_FEE      'COURT_NON_TOLL'
+                ELSE 0
+          END
+
+--ELSE  'OTHER' END)  -- status,sum(va.AMT_CHARGED - va.TOTAL_AMT_PAID) as amount
+
+        into  --DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_BALANCE,
+              DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_FEE
+              ,DM_TPMS_ACCOUNT_INFO_tab(i).COLL_TOLL
+              ,DM_TPMS_ACCOUNT_INFO_tab(i).COLL_FEE
+              ,DM_TPMS_ACCOUNT_INFO_tab(i).UTC_TOLL
+              ,DM_TPMS_ACCOUNT_INFO_tab(i).UTC_FEE
+              ,DM_TPMS_ACCOUNT_INFO_tab(i).COURT_TOLL
+              ,DM_TPMS_ACCOUNT_INFO_tab(i).COURT_FEE
+        from  KS_LEDGER kl,
+              VB_ACTIVITY va,
+              KS_SUB_LEDGER_EVENTS ksle
+        WHERE kl.acct_num = DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID -- in (select acct_num from pa_acct) 
+          and kl.id = va.LEDGER_ID
+--        and kl.id = DM_TPMS_ACCOUNT_INFO_tab(i).LEDGER_ID 
+--        and va.LEDGER_ID = DM_TPMS_ACCOUNT_INFO_tab(i).LEDGER_ID 
+          and kl.transaction_type = ksle.event_id
+--        and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 
+--and ksle.event_type_id in not event_type_list
+        ;
+      exception 
+        when others then null;
+--          DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_BALANCE :=0;
+          DM_TPMS_ACCOUNT_INFO_tab(i).POSTPAID_FEE :=0;
+          DM_TPMS_ACCOUNT_INFO_tab(i).COLL_TOLL :=0;
+          DM_TPMS_ACCOUNT_INFO_tab(i).COLL_FEE :=0;
+      end;
+
+--      begin
+--CASE 
+--WHEN va.BANKRUPTCY_FLAG = 'Y' and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)   THEN 'BANKRUPTCY_TOLL'
+--WHEN va.BANKRUPTCY_FLAG = 'Y' and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)   THEN 'BANKRUPTCY_NON_TOLL'
+--WHEN va.COLL_COURT_FLAG is null and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'CUST_TOLL'
+--WHEN va.COLL_COURT_FLAG is null and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'CUST_NON_TOLL'
+--WHEN va.COLL_COURT_FLAG = 'COLL' and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COLLECTION_TOLL'
+--WHEN va.COLL_COURT_FLAG = 'COLL' and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COLLECTION_NON_TOLL'
+--WHEN va.COLL_COURT_FLAG = 'INTP' and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'INTEROP_TOLL-CCSS EXCLUDED'
+--WHEN va.COLL_COURT_FLAG = 'INTP' and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'INTEROP_NON_TOLL-CCSS EXCLUDED'
+--WHEN va.COLL_COURT_FLAG = 'CRT' and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COURT_TOLL'
+--WHEN va.COLL_COURT_FLAG = 'CRT' and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and ksle.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COURT_NON_TOLL'
+--WHEN va.COLL_COURT_FLAG is null and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and va.CHILD_DOC_ID like '%-%' and ksle.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'UTC_TOLL'
+--WHEN va.COLL_COURT_FLAG is null and va.BANKRUPTCY_FLAG is null and (va.AMT_CHARGED - va.TOTAL_AMT_PAID) >0 and va.DOCUMENT_ID like '%-%' and va.CHILD_DOC_ID is null and ksle.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4) THEN 'UTC_NON_TOLL'
+--ELSE  'OTHER' END) status,
+--sum(va.AMT_CHARGED - va.TOTAL_AMT_PAID) as amount
+--from  KS_LEDGER kl,
+--      VB_ACTIVITY va,
+--      KS_SUB_LEDGER_EVENTS ksle
+--WHERE kl.acct_num in (select acct_num from pa_acct) 
+--and kl.id = va.ledger_id 
+--and kl.transaction_type = ksle.event_id
+--and ksle.event_type_id in not (89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)
+--      exception 
+--        when others then null;
+--          DM_TPMS_ACCOUNT_INFO_tab(i).ACCOUNT_CCU:=0;
+--       end;
 
 -- IF NULLs
 	       if DM_TPMS_ACCOUNT_INFO_tab(i).ETC_ACCOUNT_ID is null then

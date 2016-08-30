@@ -153,9 +153,25 @@ BEGIN
           ELSE 'OTHER'
          END    
         into  DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL
-        from  VB_ACTIVITY
-        where DOCUMENT_ID = DM_INVOICE_INFO_tab(i).INVOICE_NUMBER
---        and rownum<=1  -- Verify what record to get ??
+--        from  VB_ACTIVITY where DOCUMENT_ID = DM_INVOICE_INFO_tab(i).INVOICE_NUMBER
+        (SELECT
+          COLL_COURT_FLAG,
+          BANKRUPTCY_FLAG,
+          'Unpaid'         STATUS,
+          document_id,
+          child_doc_id
+        FROM vb_activity
+        WHERE ledger_id = v_ks_ledger_id
+        UNION
+        SELECT 
+          COLL_COURT_FLAG,
+          BANKRUPTCY_FLAG,
+          'Paid'          STATUS,
+          document_id,
+          child_doc_id
+        FROM st_activity_paid
+        WHERE ledger_id = v_ks_ledger_id)
+        --        and rownum<=1  -- Verify what record to get ??
 
 --CASE WHEN B.BANKRUPTCY_FLAG = 'Y' and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0  THEN 'BANKRUPTCY'
 --WHEN B.COLL_COURT_FLAG is null and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0  THEN 'CUST'
@@ -178,29 +194,6 @@ BEGIN
 --and rownum<=1  -- Verify what record to get ??
 --;
 
---CASE WHEN B.BANKRUPTCY_FLAG = 'Y' and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)   THEN 'BANKRUPTCY_TOLL'
---WHEN B.BANKRUPTCY_FLAG = 'Y' and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)   THEN 'BANKRUPTCY_NON_TOLL'
---WHEN B.COLL_COURT_FLAG is null and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'CUST_TOLL'
---WHEN B.COLL_COURT_FLAG is null and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'CUST_NON_TOLL'
---WHEN B.COLL_COURT_FLAG = 'COLL' and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COLLECTION_TOLL'
---WHEN B.COLL_COURT_FLAG = 'COLL' and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COLLECTION_NON_TOLL'
---WHEN B.COLL_COURT_FLAG = 'INTP' and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'INTEROP_TOLL-CCSS EXCLUDED'
---WHEN B.COLL_COURT_FLAG = 'INTP' and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'INTEROP_NON_TOLL-CCSS EXCLUDED'
---WHEN B.COLL_COURT_FLAG = 'CRT' and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COURT_TOLL'
---WHEN B.COLL_COURT_FLAG = 'CRT' and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and C.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'COURT_NON_TOLL'
---WHEN B.COLL_COURT_FLAG is null and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and B.CHILD_DOC_ID like '%-%' and C.event_type_id in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4)  THEN 'UTC_TOLL'
---WHEN B.COLL_COURT_FLAG is null and B.BANKRUPTCY_FLAG is null and (B.AMT_CHARGED - B.TOTAL_AMT_PAID) >0 and B.DOCUMENT_ID like '%-%' and B.CHILD_DOC_ID is null and C.event_type_id not in(89,121,125,105,135,143,123,131,42,140,98,38,128,61,101,4) THEN 'UTC_NON_TOLL'
---ELSE  'OTHER' 
---END   --)
-----,sum(B.AMT_CHARGED - B.TOTAL_AMT_PAID) as amount
---into  DM_INVOICE_INFO_tab(i).ESCALATION_LEVEL
---from  KS_LEDGER a,
---      VB_ACTIVITY b,
---      KS_SUB_LEDGER_EVENTS c
-----WHERE a.acct_num in (select acct_num from pa_acct) 
---where b.DOCUMENT_ID = DM_INVOICE_INFO_tab(i).INVOICE_NUMBER
---and a.id = b.ledger_id 
---and a.transaction_type = C.event_id
 and rownum<=1  -- Verify what record to get ??
 ;
       exception 
