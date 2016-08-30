@@ -32,7 +32,23 @@ CURSOR C1 IS SELECT
     ,'O' TX_TYPE_IND
     ,'T' TX_SUBTYPE_IND
     ,decode(substr(ext_plaza_id,1,3),'004','C','B') TOLL_SYSTEM_TYPE
-    ,NULL LANE_MODE
+    ,decode(EXT_LANE_TYPE_CODE 
+  	       ,'A','100'
+           ,'E','101'
+           ,'M','102'
+           ,'D','103'
+           ,'C','104'
+           ,'B','105'
+           ,'N','106'
+           ,'X','107'
+           ,'F','108'
+           ,'Y','109'
+           ,'Z','110'
+           ,'S','111'
+           ,'G','112'
+           ,'Q','113'
+           ,'T','114',0)
+	LANE_MODE
     ,'1' LANE_TYPE
     ,'0' LANE_STATE
     ,'0' LANE_HEALTH
@@ -115,7 +131,8 @@ CURSOR C1 IS SELECT
     ,'0' HUB_REF_ID
     ,'SUNPASS' SOURCE_SYSTEM
     ,TXN_ID LANE_TX_ID
-FROM PA_LANE_TXN where TRANSP_ID not like '%0110' and TRANSP_ID not like '%0210' ;
+FROM PA_LANE_TXN where (TRANSP_ID not like '%0110' and TRANSP_ID not like '%0210')
+and (ext_plaza_id not like '200%' and ext_plaza_id not like  '0008%'  and ext_plaza_id not like '30001%');
 
 BEGIN
  

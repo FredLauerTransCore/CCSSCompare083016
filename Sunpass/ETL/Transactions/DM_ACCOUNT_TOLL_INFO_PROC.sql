@@ -32,23 +32,23 @@ CURSOR C1 IS SELECT
     ,NULL TX_SUBTYPE_IND
     ,decode(substr(ext_PLAZA_ID,1,3),'004','C','B') TOLL_SYSTEM_TYPE
 	--,EXT_LANE_TYPE_CODE LANE_MODE
-    ,CASE WHEN EXT_LANE_TYPE_CODE = 'A' THEN 100  -- AC Lane
-          WHEN EXT_LANE_TYPE_CODE = 'E' THEN 101  -- AE Lane
-          WHEN EXT_LANE_TYPE_CODE = 'M' THEN 102  -- MB Lane
-          WHEN EXT_LANE_TYPE_CODE = 'D' THEN 103  -- Dedicated
-          WHEN EXT_LANE_TYPE_CODE = 'C' THEN 104  -- AC-AVI
-          WHEN EXT_LANE_TYPE_CODE = 'B' THEN 105  -- MB-AVI
-          WHEN EXT_LANE_TYPE_CODE = 'N' THEN 106  -- ME Lane
-          WHEN EXT_LANE_TYPE_CODE = 'X' THEN 107  -- MX Lane
-          WHEN EXT_LANE_TYPE_CODE = 'F' THEN 108  -- Free Lane
-          WHEN EXT_LANE_TYPE_CODE = 'Y' THEN 109  -- Dedicated Entry
-          WHEN EXT_LANE_TYPE_CODE = 'Z' THEN 110  -- Dedicated Exit
-          WHEN EXT_LANE_TYPE_CODE = 'S' THEN 111  -- Express Lane
-          WHEN EXT_LANE_TYPE_CODE = 'G' THEN 112  -- Magic Lane
-          WHEN EXT_LANE_TYPE_CODE = 'Q' THEN 113  -- APM Lane
-          WHEN EXT_LANE_TYPE_CODE = 'T' THEN 114  -- MA Lane
-          ELSE NULL
-     END LANE_MODE
+    ,decode(EXT_LANE_TYPE_CODE 
+  	       ,'A','100'
+           ,'E','101'
+           ,'M','102'
+           ,'D','103'
+           ,'C','104'
+           ,'B','105'
+           ,'N','106'
+           ,'X','107'
+           ,'F','108'
+           ,'Y','109'
+           ,'Z','110'
+           ,'S','111'
+           ,'G','112'
+           ,'Q','113'
+           ,'T','114',0)
+	LANE_MODE
     ,'1' LANE_TYPE
     ,'0' LANE_STATE
     ,'0' LANE_HEALTH
@@ -94,7 +94,7 @@ CURSOR C1 IS SELECT
     ,'0' DEVICE_AXLES
     ,NULL ETC_ACCOUNT_ID
 	--,'FTE' ACCOUNT_AGENCY_ID
-    ,NULL ACCOUNT_AGENCY_ID
+    ,'101' ACCOUNT_AGENCY_ID
     ,TRANSP_CLASS READ_AVI_CLASS
     ,'0' READ_AVI_AXLES
     ,'N' DEVICE_PROGRAM_STATUS
@@ -105,7 +105,7 @@ CURSOR C1 IS SELECT
     ,'1' PLAN_TYPE_ID
     ,'9999' ETC_TX_STATUS
     ,'F' SPEED_VIOL_FLAG
-    ,decode(msg_id,'ITOL','Y','N') IMAGE_TAKEN
+    ,decode(msg_id,'TTOL','Y','N') IMAGE_TAKEN
     ,NULL PLATE_COUNTRY
     ,NULL PLATE_STATE
     ,VEH_LIC_NUM PLATE_NUMBER
@@ -134,9 +134,11 @@ CURSOR C1 IS SELECT
     ,TXN_ID LANE_TX_ID
     ,TRANSP_INTERNAL_NUM DEVICE_INTERNAL_NUMBER
 FROM PA_LANE_TXN
-WHERE TRANSP_ID like  '%0110' or 
-   TRANSP_ID like '%0210' AND ( EXT_PLAZA_ID NOT LIKE '200%' AND EXT_PLAZA_ID NOT LIKE '008%');
-
+WHERE (TRANSP_ID like  '%0110' or 
+   TRANSP_ID like '%0210') AND ( EXT_PLAZA_ID NOT LIKE '200%' AND EXT_PLAZA_ID NOT LIKE '0008%'  OR ENT_PLAZA_ID not LIKE '30001%');
+   
+   v_FTE_PLAZA varchar2(1);
+   
 BEGIN
  
   OPEN C1;  
@@ -154,8 +156,7 @@ BEGIN
 
     FOR i in 1 .. DM_ACCOUNT_TOLL_INFO_tab.count loop
 
-    /* get UFM_LANE_TXN_INFO.HOST_UFM_TOKEN for TX_EXTERN_REF_NO */
-   /* get UFM_LANE_TXN_INFO.HOST_UFM_TOKEN for TX_EXTERN_REF_NO */
+
     begin
       select HOST_UFM_TOKEN into DM_ACCOUNT_TOLL_INFO_tab(i).TX_EXTERN_REF_NO from UFM_LANE_TXN_INFO 
       where TXN_ID=DM_ACCOUNT_TOLL_INFO_tab(i).LANE_TX_ID
@@ -176,8 +177,19 @@ BEGIN
       AND pl.AUTHCODE_AUTHORITY_CODE             = io.AUTHORITY_CODE
       AND rownum                                <=1;
     EXCEPTION
+	when no_data_found then
+	 begin
+		 SELECT io.AGENCY_ID
+         INTO DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID
+         FROM PA_PLAZA pl,
+          ST_INTEROP_AGENCIES io
+         WHERE DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID = pl.plaza_id
+	     AND io.AGENCY_NAME='FTE' and pl.FTE_PLAZA='Y'
+         AND rownum                                <=1;
+	  exception when others then null;
+	     DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID:=NULL;
+	  end;
     WHEN OTHERS THEN
-      NULL;
       DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_AGENCY_ID:=NULL;
     END;
 
@@ -224,19 +236,26 @@ BEGIN
         DM_ACCOUNT_TOLL_INFO_tab(i).FACILITY_ID:=null;
     end;
 
-    
-    /* this is for the TX_SUBTYPE_IND
-    IF TX_TYPE_IND = 'E' THEN 'Z' 
-    ELSE IF TX_TYPE_IND = 'V' THEN 
-     IF  TRANSP_ID ENDS WITH '0210' THEN 'I' 
-         ELSE 'T' ELSE IF TX_TYPE_IND = 'I' THEN 
-         IF MSG_ID = 'TTOL' THEN 'C' 
-         ELSE 'I'
 
-    */
-
-    /* derive TX_SUBTYPE_IND */
     begin
+      BEGIN
+        SELECT fte_plaza
+        INTO v_fte_plaza
+        FROM pa_plaza
+        WHERE plaza_id=DM_ACCOUNT_TOLL_INFO_tab(i).PLAZA_ID;
+        IF v_fte_plaza='N' THEN
+          DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND:='I';
+        ELSE
+          IF DM_ACCOUNT_TOLL_INFO_tab(i).IMAGE_TAKEN='Y' THEN
+            DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND:='V';
+          ELSE
+            DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND:='V';
+          END IF;
+        END IF;
+      EXCEPTION
+      WHEN OTHERS THEN
+         NULL;
+      END;
       select case WHEN DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND = 'E' THEN 'Z'
                   WHEN DM_ACCOUNT_TOLL_INFO_tab(i).TX_TYPE_IND = 'V' THEN 
                        case WHEN DM_ACCOUNT_TOLL_INFO_tab(i).DEVICE_NO like '%0210' THEN 'I'
