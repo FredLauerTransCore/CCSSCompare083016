@@ -190,6 +190,12 @@ BEGIN
 	if rtrim(ltrim(DM_ACCOUNT_INFO_tab(i).COMPANY_NAME)) is null then
 	  DM_ACCOUNT_INFO_tab(i).COMPANY_NAME:='DM_UNKNOWN';
 	end if;
+	if rtrim(ltrim(DM_ACCOUNT_INFO_tab(i).EMAIL_ADDRESS)) is null then
+	  DM_ACCOUNT_INFO_tab(i).CORRESPONDENCE_DEL_MODE:='MAIL';
+	ELSE
+	  DM_ACCOUNT_INFO_tab(i).CORRESPONDENCE_DEL_MODE:='EMAIL';
+	end if;
+
     end loop;
 
 
