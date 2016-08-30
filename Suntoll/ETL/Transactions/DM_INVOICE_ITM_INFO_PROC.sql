@@ -38,11 +38,12 @@ IS SELECT
     ,'CLOSED' STATUS      -- in ETL
     ,NULL INVOICE_DATE    -- in ETL
 
+--    ,(nvl(PREV_DUE,0) + nvl(TOLL_CHARGED,0) + nvl(FEE_CHARGED,0) + nvl(PAYMT_ADJS,0)) PAYABLE ??
 /*
 Join ST_Document_info.document_id with VB_Activity.document_id  and for same record 
-join KS_LEDGER.ID to VB_activity.LEDGER_ID to get the KS_LEDGER.Amount( Original amount)
+join KS_LEDGER.ID to VB_activity.LEDGER_ID to 
+  get the KS_LEDGER.Amount( Original amount)
 */
---    ,(nvl(PREV_DUE,0) + nvl(TOLL_CHARGED,0) + nvl(FEE_CHARGED,0) + nvl(PAYMT_ADJS,0)) PAYABLE ??
     ,nvl(AMOUNT,0) PAYABLE 
     ,ID INVOICE_ITEM_NUMBER
     ,PA_LANE_TXN_ID LANE_TX_ID
@@ -127,13 +128,13 @@ BEGIN
                 ,DM_INVOICE_ITM_INFO_TAB(i).STATUS
                 ,DM_INVOICE_ITM_INFO_TAB(i).LEVEL_INFO
                 ,DM_INVOICE_ITM_INFO_TAB(i).PAID_AMOUNT
-          from  
+          from  -- VB_ACTIVITY where LEDGER_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_ITEM_NUMBER
           ((select DOCUMENT_ID
                   ,AMT_CHARGED 
                   ,TOTAL_AMT_PAID
           from  VB_ACTIVITY
           where LEDGER_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_ITEM_NUMBER)
-          union -- all
+          union all
           (select DOCUMENT_ID
                   ,AMT_CHARGED 
                   ,TOTAL_AMT_PAID
@@ -142,7 +143,9 @@ BEGIN
           ;
         exception 
           when others then null;
+          DM_INVOICE_ITM_INFO_TAB(i).INVOICE_NUMBER := 0;
           DM_INVOICE_ITM_INFO_TAB(i).STATUS := 'CLOSED';
+          DM_INVOICE_ITM_INFO_TAB(i).LEVEL_INFO := 'UNDEFINED';
           DM_INVOICE_ITM_INFO_TAB(i).PAID_AMOUNT := 0;
           v_trac_etl_rec.result_code := SQLCODE;
           v_trac_etl_rec.result_msg := SQLERRM;
@@ -164,14 +167,9 @@ BEGIN
           ;
         exception 
           when others then null;
-          DM_INVOICE_ITM_INFO_TAB(i).STATUS := 'CLOSED';
-          DM_INVOICE_ITM_INFO_TAB(i).PAID_AMOUNT := 0;
-          v_trac_etl_rec.result_code := SQLCODE;
-          v_trac_etl_rec.result_msg := SQLERRM;
-          v_trac_etl_rec.proc_end_date := SYSDATE;
-          update_track_proc(v_trac_etl_rec);
-           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
-           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
+          DM_INVOICE_ITM_INFO_TAB(i).SUB_CATEGORY := 0;
+          DM_INVOICE_ITM_INFO_TAB(i).INVOICE_DATE := SYSDATE;
+         DM_INVOICE_ITM_INFO_TAB(i).REASON_CODE := 'UNDEFINED';
         end;      
              
 --  DBMS_OUTPUT.PUT_LINE('1) DM_INVOICE_ITM_INFO_tab('||i||').SUB_CATEGORY: '||DM_INVOICE_ITM_INFO_tab(i).SUB_CATEGORY);
@@ -456,14 +454,29 @@ IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
 --          DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'UNBILLED';
         when others then --null;
           DM_INVOICE_ITM_INFO_tab(i).LEVEL_INFO := 'INVPAYMENT';
-          v_trac_etl_rec.result_code := SQLCODE;
-          v_trac_etl_rec.result_msg := SQLERRM;
-          v_trac_etl_rec.proc_end_date := SYSDATE;
-          update_track_proc(v_trac_etl_rec);
-           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
-           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
       end;
     
+--JOIN DOCUMENT_INFO_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of VB_ACTIVITY 
+--  returns UNPAID_TXN_DETAILS 
+--UNION ALL 
+--JOIN DOCUMENT_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of ST_ACTIVITY_PAID 
+--  returns PAID_TXN_DETAILS 
+--IF UNPAID_AMT > 0 THEN 'OPEN' ELSE 'CLOSED'  (Need PAID_TXN_DETAILS definition from FTE); 
+        begin
+          select 
+--                ,CASE WHEN sum(DM_INVOICE_ITM_INFO_TAB(i).PAYABLE - nvl(TOTAL_AMT_PAID,0)) > 0 
+                CASE WHEN (DM_INVOICE_ITM_INFO_TAB(i).PAYABLE - nvl(TOTAL_AMT_PAID,0)) > 0 
+                      THEN 'OPEN'
+                      ELSE 'CLOSED'
+                  END
+          into  DM_INVOICE_ITM_INFO_TAB(i).STATUS
+          from  VB_ACTIVITY
+          where LEDGER_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_ITEM_NUMBER
+          ;
+        exception 
+          when others then null;
+          DM_INVOICE_ITM_INFO_TAB(i).STATUS := 'CLOSED';
+        end;    
 
 --JOIN LEDGER_ID OF ST_ACTIVITY_PAID to ID OF KS_LEDGER 
 --  returns ORIGINAL_AMT from KS_LEDGER AND DISPUTED_AMT FROM ST_ACTIVITY_PAID; 
@@ -473,16 +486,13 @@ IF BANKRUPTCY _FLAG is not null, then 'BANKRUPTCY'
 --where A.DOCUMENT_ID = B.DOCUMENT_ID
 --and B.AMT_CHARGED - B.TOTAL_AMT_PAID > 0) THEN B.AMT_CHARGED - B.TOTAL_AMT_PAID ELSE 0
 
-
       if DM_INVOICE_ITM_INFO_tab(i).STATUS != 'OPEN' then
         begin
           select CASE WHEN sum(DM_INVOICE_ITM_INFO_TAB(i).PAYABLE - (nvl(AMT_CHARGED,0) - nvl(TOTAL_AMT_PAID,0))) > 0
                       THEN 'DISPUTED'         
                       ELSE 'CLOSED'
                   END
---                ,TOTAL_AMT_PAID
           into  DM_INVOICE_ITM_INFO_tab(i).STATUS
---                ,DM_INVOICE_ITM_INFO_tab(i).PAID_AMOUNT
           from  ST_ACTIVITY_PAID
           where LEDGER_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_ITEM_NUMBER
 --          and DOCUMENT_ID = DM_INVOICE_ITM_INFO_tab(i).INVOICE_NUMBER

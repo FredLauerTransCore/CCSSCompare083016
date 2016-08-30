@@ -217,6 +217,7 @@ and rownum<=1  -- Verify what record to get ??
            DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
       end;
 
+/*
 --  JOIN DOCUMENT_INFO_ID from ST_DOCUMENT_INFO to DOCUMENT_ID of VB_ACTIVITY 
 --  returns UNPAID_TXN_DETAILS
 --UNION ALL 
@@ -238,11 +239,11 @@ and rownum<=1  -- Verify what record to get ??
 
 ------ PAID_AMT + DISMISSED_AMT  -- What is  DISMISSED_AMT ??
 --    --    ,(nvl(va.TOTAL_AMT_PAID,0) + nvl(ap.TOTAL_AMT_PAID,0)) PAYMENTS 
-
+*/
         begin
                 
           select 
-                  CASE WHEN sum(nvl(AMT_CHARGED,0) - nvl(TOTAL_AMT_PAID,0)) > 0 
+                  CASE WHEN sum(- nvl(AMT_CHARGED,0) - nvl(TOTAL_AMT_PAID,0)) > 0 
                       THEN 'OPEN'
 -- WHEN (select nvl(AMOUNT,0) from KS_LEDGER where id = ap.LEDGER_ID) - (nvl(ap.AMT_CHARGED,0) - nvl(ap.TOTAL_AMT_PAID,0)) >0  THEN 'DISPUTED'
                       ELSE 'CLOSED'
@@ -253,20 +254,22 @@ and rownum<=1  -- Verify what record to get ??
           into  DM_INVOICE_INFO_tab(i).STATUS
                 ,DM_INVOICE_INFO_tab(i).CREDITS
                 ,DM_INVOICE_INFO_tab(i).PAYMENTS
-          from  
-          ((select 
---  COLL_COURT_FLAG,DOCUMENT_ID,CHILD_DOC_ID,
-                  AMT_CHARGED 
-                  ,TOTAL_AMT_PAID
           from  VB_ACTIVITY
-          where DOCUMENT_ID = DM_INVOICE_INFO_tab(i).INVOICE_NUMBER)
-          union all
-          (select 
---    COLL_COURT_FLAG, DOCUMENT_ID ,CHILD_DOC_ID
-                  AMT_CHARGED 
-                  ,TOTAL_AMT_PAID
-          from  ST_ACTIVITY_PAID
-          where DOCUMENT_ID = DM_INVOICE_INFO_tab(i).INVOICE_NUMBER))
+          where DOCUMENT_ID = DM_INVOICE_INFO_tab(i).INVOICE_NUMBER
+          
+--          ((select 
+----  COLL_COURT_FLAG,DOCUMENT_ID,CHILD_DOC_ID,
+--                  AMT_CHARGED 
+--                  ,TOTAL_AMT_PAID
+--          from  VB_ACTIVITY
+--          where DOCUMENT_ID = DM_INVOICE_INFO_tab(i).INVOICE_NUMBER)
+--          union all
+--          (select 
+----    COLL_COURT_FLAG, DOCUMENT_ID ,CHILD_DOC_ID
+--                  AMT_CHARGED 
+--                  ,TOTAL_AMT_PAID
+--          from  ST_ACTIVITY_PAID
+--          where DOCUMENT_ID = DM_INVOICE_INFO_tab(i).INVOICE_NUMBER))
           ;
         exception 
         when no_data_found then --null;
@@ -279,12 +282,6 @@ and rownum<=1  -- Verify what record to get ??
           DM_INVOICE_INFO_tab(i).STATUS := 'CLOSED';
           DM_INVOICE_INFO_tab(i).CREDITS := 0;
           DM_INVOICE_INFO_tab(i).PAYMENTS := 0;
-          v_trac_etl_rec.result_code := SQLCODE;
-          v_trac_etl_rec.result_msg := SQLERRM;
-          v_trac_etl_rec.proc_end_date := SYSDATE;
-          update_track_proc(v_trac_etl_rec);
-           DBMS_OUTPUT.PUT_LINE('ERROR CODE: '||v_trac_etl_rec.result_code);
-           DBMS_OUTPUT.PUT_LINE('ERROR MSG: '||v_trac_etl_rec.result_msg);
         end;
 
 --  JOIN LEDGER_ID OF ST_ACTIVITY_PAID to ID OF KS_LEDGER 
